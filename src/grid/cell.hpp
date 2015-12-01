@@ -24,6 +24,12 @@ public:
     RealType v;
     RealType F;
     RealType G;
+
+    friend std::ostream& operator<<(std::ostream& os, cell const& cell)
+    {
+        os << "{" << cell.p << "|" << cell.u << "|" << cell.v << "}";
+        return os;
+    }
 };
 
 }

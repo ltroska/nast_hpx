@@ -56,7 +56,7 @@ fd_stepper::space fd_stepper::do_work()
             {
                 for (uint col = 0; col < config->iRes; col++)
                 {
-                    std::cout << U[i][j].get_data(grid::center_partition).get().get_cell(col, row).p << " ";
+                    std::cout << U[i][j].get_data(grid::center_partition).get().get_cell(col, row) << " ";
                 }
             }
             std::cout << std::endl;
@@ -87,7 +87,7 @@ fd_stepper::space fd_stepper::do_work()
             {
                 for (uint col = 0; col < config->iRes; col++)
                 {
-                    std::cout << U[i][j].get_data(grid::center_partition).get().get_cell(col, row).p << " ";
+                    std::cout << U[i][j].get_data(grid::center_partition).get().get_cell(col, row) << " ";
                 }
             }
             std::cout << std::endl;

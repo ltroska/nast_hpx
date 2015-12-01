@@ -12,7 +12,7 @@ public:
       G(0)
     {}
 
-    cell(RealType a) { p = a;}
+    cell(RealType a) { cell(); p = a;}
 
     RealType p;
     RealType u;

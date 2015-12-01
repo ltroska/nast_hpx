@@ -10,13 +10,14 @@
 
 namespace grid {
 
+//flag for which data we are requesting
 enum partition_type
 {
     left_partition, center_partition, right_partition, top_partition, bottom_partition, top_left_partition, top_right_partition,
     bottom_left_partition, bottom_right_partition
 };
 
-//partition data_
+//partition_data
 struct partition_data
 {
 private:
@@ -53,6 +54,7 @@ public:
 
     partition_data(partition_data const& base, partition_type type)
     {
+        //return only needed data, depending on who asks for it.
         switch (type)
         {
             case top_left_partition:
@@ -184,6 +186,7 @@ private:
     uint size_;
 };
 
+//for easy debug output
 std::ostream& operator<<(std::ostream& os, partition_data const& data)
 {
     os << "[[";

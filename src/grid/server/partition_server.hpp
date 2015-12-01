@@ -40,5 +40,4 @@ private:
 }//namespace grid
 
 HPX_REGISTER_ACTION_DECLARATION(grid::server::partition_server::get_data_action, partition_server_get_data_action);
-//gg
 #endif

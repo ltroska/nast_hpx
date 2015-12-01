@@ -53,7 +53,7 @@ public:
         HPX_ASSERT(size_x >= size_y);
 
         for(uint i = 0; i < size_; ++i)
-            data_[i] = cell(initial_value);
+            data_[i] = cell(initial_value+0.1+0.1*i);
     }
 
     partition_data(partition_data const& base, partition_type type)
@@ -161,6 +161,10 @@ public:
     cell& get_cell_ref(uint idx, uint idy) { return data_[index(idx, idy)];}
 
     cell operator[](uint idx) const { return data_[idx];}
+
+    /*
+    * @todo this might be ugly
+    */
     cell& operator[](uint idx) { return data_[idx];}
 
     friend std::ostream& operator<<(std::ostream& os, partition_data const& data)

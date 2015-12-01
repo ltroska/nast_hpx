@@ -18,14 +18,6 @@ int hpx_main(boost::program_options::variables_map& vm)
 
     stepper.do_work();
 
-   // grid::partition par(hpx::find_here(), 3,3, 1);
-  // // grid::partition par2(hpx::find_here(), 3,3, 10);
-
-
-  //  test_action act;
-   // hpx::async(act, hpx::find_here(), par, par2);
-
-    // Initiate shutdown of the runtime system.
     return hpx::finalize();
 }
 

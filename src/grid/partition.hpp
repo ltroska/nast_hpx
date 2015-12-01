@@ -36,6 +36,12 @@ struct partition
         return hpx::async(act, get_id(), type);
     }
 
+    hpx::future<uint> set_boundary(boundary_type type, RealType constant_velocity) const
+    {
+        server::partition_server::set_boundary_action act;
+        return hpx::async(act, get_id(), type, constant_velocity);
+    }
+
 };
 
 }//namespace grid

@@ -7,29 +7,23 @@
 
 #include "grid/partition.hpp"
 #include "io/config_reader.hpp"
-
-void test(grid::partition const& left, grid::partition const& right) {
-    hpx::cout << left.get_data(grid::left_partition).get();
-}
-
-HPX_PLAIN_ACTION(test, test_action);
+#include "stepper/fd_stepper.hpp"
 
 int hpx_main(boost::program_options::variables_map& vm)
 {
     std::string config_path = vm["config"].as<std::string>();
     cfd_config* config = io::config_reader::read_config_file(config_path.c_str());
 
-    std::vector<hpx::id_type> localities = hpx::find_all_localities();
-    uint nl = localities.size();
+    stepper::fd_stepper stepper = stepper::fd_stepper(config);
 
-    hpx::cout << "#localities = " << nl << "\n";
+    stepper.do_work();
 
-    grid::partition par(hpx::find_here(), 3,3, 1);
-    grid::partition par2(hpx::find_here(), 3,3, 10);
+   // grid::partition par(hpx::find_here(), 3,3, 1);
+  // // grid::partition par2(hpx::find_here(), 3,3, 10);
 
 
-    test_action act;
-    hpx::async(act, hpx::find_here(), par, par2);
+  //  test_action act;
+   // hpx::async(act, hpx::find_here(), par, par2);
 
     // Initiate shutdown of the runtime system.
     return hpx::finalize();

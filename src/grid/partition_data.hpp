@@ -17,6 +17,10 @@ enum partition_type
     bottom_left_partition, bottom_right_partition
 };
 
+enum boundary_type {
+    left_boundary, top_boundary, bottom_boundary, right_boundary
+};
+
 //partition_data
 struct partition_data
 {
@@ -49,7 +53,7 @@ public:
         HPX_ASSERT(size_x >= size_y);
 
         for(uint i = 0; i < size_; ++i)
-            data_[i] = cell(i*initial_value);
+            data_[i] = cell(initial_value);
     }
 
     partition_data(partition_data const& base, partition_type type)
@@ -159,6 +163,25 @@ public:
     cell operator[](uint idx) const { return data_[idx];}
     cell& operator[](uint idx) { return data_[idx];}
 
+    friend std::ostream& operator<<(std::ostream& os, partition_data const& data)
+    {
+        os << "[[";
+        for(uint j = 0; j < data.size_y(); ++j)
+        {
+            for(uint i = 0; i < data.size_x(); ++i)
+            {
+                os << data.get_cell(i, j).p;
+                if(i != data.size_x()-1)
+                    os << ", ";
+            }
+            os << "]";
+            if(j < data.size_y()-1)
+                os << ",[";
+        }
+        os << "]";
+        return os;
+    }
+
 
 private:
     // Serialization support: even if all of the code below runs on one
@@ -185,26 +208,6 @@ private:
     uint size_y_;
     uint size_;
 };
-
-//for easy debug output
-std::ostream& operator<<(std::ostream& os, partition_data const& data)
-{
-    os << "[[";
-    for(uint j = 0; j < data.size_y(); ++j)
-    {
-        for(uint i = 0; i < data.size_x(); ++i)
-        {
-            os << data.get_cell(i, j).p;
-            if(i != data.size_x()-1)
-                os << ", ";
-        }
-        os << "]";
-        if(j < data.size_y()-1)
-            os << ",[";
-    }
-    os << "]";
-    return os;
-}
 
 }//namespace grid
 #endif

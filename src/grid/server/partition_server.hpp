@@ -30,6 +30,32 @@ struct HPX_COMPONENT_EXPORT partition_server
             return partition_data(data_, type);
     }
 
+    void set_boundary(boundary_type type, RealType constant_velocity)
+    {
+        uint size_x = data_.size_x();
+        uint size_y = data_.size_y();
+
+        switch (type)
+        {
+            case left_boundary:
+            {
+                if(constant_velocity == 0)
+                    for (uint j = 0; j != size_y; ++j)
+                    {
+                        cell current_cell = data_.get_cell_ref(0, j);
+                        cell right_neighbor = data_.get_cell_ref(1,j);
+                        current_cell.p = right_neighbor.p;
+                        current_cell.v = -right_neighbor.v;
+                    }
+
+                break;
+            }
+
+            default:
+                break;
+        }
+    }
+
     HPX_DEFINE_COMPONENT_ACTION(partition_server, get_data, get_data_action);
 
 private:

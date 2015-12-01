@@ -9,7 +9,8 @@ namespace io {
 /*!
  * @param path Path to XML config file
  */
-cfd_config* config_reader::read_config_file(const char *path) {
+cfd_config* config_reader::read_config_file(const char *path)
+{
 	pugi::xml_document doc;
 	cfd_config* config = new cfd_config;
 
@@ -45,6 +46,24 @@ cfd_config* config_reader::read_config_file(const char *path) {
 		exit(1);
     }
 
+    if(config_node.child("iRes") != NULL)
+	{
+        config->iRes = config_node.child("iRes").first_attribute().as_int();
+	}
+    else {
+        std::cerr << "Error: iRes not set!" << std::endl;
+		exit(1);
+    }
+
+    if(config_node.child("jRes") != NULL)
+	{
+        config->jRes = config_node.child("jRes").first_attribute().as_int();
+	}
+    else {
+        std::cerr << "Error: jRes not set!" << std::endl;
+		exit(1);
+    }
+
     if(config_node.child("xLength") != NULL)
 	{
         config->xLength = config_node.child("xLength").first_attribute().as_double();
@@ -56,7 +75,7 @@ cfd_config* config_reader::read_config_file(const char *path) {
 
     if(config_node.child("yLength") != NULL)
 	{
-        config->xLength = config_node.child("yLength").first_attribute().as_double();
+        config->yLength = config_node.child("yLength").first_attribute().as_double();
 	}
     else {
         std::cerr << "Error: yLength not set!" << std::endl;

@@ -3,9 +3,12 @@
 
 #include "types.hpp"
 
- struct cfd_config {
+struct cfd_config
+{
         uint iMax;
         uint jMax;
+        uint iRes;
+        uint jRes;
         RealType xLength;
         RealType yLength;
         RealType Re;
@@ -14,6 +17,16 @@
         RealType eps;
         RealType alpha;
         uint iterMax;
+
+        friend std::ostream& operator<<(std::ostream& os, cfd_config const& config)
+        {
+            os << "config: {iMax = " << config.iMax << ", jMax = "<< config.jMax
+                << ", iRes = " << config.iRes << ", jRes = " << config.jRes << ", xLength = " << config.xLength
+                << ", yLength = " << config.yLength << ", Re = " << config.Re << ", omega = " << config.omega
+                << ", tau = " << config.tau << " eps = " << config.eps << ", alpha = " << config.alpha
+                << ", iterMax = " << config.iterMax << "}" << std::endl;
+            return os;
+        }
 };
 
 #endif

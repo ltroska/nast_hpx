@@ -2,6 +2,7 @@
 #define GRID_CELL_HPP
 
 namespace grid {
+
 struct cell {
 public:
     cell()
@@ -12,7 +13,11 @@ public:
       G(0)
     {}
 
-    cell(RealType a) { cell(); p = a;}
+    cell(RealType a)
+    {
+        cell();
+        p = a;
+    }
 
     RealType p;
     RealType u;

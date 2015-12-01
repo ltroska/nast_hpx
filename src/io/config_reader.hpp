@@ -5,7 +5,8 @@
 
 namespace io {
 
-class config_reader {
+class config_reader
+{
 public:
 	//! Method to read the simulation parameters from an XML file and store it in the data object
 	/*!

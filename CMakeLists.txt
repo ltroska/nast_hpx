@@ -12,9 +12,9 @@ project(cfd_hpx CXX)
 
 find_package(HPX)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/ /home/troska/opt/hpx_0.9.11/include 
-			/home/troska/opt/boost_1_54_0/include
-			/home/troska/opt/hwloc-1.11.1/include
+include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeSettings.txt)
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/
 			${CMAKE_CURRENT_SOURCE_DIR}/libs)
 
 add_library(pugixml ${CMAKE_CURRENT_SOURCE_DIR}/libs/pugixml/pugixml.cpp)

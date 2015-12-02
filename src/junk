@@ -1,0 +1,141 @@
+/*uint set_boundary(boundary_type type, RealType constant_velocity)
+    {
+        uint size_x = data_.size_x();
+        uint size_y = data_.size_y();
+
+
+        switch (type)
+        {
+            case left_boundary:
+            {
+                for (uint j = 0; j != size_y; ++j)
+                {
+                    cell& current_cell = data_.get_cell_ref(0, j);
+                    cell neighbor_cell = data_.get_cell(1,j);
+                    /*
+                    *@todo this is intentionally wrong
+
+                    current_cell.p = (constant_velocity == 0) ? neighbor_cell.p : constant_velocity;
+                    current_cell.u = 0;
+                    current_cell.v = -neighbor_cell.v;
+
+                    current_cell.F = current_cell.u;
+                }
+
+                break;
+            }
+
+            case right_boundary:
+            {
+                for (uint j = 0; j != size_y; ++j)
+                {
+                    cell& current_cell = data_.get_cell_ref(size_x-1, j);
+                    cell& neighbor_cell = data_.get_cell_ref(size_x-2,j);
+
+                    neighbor_cell.u = 0;
+
+                    current_cell.p = (constant_velocity == 0) ? neighbor_cell.p : constant_velocity;
+                    current_cell.v = -neighbor_cell.v;
+
+                    neighbor_cell.F = neighbor_cell.u;
+                }
+
+                break;
+            }
+
+            case bottom_boundary:
+            {
+                for (uint i = 0; i != size_x; ++i)
+                {
+                    cell& current_cell = data_.get_cell_ref(i, 0);
+                    cell neighbor_cell = data_.get_cell(i,1);
+
+                    current_cell.p = (constant_velocity == 0) ? neighbor_cell.p : constant_velocity;
+                    current_cell.u = -neighbor_cell.u;
+                    current_cell.v = 0;
+
+                    current_cell.G = current_cell.v;
+                }
+
+                break;
+            }
+
+            case top_boundary:
+            {
+                for (uint i = 0; i != size_x; ++i)
+                {
+                    cell& current_cell = data_.get_cell_ref(i, size_y-1);
+                    cell& neighbor_cell = data_.get_cell_ref(i,size_y-2);
+
+                    neighbor_cell.v = 0;
+
+                    current_cell.p = (constant_velocity == 0) ? neighbor_cell.p : constant_velocity;
+                    current_cell.u = -neighbor_cell.u;
+
+                    neighbor_cell.G = neighbor_cell.v;
+                }
+
+                break;
+            }
+
+            default:
+                break;
+        }
+
+        return 1;
+    }
+*/
+
+
+    /*
+    std::vector<hpx::id_type> localities = hpx::find_all_localities();
+    numLocalities = localities.size();
+
+    uint numPartitionsX = (config->iMax+2)/config->iRes;
+    uint numPartitionsY = (config->jMax+2)/config->jRes;
+    numPartitions = numPartitionsX * numPartitionsY;
+
+    dx = config->xLength / (config->iMax-1);
+    dy = config->yLength / (config->jMax-1);
+
+
+    std::cout << "#localities = " << numLocalities << " #partitions = " << numPartitions << " dx = " << dx << " dy = " << dy << std::endl;
+
+    space U;
+
+    U.resize(numPartitionsX);
+
+    for (uint i = 0; i < numPartitionsX; ++i)
+        U[i].resize(numPartitionsX);
+
+    for (uint j = 0; j < numPartitionsY; ++j)
+    {
+        for (uint i = 0; i < numPartitionsX; ++i)
+        {
+            U[i][j] = grid::partition(localities[locidx(j * numPartitionsX + i, numPartitions, numLocalities)],
+                                       config->iRes, config->jRes, j*numPartitionsX+i);
+        }
+    }
+
+    space U2(U);
+
+    grid:: cell& c = U2[0][0].get_data(grid::center_partition).get().get_cell_ref(0,0);
+    c.p = 300;
+
+    //grid is saved "upside down" (0,0) is in bottom left
+    for (uint j = numPartitionsY - 1; j <= numPartitionsY; --j)
+    {
+        for (uint row = config->jRes-1; row <= config->jRes; --row)
+        {
+            for (uint i = 0; i < numPartitionsX; ++i)
+            {
+                for (uint col = 0; col < config->iRes; col++)
+                {
+                    std::cout << U[i][j].get_data(grid::center_partition).get().get_cell(col, row).p << " ";
+                }
+            }
+            std::cout << std::endl;
+        }
+    }
+
+    std::cout << std::endl << std::endl;*/

@@ -23,14 +23,14 @@ add_hpx_component(partition_server
     SOURCES src/grid/server/partition_server.cpp
     HEADERS src/grid/server/partition_server.hpp)
 
-add_hpx_component(fd_stepper
-    SOURCES src/stepper/fd_stepper.cpp
-    HEADERS src/stepper/fd_stepper.hpp
+add_hpx_component(stepper_server
+    SOURCES src/stepper/server/stepper_server.cpp
+    HEADERS src/stepper/server/stepper_server.hpp
     COMPONENT_DEPENDENCIES iostreams)
 
 add_hpx_executable(debug
     ESSENTIAL
     SOURCES src/debug.cpp src/io/config_reader.cpp
     DEPENDENCIES pugixml
-    COMPONENT_DEPENDENCIES partition_server fd_stepper)
+    COMPONENT_DEPENDENCIES partition_server stepper_server)
 

@@ -7,16 +7,16 @@
 
 #include "grid/partition.hpp"
 #include "io/config_reader.hpp"
-#include "stepper/fd_stepper.hpp"
+#include "stepper/stepper.hpp"
 
 int hpx_main(boost::program_options::variables_map& vm)
 {
     std::string config_path = vm["config"].as<std::string>();
     cfd_config* config = io::config_reader::read_config_file(config_path.c_str());
 
-    stepper::fd_stepper stepper = stepper::fd_stepper(config);
+    stepper::stepper stepper = stepper::stepper();
 
-    stepper.do_work();
+   // stepper.do_work();
 
     return hpx::finalize();
 }

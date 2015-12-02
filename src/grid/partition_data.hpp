@@ -17,8 +17,8 @@ enum partition_type
     bottom_left_partition, bottom_right_partition
 };
 
-enum boundary_type {
-    left_boundary, top_boundary, bottom_boundary, right_boundary
+enum cell_type {
+    left_boundary, top_boundary, bottom_boundary, right_boundary, interior
 };
 
 //partition_data
@@ -53,7 +53,7 @@ public:
         HPX_ASSERT(size_x >= size_y);
 
         for(uint i = 0; i < size_; ++i)
-            data_[i] = cell(initial_value+0.1+0.1*i);
+            data_[i] = cell(initial_value);
     }
 
     partition_data(partition_data const& base, partition_type type)
@@ -158,13 +158,13 @@ public:
     uint size() const { return size_;}
 
     cell get_cell(uint idx, uint idy) const { return data_[index(idx, idy)];}
-    cell& get_cell_ref(uint idx, uint idy) { return data_[index(idx, idy)];}
-
-    cell operator[](uint idx) const { return data_[idx];}
 
     /*
     * @todo this might be ugly
     */
+    cell& get_cell_ref(uint idx, uint idy) { return data_[index(idx, idy)];}
+
+    cell operator[](uint idx) const { return data_[idx];}
     cell& operator[](uint idx) { return data_[idx];}
 
     friend std::ostream& operator<<(std::ostream& os, partition_data const& data)

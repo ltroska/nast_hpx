@@ -15,7 +15,7 @@ cfd_config* config_reader::read_config_file(const char *path)
 	cfd_config* config = new cfd_config;
 
 	pugi::xml_parse_result result = doc.load_file(path);
-	std::cout << "Loading config. Result: " << result.description() << std::endl;
+	//std::cout << "Loading config. Result: " << result.description() << std::endl;
 
 	if (!result) {
 		std::cerr << "Error loading file: " << path << std::endl;

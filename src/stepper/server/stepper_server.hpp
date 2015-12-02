@@ -4,7 +4,6 @@
 #include <hpx/include/components.hpp>
 
 #include "grid/partition.hpp"
-#include "internal/cfd_config.hpp"
 
 namespace stepper { namespace server {
 
@@ -16,13 +15,17 @@ struct HPX_COMPONENT_EXPORT stepper_server
 
         stepper_server();
 
-        space do_work();
+        stepper_server(uint num_local_partitions_x, uint num_local_partitions_y, uint num_cells_x, uint num_cells_y, RealType delta_x, RealType delta_y);
+
+        uint do_work();
 
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_work, do_work_action);
 
     protected:
 
-        void write_vtk_file() {}
+        void set_boundary_values_u_v();
+
+        void write_vtk_files();
 
     private:
         space U;
@@ -30,10 +33,10 @@ struct HPX_COMPONENT_EXPORT stepper_server
         RealType dx;
         RealType dy;
 
-        uint numPartitions;
-        uint numLocalities;
-
-
+        uint num_local_partitions_x;
+        uint num_local_partitions_y;
+        uint num_cells_x;
+        uint num_cells_y;
 };
 
 }//namespace server

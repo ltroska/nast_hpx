@@ -17,6 +17,12 @@ struct partition
         : base_type(hpx::new_<server::partition_server>(where, size_x, size_y, initial_value))
     {}
 
+    // Create a new component on the locality co-located to the id 'where'. The
+    // new instance will be initialized from the given partition_data.
+    partition(hpx::id_type where, partition_data const& data)
+      : base_type(hpx::new_<server::partition_server>(hpx::colocated(where), data))
+    {}
+
     // Attach a future representing a (possibly remote) partition.
     partition(hpx::future<hpx::id_type> && id)
       : base_type(std::move(id))

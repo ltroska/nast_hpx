@@ -16,8 +16,8 @@ int hpx_main(int argc, char* argv[])
     std::vector<hpx::id_type> localities = hpx::find_all_localities();
     uint num_localities = localities.size();
 
-    stepper::stepper step = stepper::stepper(2, 2, 2, 2, 0.1, 0.1);
-    hpx::future<uint> result = step.do_work();
+    stepper::stepper step = stepper::stepper();
+    hpx::future<uint> result = step.do_work(2, 2, 2, 2, 0.1, 0.1);
 
     uint i = result.get();
 

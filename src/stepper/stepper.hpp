@@ -12,31 +12,29 @@ struct stepper
 
     stepper()
       : base_type(hpx::new_<server::stepper_server>
-          (hpx::find_here()))
-    {}
-
-    stepper(uint num_local_partitions_x, uint num_local_partitions_y, uint num_cells_x, uint num_cells_y, RealType dx, RealType dy)
-      : base_type(hpx::new_<server::stepper_server>
-          (hpx::find_here(), num_local_partitions_x, num_local_partitions_y, num_cells_x, num_cells_y, dx, dy))
-    {}
+          (hpx::find_here(), hpx::get_num_localities_sync()))
+    {
+        hpx::register_with_basename(
+            server::stepper_basename, get_id(), hpx::get_locality_id());
+    }
 
     // construct new instances/wrap existing steppers from other localities
     stepper(hpx::id_type loc)
       : base_type(hpx::new_<server::stepper_server>
-          (loc))
+          (loc, hpx::get_num_localities_sync()))
     {
-       // hpx::register_with_basename(
-        //    stepper_basename, get_id(), hpx::get_locality_id());
+        hpx::register_with_basename(
+            server::stepper_basename, get_id(), hpx::get_locality_id());
     }
 
     stepper(hpx::future<hpx::id_type> && id)
       : base_type(std::move(id))
     {}
 
-    hpx::future<uint> do_work()
+    hpx::future<uint> do_work(uint num_local_partitions_x, uint num_local_partitions_y, uint num_cells_x, uint num_cells_y, RealType dx, RealType dy)
     {
         server::stepper_server::do_work_action act;
-        return hpx::async(act, get_id());
+        return hpx::async(act, get_id(), num_local_partitions_x, num_local_partitions_y, num_cells_x, num_cells_y, dx, dy);
     }
 };
 

@@ -97,7 +97,7 @@ type get_type(uint id, uint num_localities)
 
 stepper_server::stepper_server(uint num_localities)
     : num_localities_(num_localities),
-      left_(hpx::find_from_basename(stepper_basename,get_neighbor_id(hpx::get_locality_id(), direction::left, num_localities_)))
+      left_(hpx::find_from_basename(stepper_basename,0))
 {
    hpx::cout << "new stepper on locality " << hpx::get_locality_id() << hpx::endl << hpx::flush;
 }
@@ -129,9 +129,8 @@ uint stepper_server::do_work(uint num_local_partitions_x, uint num_local_partiti
     {
         grid::partition p = U[0][0];
         grid::partition_data pdata = p.get_data(grid::partition_type::center_partition).get();
-        send_left(0, U[0][0]);
+    send_left(0, U[0][0]);
 
-        hpx::cout << "on " << hpx::get_locality_id() << " just stent to left " << pdata[0].p << hpx::endl << hpx::flush;
     }
 
     if (hpx::get_locality_id() == 0 || hpx::get_locality_id() == 2)
@@ -139,7 +138,6 @@ uint stepper_server::do_work(uint num_local_partitions_x, uint num_local_partiti
         grid::partition p = receive_right(0);
         grid::partition_data pdata = p.get_data(grid::partition_type::top_left_partition).get();
 
-        hpx::cout << "on " << hpx::get_locality_id() << " received from right " << hpx::endl << hpx::flush;
     }
     // hpx::cout << hpx::find_here() << hpx::flush()
     return 0;

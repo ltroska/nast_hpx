@@ -25,7 +25,6 @@ struct HPX_COMPONENT_EXPORT stepper_server
 
         void from_right(uint t, grid::partition p)
         {
-            //hpx::cout << "on " << hpx::get_locality_id() << " received from right " << p  << hpx::endl << hpx::flush;
             right_receive_buffer_.store_received(t, std::move(p));
         }
 

@@ -30,6 +30,14 @@ public:
         os << "{" << cell.p << "|" << cell.u << "|" << cell.v << "}";
         return os;
     }
+
+    friend class hpx::serialization::access;
+
+    template <typename Archive>
+    void serialize(Archive& ar, const unsigned int version)
+    {
+        ar & p & u & v & F & G;
+    }
 };
 
 }

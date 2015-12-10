@@ -10,11 +10,4 @@ class array_deleter {
             delete [] p;
         }
 };
-
-inline std::size_t locidx(std::size_t i, std::size_t np, std::size_t nl)
-{
-    return i / (np/nl);
-}
-
-
 #endif

@@ -44,6 +44,7 @@ struct HPX_COMPONENT_EXPORT stepper_server
         void send_left(uint t, grid::partition p)
         {
             hpx::apply(from_right_action(), left_.get(), t, p);
+            hpx::cout << "done senidng" << hpx::endl << hpx::flush;
         }
 
     private:

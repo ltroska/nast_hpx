@@ -7,10 +7,9 @@
 
 #include "stepper/server/stepper_server.hpp"
 
-
 namespace io {
 
-typedef std::vector<std::vector<grid::partition_data> > space;
+typedef std::vector<std::vector<grid::partition_data<grid::scalar_cell> > > space;
 
 void do_async_write(space u, uint partitions_x, uint partitions_y, uint cells_x, uint cells_y)
 {
@@ -23,7 +22,7 @@ void do_async_write(space u, uint partitions_x, uint partitions_y, uint cells_x,
             {
                 for (uint col = 0; col < cells_x; col++)
                 {
-                    std::cout << u[i][j].get_cell(col, row).p << " ";
+                    std::cout << u[i][j].get_cell(col, row).c << " ";
                 }
             }
             std::cout << std::endl;

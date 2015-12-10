@@ -19,7 +19,7 @@ struct partition
 
     // Create a new component on the locality co-located to the id 'where'. The
     // new instance will be initialized from the given partition_data.
-    partition(hpx::id_type where, partition_data const& data)
+    partition(hpx::id_type where, partition_data<scalar_cell> const& data)
       : base_type(hpx::new_<server::partition_server>(hpx::colocated(where), data))
     {}
 
@@ -34,9 +34,21 @@ struct partition
       : base_type(std::move(c))
     {}
 
-    hpx::future<partition_data> get_data(partition_type type) const
+    hpx::future<partition_data<scalar_cell> > get_p_data(partition_type type) const
     {
-        server::partition_server::get_data_action act;
+        server::partition_server::get_p_data_action act;
+        return hpx::async(act, get_id(), type);
+    }
+
+    hpx::future<partition_data<vector_cell> > get_uv_data(partition_type type) const
+    {
+        server::partition_server::get_uv_data_action act;
+        return hpx::async(act, get_id(), type);
+    }
+
+    hpx::future<partition_data<vector_cell> > get_fg_data(partition_type type) const
+    {
+        server::partition_server::get_fg_data_action act;
         return hpx::async(act, get_id(), type);
     }
 };

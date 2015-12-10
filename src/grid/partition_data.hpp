@@ -36,9 +36,7 @@ public:
       size_x_(size_x),
       size_y_(size_y),
       size_(size_x * size_y)
-    {
-        HPX_ASSERT(size_x >= size_y);
-    }
+    {}
 
     partition_data(uint size_x, uint size_y, T initial_value)
     : data_(new T [size_x * size_y], size_x * size_y, buffer_type::take, array_deleter<T>()),
@@ -46,8 +44,6 @@ public:
       size_y_(size_y),
       size_(size_x * size_y)
     {
-        HPX_ASSERT(size_x >= size_y);
-
         for(uint i = 0; i < size_; ++i)
             data_[i] = T(initial_value);
     }
@@ -154,10 +150,6 @@ public:
     uint size() const { return size_;}
 
     T get_cell(uint idx, uint idy) const { return data_[index(idx, idy)];}
-
-    /*
-    * @todo this might be ugly
-    */
     T& get_cell_ref(uint idx, uint idy) { return data_[index(idx, idy)];}
 
     T operator[](uint idx) const { return data_[idx];}
@@ -182,7 +174,6 @@ public:
         return os;
     }
 
-
 private:
     // Serialization support: even if all of the code below runs on one
     // locality only, we need to provide an (empty) implementation for the
@@ -195,6 +186,7 @@ private:
         ar & data_ & size_x_ & size_y_ & size_;
     }
 
+    //for accessing an element conveniently
     uint index(uint idx, uint idy) const
     {
         uint id = idy*size_x_ + idx;
@@ -202,7 +194,6 @@ private:
         return id;
     }
 
-private:
     buffer_type data_;
     uint size_x_;
     uint size_y_;

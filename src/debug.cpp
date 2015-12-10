@@ -2,6 +2,7 @@
 #include <hpx/hpx.hpp>
 #include <hpx/include/iostreams.hpp>
 #include <hpx/runtime/actions/plain_action.hpp>
+#include <hpx/util/unwrapped.hpp>
 
 #include <string>
 
@@ -11,16 +12,34 @@
 
 int hpx_main(int argc, char* argv[])
 {
-    cfd_config* config = io::config_reader::read_config_file("input.xml");
+ //   if (hpx::get_locality_id() == 0)
+ //   {
+        cfd_config* config = io::config_reader::read_config_file("input.xml");
 
-    std::vector<hpx::id_type> localities = hpx::find_all_localities();
-    uint num_localities = localities.size();
+        std::vector<hpx::id_type> localities = hpx::find_all_localities();
+        uint num_localities = localities.size();
 
-    stepper::stepper step = stepper::stepper();
-    hpx::future<uint> result = step.do_work(2, 2, 2, 2, 0.1, 0.1);
+        std::vector<stepper::stepper> steppers;
+        std::vector<hpx::future<uint>> futures;
 
-    uint i = result.get();
+      //  for (uint i = 0; i < num_localities; i++)
+      //  {
+            //hpx::cout << "stepper on " << i << hpx::endl << hpx::flush;
+            stepper::stepper step = stepper::stepper();
+            step.setup(32, 32, 1, 1, 2, 2);
+            hpx::this_thread::sleep_for(boost::chrono::seconds(4));
+            step.do_work(3,3,3,3,3,3).wait();
+            //futures.push_back(steppers[i].setup(16, 16, 1, 1, 2 , 2));
+      //  }
 
+      //  hpx::when_each(hpx::util::unwrapped([&](uint t) {
+       //     steppers[t].do_work(3,3,3,3,3,3);
+      //  }),
+      //  futures);
+
+       // hpx::cout << "started do work ... " << hpx::endl << hpx::flush;
+
+   // }
     return hpx::finalize();
 }
 

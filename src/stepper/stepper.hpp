@@ -31,6 +31,12 @@ struct stepper
       : base_type(std::move(id))
     {}
 
+    hpx::future<uint> setup(uint i_max, uint j_max, RealType x_length, RealType y_length, uint num_partitions_x, uint num_partitions_y)
+    {
+        server::stepper_server::setup_action act;
+        return hpx::async(act, get_id(), i_max, j_max, x_length, y_length, num_partitions_x, num_partitions_y);
+    }
+
     hpx::future<uint> do_work(uint num_local_partitions_x, uint num_local_partitions_y, uint num_cells_x, uint num_cells_y, RealType dx, RealType dy)
     {
         server::stepper_server::do_work_action act;

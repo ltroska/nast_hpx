@@ -449,6 +449,8 @@ uint stepper_server::do_compute_fg(uint i , uint j)
         return 1;
     }
 
+
+
     if (hpx::get_locality_id() / res_x_ == 0 && j == 0)
     {
         for (uint k = 0; k < num_cells_x_; k++)
@@ -460,11 +462,14 @@ uint stepper_server::do_compute_fg(uint i , uint j)
         return 1;
     }
 
+    if(i == 0 || j == 0 )
+        return 1;
+
     grid::cell right, left, top, bottom, bottomright, topleft;
 
-    for(uint k = 0; k < num_cells_x_; k++)
+    for(uint k = 0; k < num_cells_x_-1; k++)
     {
-        for(uint l = 0; l < num_cells_y_; l++)
+        for(uint l = 0; l < num_cells_y_-1; l++)
         {
             grid::cell& middle = pdata_center.get_cell_ref(k, l);
 

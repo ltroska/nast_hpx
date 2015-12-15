@@ -3,6 +3,29 @@
 
 namespace grid {
 
+struct cell
+{
+    cell() : p(0), u(0), v(0), f(0), g(0) {}
+
+    cell(RealType value) : p(value), u(value), v(value), f(value), g(value) {}
+
+    RealType p, u, v, f, g;
+
+    friend class hpx::serialization::access;
+
+    template <typename Archive>
+    void serialize(Archive& ar, const unsigned int version)
+    {
+        ar & p & u & v & f & g;
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, cell const& cell)
+    {
+        os << "{" << cell.p << "}";
+        return os;
+    }
+};
+
 struct scalar_cell
 {
     scalar_cell() : c(0) {}

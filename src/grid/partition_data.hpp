@@ -18,11 +18,10 @@ enum partition_type
 };
 
 //partition_data
-template<typename T>
 struct partition_data
 {
 private:
-    typedef hpx::serialization::serialize_buffer<T> buffer_type;
+    typedef hpx::serialization::serialize_buffer<cell> buffer_type;
 
 public:
     partition_data()
@@ -32,23 +31,23 @@ public:
     {}
 
     partition_data(uint size_x, uint size_y)
-    : data_(new T [size_x * size_y], size_x * size_y, buffer_type::take, array_deleter<T>()),
+    : data_(new cell [size_x * size_y], size_x * size_y, buffer_type::take, array_deleter<cell>()),
       size_x_(size_x),
       size_y_(size_y),
       size_(size_x * size_y)
     {}
 
-    partition_data(uint size_x, uint size_y, T initial_value)
-    : data_(new T [size_x * size_y], size_x * size_y, buffer_type::take, array_deleter<T>()),
+    partition_data(uint size_x, uint size_y, RealType initial_value)
+    : data_(new cell [size_x * size_y], size_x * size_y, buffer_type::take, array_deleter<cell>()),
       size_x_(size_x),
       size_y_(size_y),
       size_(size_x * size_y)
     {
         for(uint i = 0; i < size_; ++i)
-            data_[i] = T(initial_value);
+            data_[i] = cell(initial_value);
     }
 
-    partition_data(partition_data<T> const& base, partition_type type)
+    partition_data(partition_data const& base, partition_type type)
     {
         //return only needed data, depending on who asks for it.
         switch (type)
@@ -85,7 +84,7 @@ public:
             */
             case left_partition:
             {
-                data_ = buffer_type(new T [base.size_y()], base.size_y(), buffer_type::take, array_deleter<T>());
+                data_ = buffer_type(new cell [base.size_y()], base.size_y(), buffer_type::take, array_deleter<cell>());
                 for(int i = 0; i < base.size_y(); ++i) {
                     data_[i] = base.get_cell(base.size_x()-1,i);
                 }
@@ -101,7 +100,7 @@ public:
             */
             case right_partition:
             {
-                data_ = buffer_type(new T [base.size_y()], base.size_y(), buffer_type::take, array_deleter<T>());
+                data_ = buffer_type(new cell [base.size_y()], base.size_y(), buffer_type::take, array_deleter<cell>());
                 for(int i = 0; i < base.size_y(); ++i) {
                     data_[i] = base.get_cell(0,i);
                 }
@@ -149,11 +148,11 @@ public:
     uint size_y() const { return size_y_;}
     uint size() const { return size_;}
 
-    T get_cell(uint idx, uint idy) const { return data_[index(idx, idy)];}
-    T& get_cell_ref(uint idx, uint idy) { return data_[index(idx, idy)];}
+    cell get_cell(uint idx, uint idy) const { return data_[index(idx, idy)];}
+    cell& get_cell_ref(uint idx, uint idy) { return data_[index(idx, idy)];}
 
-    T operator[](uint idx) const { return data_[idx];}
-    T& operator[](uint idx) { return data_[idx];}
+    cell operator[](uint idx) const { return data_[idx];}
+    cell& operator[](uint idx) { return data_[idx];}
 
     friend std::ostream& operator<<(std::ostream& os, partition_data const& data)
     {

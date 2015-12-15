@@ -9,6 +9,8 @@
 namespace stepper { namespace server {
 
 char const* stepper_basename = "/cfd_hpx/stepper/";
+char const* gather_residual_basename = "/cfd_hpx/gather_residual/";
+char const* gather_go_basename = "/cfd_hpx/gather_go/";
 
 enum direction
 {
@@ -28,6 +30,18 @@ struct HPX_COMPONENT_EXPORT stepper_server
 
         stepper_server() {}
         stepper_server(uint num_localities);
+
+        uint compute_fg();
+
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, compute_fg, compute_fg_action);
+
+        uint set_pressure();
+
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_pressure, set_pressure_action);
+
+        uint set_velocity();
+
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_velocity, set_velocity_action);
 
         uint do_work(uint num_local_partitions_x, uint num_local_partitions_y, uint num_cells_x, uint num_cells_y, RealType delta_x, RealType delta_y);
 
@@ -74,8 +88,6 @@ struct HPX_COMPONENT_EXPORT stepper_server
 
     protected:
 
-        void set_boundary_values_u_v();
-
         void write_vtk_files();
 
         void send_to_neighbor(uint t, grid::partition p, direction dir)
@@ -116,10 +128,20 @@ struct HPX_COMPONENT_EXPORT stepper_server
         }
 
     private:
+
+        uint do_compute_fg(uint i, uint j);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_compute_fg, do_compute_fg_action);
+
+
         space U;
 
         RealType dx_;
         RealType dy_;
+
+        RealType dt_ = 1.;
+
+        RealType Re_ = 1.;
+        RealType alpha_ = 0.9;
 
         RealType x_length_;
         RealType y_length_;
@@ -143,4 +165,7 @@ struct HPX_COMPONENT_EXPORT stepper_server
 
 HPX_REGISTER_ACTION_DECLARATION(stepper::server::stepper_server::do_work_action, stepper_server_do_work_action);
 HPX_REGISTER_ACTION_DECLARATION(stepper::server::stepper_server::setup_action, stepper_server_setup_action);
+HPX_REGISTER_ACTION_DECLARATION(stepper::server::stepper_server::set_velocity_action, stepper_server_set_velocity_action);
+HPX_REGISTER_ACTION_DECLARATION(stepper::server::stepper_server::set_pressure_action, stepper_server_set_pressure_action);
+HPX_REGISTER_ACTION_DECLARATION(stepper::server::stepper_server::compute_fg_action, stepper_server_compute_fg_action);
 #endif

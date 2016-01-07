@@ -73,6 +73,14 @@ int hpx_main(int argc, char* argv[])
 
             for(auto stepper : steppers)
             {
+                futures.push_back(stepper.sor_cycle());
+            }
+
+            hpx::wait_all(futures);
+            futures.clear();
+
+            for(auto stepper : steppers)
+            {
                 futures.push_back(stepper.do_work(3,3,3,3,3,3));
             }
 

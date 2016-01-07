@@ -51,6 +51,10 @@ struct HPX_COMPONENT_EXPORT stepper_server
 
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_velocity, set_velocity_action);
 
+        uint sor_cycle();
+
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, sor_cycle, sor_cycle_action);
+
         uint do_work(uint num_local_partitions_x, uint num_local_partitions_y, uint num_cells_x, uint num_cells_y, RealType delta_x, RealType delta_y);
 
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_work, do_work_action);
@@ -155,6 +159,8 @@ struct HPX_COMPONENT_EXPORT stepper_server
         uint do_update_velocities(uint i, uint j);
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_update_velocities, do_update_velocities_action);
 
+        uint do_sor_cycle(uint i, uint j, uint even);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_sor_cycle, do_sor_cycle_action);
 
         space U;
 
@@ -175,6 +181,8 @@ struct HPX_COMPONENT_EXPORT stepper_server
         uint num_cells_y_;
         uint res_x_;
         uint res_y_;
+        uint i_max_;
+        uint j_max_;
 
         uint num_localities_;
         uint locality_id_;

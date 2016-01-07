@@ -37,7 +37,7 @@ int hpx_main(int argc, char* argv[])
 
           //  hpx::wait_all(futures);
 
-            for(auto stepper : steppers)
+            for(stepper::stepper stepper : steppers)
             {
                 futures.push_back(stepper.set_velocity_on_boundary());
                 futures.push_back(stepper.set_pressure_on_boundary());
@@ -53,7 +53,23 @@ int hpx_main(int argc, char* argv[])
 
             hpx::wait_all(futures);
 
-             futures.clear();
+            futures.clear();
+
+            for(auto stepper : steppers)
+            {
+                futures.push_back(stepper.set_rhs());
+            }
+
+            hpx::wait_all(futures);
+            futures.clear();
+
+            for(auto stepper : steppers)
+            {
+                futures.push_back(stepper.update_velocities());
+            }
+
+            hpx::wait_all(futures);
+            futures.clear();
 
             for(auto stepper : steppers)
             {

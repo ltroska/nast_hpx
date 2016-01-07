@@ -17,6 +17,8 @@ HPX_REGISTER_ACTION(stepper::server::stepper_server::setup_action, stepper_serve
 HPX_REGISTER_ACTION(stepper::server::stepper_server::set_velocity_action, stepper_server_set_velocity_action);
 HPX_REGISTER_ACTION(stepper::server::stepper_server::set_pressure_action, stepper_server_set_pressure_action);
 HPX_REGISTER_ACTION(stepper::server::stepper_server::compute_fg_action, stepper_server_compute_fg_action);
+HPX_REGISTER_ACTION(stepper::server::stepper_server::set_rhs_action, stepper_server_set_rhs_action);
+HPX_REGISTER_ACTION(stepper::server::stepper_server::update_velocities_action, stepper_server_update_velocities_action);
 
 
 namespace stepper { namespace server {
@@ -467,19 +469,36 @@ uint stepper_server::do_compute_fg(uint i , uint j)
 
     grid::cell right, left, top, bottom, bottomright, topleft;
 
-    for(uint k = 0; k < num_cells_x_-1; k++)
+    for(uint k = 0; k < num_cells_x_; k++)
     {
-        for(uint l = 0; l < num_cells_y_-1; l++)
+        for(uint l = 0; l < num_cells_y_; l++)
         {
             grid::cell& middle = pdata_center.get_cell_ref(k, l);
 
-            //top
-            if (hpx::get_locality_id() % res_x_ == res_x_-1 && i == num_local_partitions_x_-2 && k == num_cells_x_ -1)
+            //equation 20
+            //left
+            if (hpx::get_locality_id() % res_x_ == 0 && i == 0 && k == 0)
+            {
                 middle.f = middle.u;
+            }
 
             //right
-            if (hpx::get_locality_id() / res_x_ == res_y_-1 && j == num_local_partitions_y_-2 && l == num_cells_y_ -1)
+            if (hpx::get_locality_id() % res_x_ ==  res_x_-1 && i == num_local_partitions_x_-2 && k == num_cells_x_-1)
+            {
+                middle.f = middle.u;
+            }
+
+            //bottom
+            if (hpx::get_locality_id() / res_x_ == 0 && j == 0 && l == 0)
+            {
                 middle.g = middle.v;
+            }
+
+            //top
+            if (hpx::get_locality_id() / res_x_ == res_y_-1 && j == num_local_partitions_y_-2 && l == num_cells_y_-1)
+            {
+                middle.g = middle.v;
+            }
 
 
             if(k+1 < num_cells_x_)
@@ -540,6 +559,9 @@ uint stepper_server::do_compute_fg(uint i , uint j)
                                                                         bottom.u, middle.u, top.u, dx_, alpha_)
                                      );
 
+            if (topleft.u != 0)
+                hpx::cout << hpx::get_locality_id() << " " << k << " " << l << " " <<i << " " << j << " " << topleft.u << hpx::endl << hpx::flush;
+
             middle.g = middle.v + dt_*(
                                    1/Re_ * (second_derivative_fwd_bkwd_x(right.v, middle.v, left.v, dx_)
                                             + second_derivative_fwd_bkwd_y(top.v, middle.v, bottom.v, dy_)
@@ -548,8 +570,82 @@ uint stepper_server::do_compute_fg(uint i , uint j)
                                             - first_derivative_of_square_y(top.v, middle.v, bottom.v, dy_, alpha_)
                                             )
                                    );
+
         }
     }
+
+    return 1;
+}
+
+uint stepper_server::set_rhs()
+{
+    std::vector<hpx::future<uint> > fut;
+
+    do_set_rhs_action act;
+
+    for(uint i = 1; i < num_local_partitions_x_-1; i++)
+        for(uint j = 1; j < num_local_partitions_y_-1; j++)
+        {
+            fut.push_back(hpx::async(act, get_id(), i, j));
+        }
+
+    hpx::wait_all(fut);
+    return 1;
+}
+
+uint stepper_server::do_set_rhs(uint i, uint j)
+{
+    grid::partition center = U[i][j];
+    grid::partition_data pdata = center.get_data(grid::center_partition).get();
+
+    grid::cell left, bottom;
+
+
+    for(uint k = 0; k < num_cells_x_; k++)
+    {
+        for(uint l = 0; l < num_cells_y_; l++)
+        {
+            grid::cell& middle = pdata.get_cell_ref(k, l);
+
+            if(k > 0)
+                left = pdata.get_cell(k-1,l);
+            else
+                left = U[i-1][j].get_data(grid::left_partition).get().get_cell(0,l);
+
+            if(l > 0)
+                bottom = pdata.get_cell(k,l-1);
+            else
+                bottom = U[i][j-1].get_data(grid::bottom_partition).get().get_cell(k,0);
+
+
+            middle.rhs = 1./dt_*( (middle.f - left.f)/dx_ + (middle.g - bottom.g)/dy_ );
+        }
+    }
+
+    return 1;
+}
+
+uint stepper_server::update_velocities()
+{
+    std::vector<hpx::future<uint> > fut;
+
+    do_update_velocities_action act;
+
+    for(uint i = 0; i < num_local_partitions_x_-1; i++)
+        for(uint j = 0; j < num_local_partitions_y_-1; j++)
+        {
+            if(i==0 && j == 0)
+                continue;
+
+            fut.push_back(hpx::async(act, get_id(), i, j));
+        }
+
+    hpx::wait_all(fut);
+    return 1;
+}
+
+uint stepper_server::do_update_velocities(uint i, uint j)
+{
 
     return 1;
 }

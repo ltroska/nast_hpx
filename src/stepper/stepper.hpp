@@ -55,11 +55,24 @@ struct stepper
         return hpx::async(act, get_id());
     }
 
+    hpx::future<uint> set_rhs()
+    {
+        server::stepper_server::set_rhs_action act;
+        return hpx::async(act, get_id());
+    }
+
+    hpx::future<uint> update_velocities()
+    {
+        server::stepper_server::update_velocities_action act;
+        return hpx::async(act, get_id());
+    }
+
     hpx::future<uint> do_work(uint num_local_partitions_x, uint num_local_partitions_y, uint num_cells_x, uint num_cells_y, RealType dx, RealType dy)
     {
         server::stepper_server::do_work_action act;
         return hpx::async(act, get_id(), num_local_partitions_x, num_local_partitions_y, num_cells_x, num_cells_y, dx, dy);
     }
+
 };
 
 

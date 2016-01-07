@@ -5,18 +5,18 @@ namespace grid {
 
 struct cell
 {
-    cell() : p(0), u(0), v(0), f(0), g(0) {}
+    cell() : p(0), u(0), v(0), f(0), g(0), rhs(0) {}
 
-    cell(RealType value) : p(value), u(value), v(value), f(value), g(value) {}
+    cell(RealType value) : p(value), u(value), v(value), f(value), g(value), rhs(value) {}
 
-    RealType p, u, v, f, g;
+    RealType p, u, v, f, g, rhs;
 
     friend class hpx::serialization::access;
 
     template <typename Archive>
     void serialize(Archive& ar, const unsigned int version)
     {
-        ar & p & u & v & f & g;
+        ar & p & u & v & f & g & rhs;
     }
 
     friend std::ostream& operator<<(std::ostream& os, cell const& cell)

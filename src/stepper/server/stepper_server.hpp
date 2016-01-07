@@ -35,6 +35,14 @@ struct HPX_COMPONENT_EXPORT stepper_server
 
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, compute_fg, compute_fg_action);
 
+        uint set_rhs();
+
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_rhs, set_rhs_action);
+
+        uint update_velocities();
+
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, update_velocities, update_velocities_action);
+
         uint set_pressure();
 
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_pressure, set_pressure_action);
@@ -127,10 +135,25 @@ struct HPX_COMPONENT_EXPORT stepper_server
             hpx::apply(receive_action(), neighbor, t, p, dir);
         }
 
+  /*      grid::cell& get_neighbor_cell(uint i, uint j, uint k, uint l, direction dir)
+        {
+            switch (dir)
+            {
+                case left:
+                    if
+            }
+        }*/
+
     private:
 
         uint do_compute_fg(uint i, uint j);
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_compute_fg, do_compute_fg_action);
+
+        uint do_set_rhs(uint i, uint j);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_set_rhs, do_set_rhs_action);
+
+        uint do_update_velocities(uint i, uint j);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_update_velocities, do_update_velocities_action);
 
 
         space U;

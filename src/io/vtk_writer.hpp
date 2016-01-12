@@ -89,6 +89,27 @@ void do_async_write(space u, uint partitions_x, uint partitions_y, uint cells_x,
 
     std::cout << std::endl << std::endl;
 
+
+   /* std::cout << "rhs values on locality " << hpx::get_locality_id() << std::endl;
+    for (uint j = partitions_y - 1; j <= partitions_y; --j)
+    //for (uint j = partitions_y - 2; j > 0; --j)
+    {
+        for (uint row = ((j == 0 || j == partitions_y -1)) ? 0 : cells_y - 1 ; row <= ((j == 0 || j == partitions_y -1) ? 0 : cells_y - 1); --row)
+        {
+            for (uint i = 0; i < partitions_x; ++i)
+            //for (uint i = 1; i < partitions_x - 1; ++i)
+            {
+                for (uint col = 0; col < ((i == 0 || i == partitions_x -1 ) ? 1 : cells_x); col++)
+                {
+                    std::cout << u[i][j].get_cell(col, row).rhs << " ";
+                }
+            }
+            std::cout << std::endl;
+        }
+    }
+
+    std::cout << std::endl << std::endl;*/
+
     p->set_value(0);
 }
 

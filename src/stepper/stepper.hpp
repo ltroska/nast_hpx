@@ -37,6 +37,18 @@ struct stepper
         return hpx::async(act, get_id(), i_max, j_max, x_length, y_length, num_partitions_x, num_partitions_y);
     }
 
+    hpx::future<uint> setup(cfd_config config)
+    {
+        server::stepper_server::setup_with_config_action act;
+        return hpx::async(act, get_id(), config);
+    }
+
+    hpx::future<uint> update_delta_t(RealType dt)
+    {
+        server::stepper_server::update_delta_t_action act;
+        return hpx::async(act, get_id(), dt);
+    }
+
     hpx::future<uint> set_velocity_on_boundary()
     {
         server::stepper_server::set_velocity_action act;
@@ -61,7 +73,13 @@ struct stepper
         return hpx::async(act, get_id());
     }
 
-    hpx::future<uint> update_velocities()
+    hpx::future<RealType> get_residual()
+    {
+        server::stepper_server::get_residual_action act;
+        return hpx::async(act, get_id());
+    }
+
+    hpx::future<grid::vector_cell> update_velocities()
     {
         server::stepper_server::update_velocities_action act;
         return hpx::async(act, get_id());

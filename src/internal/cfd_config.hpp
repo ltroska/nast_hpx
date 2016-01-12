@@ -16,6 +16,8 @@ struct cfd_config
         RealType tau;
         RealType eps;
         RealType alpha;
+        RealType tEnd;
+        RealType deltaT;
         uint iterMax;
 
         friend std::ostream& operator<<(std::ostream& os, cfd_config const& config)

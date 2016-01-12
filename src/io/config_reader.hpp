@@ -14,7 +14,7 @@ public:
 	 * @return The struct with the simulation data filled with the data from the
 	 *                 file.
 	 */
-	static cfd_config *read_config_file(const char *path);
+	static cfd_config read_config_file(const char *path);
 
 };
 

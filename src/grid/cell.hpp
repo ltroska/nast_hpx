@@ -51,26 +51,18 @@ struct scalar_cell
 
 struct vector_cell
 {
-    vector_cell() : c1(0), c2(0) {}
+    vector_cell() : u(0), v(0) {}
 
-    vector_cell(RealType value) : c1(value), c2(value) {}
+    vector_cell(RealType value1, RealType value2) : u(value1), v(value2) {}
 
-    vector_cell(RealType value1, RealType value2) : c1(value1), c2(value2) {}
-
-    RealType c1, c2;
+    RealType u, v;
 
     friend class hpx::serialization::access;
 
     template <typename Archive>
     void serialize(Archive& ar, const unsigned int version)
     {
-        ar & c1 & c2;
-    }
-
-    friend std::ostream& operator<<(std::ostream& os, vector_cell const& cell)
-    {
-        os << "{" << cell.c1 << "|" << cell.c2 << "}";
-        return os;
+        ar & u & v;
     }
 };
 }

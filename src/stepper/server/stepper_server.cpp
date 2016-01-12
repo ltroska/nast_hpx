@@ -14,12 +14,15 @@ HPX_REGISTER_COMPONENT(stepper_server_type, stepper_component);
 
 HPX_REGISTER_ACTION(stepper::server::stepper_server::do_work_action, stepper_server_do_work_action);
 HPX_REGISTER_ACTION(stepper::server::stepper_server::setup_action, stepper_server_setup_action);
+HPX_REGISTER_ACTION(stepper::server::stepper_server::setup_with_config_action, stepper_server_setup_with_config_action);
 HPX_REGISTER_ACTION(stepper::server::stepper_server::set_velocity_action, stepper_server_set_velocity_action);
 HPX_REGISTER_ACTION(stepper::server::stepper_server::set_pressure_action, stepper_server_set_pressure_action);
 HPX_REGISTER_ACTION(stepper::server::stepper_server::compute_fg_action, stepper_server_compute_fg_action);
 HPX_REGISTER_ACTION(stepper::server::stepper_server::set_rhs_action, stepper_server_set_rhs_action);
 HPX_REGISTER_ACTION(stepper::server::stepper_server::update_velocities_action, stepper_server_update_velocities_action);
 HPX_REGISTER_ACTION(stepper::server::stepper_server::sor_cycle_action, stepper_server_sor_cycle_action);
+HPX_REGISTER_ACTION(stepper::server::stepper_server::get_residual_action, stepper_server_get_residual_action);
+HPX_REGISTER_ACTION(stepper::server::stepper_server::update_delta_t_action, stepper_server_update_delta_t_action);
 
 
 namespace stepper { namespace server {
@@ -115,12 +118,7 @@ stepper_server::stepper_server(uint num_localities)
       bottom_left_(hpx::find_from_basename(stepper_basename, get_neighbor_id(hpx::get_locality_id(), bottom_left, num_localities))),
       bottom_right_(hpx::find_from_basename(stepper_basename, get_neighbor_id(hpx::get_locality_id(), bottom_right, num_localities))),
       type_(get_type(hpx::get_locality_id(), num_localities))
-{
- /*   hpx::cout << "on " << hpx::get_locality_id() << " left " << get_neighbor_id(hpx::get_locality_id(), left, num_localities) << " right " << get_neighbor_id(hpx::get_locality_id(), right, num_localities)
-    << " top " << get_neighbor_id(hpx::get_locality_id(), top, num_localities) << " bottom " << get_neighbor_id(hpx::get_locality_id(), bottom, num_localities)
-    << " top left "<<get_neighbor_id(hpx::get_locality_id(), top_left, num_localities) << " top right " << get_neighbor_id(hpx::get_locality_id(), top_right, num_localities)
-    << " bottom left " << get_neighbor_id(hpx::get_locality_id(), bottom_left, num_localities) << " bottom right " << get_neighbor_id(hpx::get_locality_id(), bottom_right, num_localities)<< hpx::endl << hpx::flush;
-*/}
+{}
 
 uint stepper_server::setup(uint i_max, uint j_max, RealType x_length, RealType y_length, uint num_partitions_x, uint num_partitions_y)
 {
@@ -131,8 +129,8 @@ uint stepper_server::setup(uint i_max, uint j_max, RealType x_length, RealType y
     x_length_ = x_length;
     y_length_ = y_length;
 
-    dx_ = 1./i_max;
-    dy_ = 1./j_max;
+    dx_ = x_length/i_max;
+    dy_ = y_length/j_max;
 
     i_max_ = i_max;
     j_max_ = j_max;
@@ -168,8 +166,8 @@ uint stepper_server::setup(uint i_max, uint j_max, RealType x_length, RealType y
                 num_local_cells_x = 1;
             if (j == 0 || j == num_local_partitions_y_ - 1)
                 num_local_cells_y = 1;
-            U[i][j] = grid::partition(hpx::find_here(), num_local_cells_x, num_local_cells_y,
-                                    ( i == 0 || j == 0 || i == num_local_partitions_x_ -1 || j == num_local_partitions_y_ -1 ) ? hpx::get_locality_id() +100 : hpx::get_locality_id() + j*0.1 + i*0.01);
+            U[i][j] = grid::partition(hpx::find_here(), num_local_cells_x, num_local_cells_y);
+                                   // ( i == 0 || j == 0 || i == num_local_partitions_x_ -1 || j == num_local_partitions_y_ -1 ) ? hpx::get_locality_id() +100 : hpx::get_locality_id() + j*0.1 + i*0.01);
         }
     }
 
@@ -236,9 +234,25 @@ uint stepper_server::setup(uint i_max, uint j_max, RealType x_length, RealType y
     << "x"<< num_local_partitions_y_ << " partitions, dx=" << dx_ << " dy=" << dy_ << hpx::endl << hpx::flush;
 }
 
+uint stepper_server::setup_with_config(cfd_config config)
+{
+        Re_ = config.Re;
+        alpha_ = config.alpha;
+        omega_ = config.omega;
+        dt_ = config.deltaT;
+
+        setup(config.iMax, config.jMax, config.xLength, config.yLength, config.iRes, config.jRes);
+}
+
 uint stepper_server::do_work(uint num_local_partitions_x, uint num_local_partitions_y, uint num_cells_x, uint num_cells_y, RealType delta_x, RealType delta_y)
 {
     write_vtk_files();
+    return 0;
+}
+
+uint stepper_server::update_delta_t(RealType dt)
+{
+    dt_ = dt;
     return 0;
 }
 
@@ -479,31 +493,6 @@ uint stepper_server::do_compute_fg(uint i , uint j)
         {
             grid::cell& middle = pdata_center.get_cell_ref(k, l);
 
-            //equation 20
-            //left
-            if (hpx::get_locality_id() % res_x_ == 0 && i == 0 && k == 0)
-            {
-                middle.f = middle.u;
-            }
-
-            //right
-            if (hpx::get_locality_id() % res_x_ ==  res_x_-1 && i == num_local_partitions_x_-2 && k == num_cells_x_-1)
-            {
-                middle.f = middle.u;
-            }
-
-            //bottom
-            if (hpx::get_locality_id() / res_x_ == 0 && j == 0 && l == 0)
-            {
-                middle.g = middle.v;
-            }
-
-            //top
-            if (hpx::get_locality_id() / res_x_ == res_y_-1 && j == num_local_partitions_y_-2 && l == num_cells_y_-1)
-            {
-                middle.g = middle.v;
-            }
-
 
             if(k+1 < num_cells_x_)
                 right = pdata_center.get_cell(k+1,l);
@@ -555,15 +544,43 @@ uint stepper_server::do_compute_fg(uint i , uint j)
                     topleft = U[i-1][j+1].get_data(grid::center_partition).get().get_cell(0,0);
             }
 
-            middle.f = middle.u + dt_*(
+            //equation 20
+            //left
+            if (hpx::get_locality_id() % res_x_ == 0 && i == 0 && k == 0)
+            {
+                middle.f = middle.u;
+            }
+            //right
+            else if (hpx::get_locality_id() % res_x_ ==  res_x_-1 && i == num_local_partitions_x_-2 && k == num_cells_x_-1)
+            {
+                middle.f = middle.u;
+            }
+
+            else
+            {
+                middle.f = middle.u + dt_*(
                                    1/Re_ * (second_derivative_fwd_bkwd_x(right.u, middle.u, left.u, dx_)
                                             + second_derivative_fwd_bkwd_y(top.u, middle.u, bottom.u, dy_))
                                             - first_derivative_of_square_x(right.u, middle.u, left.u, dx_, alpha_)
                                             - first_derivative_of_product_y(right.v, middle.v, bottom.v, bottomright.v,
                                                                         bottom.u, middle.u, top.u, dx_, alpha_)
                                      );
+            }
 
-            middle.g = middle.v + dt_*(
+            //bottom
+            if (hpx::get_locality_id() / res_x_ == 0 && j == 0 && l == 0)
+            {
+                middle.g = middle.v;
+            }
+            //top
+            else if (hpx::get_locality_id() / res_x_ == res_y_-1 && j == num_local_partitions_y_-2 && l == num_cells_y_-1)
+            {
+                middle.g = middle.v;
+            }
+
+            else
+            {
+                middle.g = middle.v + dt_*(
                                    1/Re_ * (second_derivative_fwd_bkwd_x(right.v, middle.v, left.v, dx_)
                                             + second_derivative_fwd_bkwd_y(top.v, middle.v, bottom.v, dy_)
                                             - first_derivative_of_product_x(left.u, middle.u, top.u, topleft.u,
@@ -571,6 +588,10 @@ uint stepper_server::do_compute_fg(uint i , uint j)
                                             - first_derivative_of_square_y(top.v, middle.v, bottom.v, dy_, alpha_)
                                             )
                                    );
+            }
+
+
+
 
         }
     }
@@ -618,7 +639,6 @@ uint stepper_server::do_set_rhs(uint i, uint j)
             else
                 bottom = U[i][j-1].get_data(grid::bottom_partition).get().get_cell(k,0);
 
-
             middle.rhs = 1./dt_*( (middle.f - left.f)/dx_ + (middle.g - bottom.g)/dy_ );
         }
     }
@@ -626,30 +646,39 @@ uint stepper_server::do_set_rhs(uint i, uint j)
     return 1;
 }
 
-uint stepper_server::update_velocities()
+grid::vector_cell stepper_server::update_velocities()
 {
-    std::vector<hpx::future<uint> > fut;
+    hpx::future<grid::vector_cell> max_uv = hpx::make_ready_future(grid::vector_cell(0, 0));
 
     do_update_velocities_action act;
 
     for(uint i = 1; i < num_local_partitions_x_-1; i++)
         for(uint j = 1; j < num_local_partitions_y_-1; j++)
         {
-
-            fut.push_back(hpx::async(act, get_id(), i, j));
+            max_uv = hpx::lcos::local::dataflow(
+                        [](hpx::future<grid::vector_cell> local_max_uv, hpx::future<grid::vector_cell> curr_max_uv)
+                            {
+                                grid::vector_cell local_uv = local_max_uv.get();
+                                grid::vector_cell curr_uv = curr_max_uv.get();
+                                return grid::vector_cell( (local_uv.u >= curr_uv.u) ? local_uv.u : curr_uv.u,
+                                                            (local_uv.v >= curr_uv.v) ? local_uv.v : curr_uv.v);
+                            }
+                            , hpx::async(act, get_id(), i, j)
+                            , max_uv
+                            );
         }
 
-    hpx::wait_all(fut);
-    return 1;
+    return max_uv.get();
 }
 
-uint stepper_server::do_update_velocities(uint i, uint j)
+grid::vector_cell stepper_server::do_update_velocities(uint i, uint j)
 {
     grid::partition center = U[i][j];
     grid::partition_data pdata = center.get_data(grid::center_partition).get();
 
     grid::cell right, top;
 
+    grid::vector_cell max_uv = grid::vector_cell(0,0);
 
     for(uint k = 0; k < num_cells_x_; k++)
     {
@@ -669,10 +698,16 @@ uint stepper_server::do_update_velocities(uint i, uint j)
 
             middle.u = middle.f - dt_/dx_ * (right.p - middle.p);
             middle.v = middle.g - dt_/dy_ * (top.p  - middle.p);
+
+            if (middle.u > max_uv.u)
+                max_uv.u = middle.u;
+
+            if (middle.v > max_uv.v)
+                max_uv.v = middle.v;
         }
     }
 
-    return 1;
+    return max_uv;
 }
 
 uint stepper_server::sor_cycle()
@@ -680,6 +715,15 @@ uint stepper_server::sor_cycle()
     std::vector<hpx::future<uint> > fut;
 
     do_sor_cycle_action act;
+
+    for(uint i = 1; i < num_local_partitions_x_-1; i++)
+        for(uint j = 1; j < num_local_partitions_y_-1; j++)
+        {
+
+            fut.push_back(hpx::async(act, get_id(), i, j, 0));
+        }
+
+    hpx::wait_all(fut);
 
     for(uint i = 1; i < num_local_partitions_x_-1; i++)
         for(uint j = 1; j < num_local_partitions_y_-1; j++)
@@ -699,26 +743,102 @@ uint stepper_server::do_sor_cycle(uint i, uint j, uint odd)
 
     grid::cell right, left, top, bottom;
 
-    uint startk;
     for(uint l = 0; l < num_cells_y_; l++)
     {
-        if(odd)
-        {
-            startk = (hpx::get_locality_id()/res_x_*num_local_partitions_y_+l+1) % 2;
-        }
-        else
-        {
-            startk = (hpx::get_locality_id()/res_x_+l) % 2;
-        }
-
-        for(uint k = startk; k < num_cells_x_; k+=2)
+        for(uint k = (odd + l) % 2; k < num_cells_x_; k+=2)
         {
             grid::cell& middle = pdata.get_cell_ref(k,l);
-            hpx::cout << k << " " << l << " " << middle.p << " " << hpx::endl <<  hpx::flush;
+
+            if(k+1 < num_cells_x_)
+                right = pdata.get_cell(k+1,l);
+            else
+                right = U[i+1][j].get_data(grid::right_partition).get().get_cell(0,l);
+
+            if(k > 0)
+                left = pdata.get_cell(k-1,l);
+            else
+                left = U[i-1][j].get_data(grid::left_partition).get().get_cell(0,l);
+
+            if(l+1 < num_cells_y_)
+                top = pdata.get_cell(k,l+1);
+            else
+                top = U[i][j+1].get_data(grid::top_partition).get().get_cell(k,0);
+
+            if(l > 0)
+                bottom = pdata.get_cell(k,l-1);
+            else
+                bottom = U[i][j-1].get_data(grid::bottom_partition).get().get_cell(k,0);
+
+            middle.p = (1.-omega_)*middle.p + omega_/(2 * (1/(dx_*dx_) + 1/(dy_*dy_)))
+                        * ( (right.p + left.p)/(dx_*dx_) + (top.p + bottom.p)/(dy_*dy_) - middle.rhs);
         }
     }
 
     return 1;
+}
+
+RealType stepper_server::get_residual()
+{
+    hpx::future<RealType> sum = hpx::make_ready_future(0.0);
+
+    do_get_residual_action act;
+
+    for(uint i = 1; i < num_local_partitions_x_-1; i++)
+        for(uint j = 1; j < num_local_partitions_y_-1; j++)
+        {
+            sum = hpx::lcos::local::dataflow(
+                    [](hpx::future<RealType> next_summand, hpx::future<RealType> prev_sum)
+                         {
+                            return prev_sum.get() + next_summand.get();
+                         }
+                    , hpx::async(act, get_id(), i, j)
+                    , sum
+                    );
+        }
+
+    return sum.get();
+}
+
+RealType stepper_server::do_get_residual(uint i, uint j)
+{
+    grid::partition center = U[i][j];
+    grid::partition_data pdata = center.get_data(grid::center_partition).get();
+
+    grid::cell right, left, top, bottom;
+
+    RealType local_res = 0;
+    for(uint l = 0; l < num_cells_y_; l++)
+    {
+        for(uint k = 0; k < num_cells_x_; k++)
+        {
+            grid::cell& middle = pdata.get_cell_ref(k,l);
+
+            if(k+1 < num_cells_x_)
+                right = pdata.get_cell(k+1,l);
+            else
+                right = U[i+1][j].get_data(grid::right_partition).get().get_cell(0,l);
+
+            if(k > 0)
+                left = pdata.get_cell(k-1,l);
+            else
+                left = U[i-1][j].get_data(grid::left_partition).get().get_cell(0,l);
+
+            if(l+1 < num_cells_y_)
+                top = pdata.get_cell(k,l+1);
+            else
+                top = U[i][j+1].get_data(grid::top_partition).get().get_cell(k,0);
+
+            if(l > 0)
+                bottom = pdata.get_cell(k,l-1);
+            else
+                bottom = U[i][j-1].get_data(grid::bottom_partition).get().get_cell(k,0);
+
+            local_res += ((right.p - 2*middle.p + left.p)/(dx_*dx_) + (top.p - 2*middle.p + bottom.p)/(dy_*dy_) - middle.rhs)
+                        *((right.p - 2*middle.p + left.p)/(dx_*dx_) + (top.p - 2*middle.p + bottom.p)/(dy_*dy_) - middle.rhs);
+        }
+    }
+
+    return local_res / (i_max_ * j_max_);
 }
 
 void stepper_server::write_vtk_files()

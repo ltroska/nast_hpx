@@ -5,6 +5,7 @@
 #include <hpx/hpx.hpp>
 
 #include "grid/partition.hpp"
+#include "internal/cfd_config.hpp"
 
 namespace stepper { namespace server {
 
@@ -39,7 +40,7 @@ struct HPX_COMPONENT_EXPORT stepper_server
 
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_rhs, set_rhs_action);
 
-        uint update_velocities();
+        grid::vector_cell update_velocities();
 
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, update_velocities, update_velocities_action);
 
@@ -55,6 +56,10 @@ struct HPX_COMPONENT_EXPORT stepper_server
 
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, sor_cycle, sor_cycle_action);
 
+        RealType get_residual();
+
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, get_residual, get_residual_action);
+
         uint do_work(uint num_local_partitions_x, uint num_local_partitions_y, uint num_cells_x, uint num_cells_y, RealType delta_x, RealType delta_y);
 
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_work, do_work_action);
@@ -62,6 +67,14 @@ struct HPX_COMPONENT_EXPORT stepper_server
         uint setup(uint i_max, uint j_max, RealType x_length, RealType y_length,  uint num_partitions_x, uint num_partitions_y);
 
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, setup, setup_action);
+
+        uint setup_with_config(cfd_config config);
+
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, setup_with_config, setup_with_config_action);
+
+        uint update_delta_t(RealType dt);
+
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, update_delta_t, update_delta_t_action);
 
         void receive_from_neighbor(uint t, grid::partition p, direction dir)
         {
@@ -156,21 +169,25 @@ struct HPX_COMPONENT_EXPORT stepper_server
         uint do_set_rhs(uint i, uint j);
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_set_rhs, do_set_rhs_action);
 
-        uint do_update_velocities(uint i, uint j);
+        grid::vector_cell do_update_velocities(uint i, uint j);
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_update_velocities, do_update_velocities_action);
 
         uint do_sor_cycle(uint i, uint j, uint even);
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_sor_cycle, do_sor_cycle_action);
+
+        RealType do_get_residual(uint i, uint j);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_get_residual, do_get_residual_action);
 
         space U;
 
         RealType dx_;
         RealType dy_;
 
-        RealType dt_ = 1.;
+        RealType dt_;
 
-        RealType Re_ = 1.;
-        RealType alpha_ = 0.9;
+        RealType Re_;
+        RealType alpha_;
+        RealType omega_;
 
         RealType x_length_;
         RealType y_length_;

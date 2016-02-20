@@ -16,7 +16,10 @@ struct HPX_COMPONENT_EXPORT stepper_server
     : hpx::components::component_base<stepper_server>
 {
     protected:
-        typedef std::vector<grid::partition> grid_type;
+        typedef grid::partition<scalar_cell> scalar_partition;
+        typedef grid::partition<vector_cell> vector_partition;
+        typedef std::vector<scalar_partition> scalar_grid_type;
+        typedef std::vector<vector_partition> vector_grid_type;
         typedef std::vector<std::pair<uint, uint> > index_grid_type;
 
     public:
@@ -25,7 +28,8 @@ struct HPX_COMPONENT_EXPORT stepper_server
         stepper_server(uint num_localities, io::config const& cfg);
 
     protected:
-        void print_grid(grid_type const& grid, const std::string message = "") const;
+        template<typename T>
+        void print_grid(std::vector<grid::partition<T> > const& grid, const std::string message = "") const;
 
         uint get_index(uint k, uint l) const;
 
@@ -38,7 +42,7 @@ struct HPX_COMPONENT_EXPORT stepper_server
         uint num_partitions_x, num_partitions_y;
 
         index_grid_type index_grid;
-        grid_type u_grid, v_grid;
+        vector_grid_type uv_grid;
 
 
 

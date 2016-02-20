@@ -2,6 +2,7 @@
 #include <hpx/hpx.hpp>
 
 #include "grid/partition_data.hpp"
+#include "util/cell.hpp"
 
 int hpx_main(int argc, char* argv[])
 {
@@ -93,6 +94,13 @@ int hpx_main(int argc, char* argv[])
     HPX_ASSERT(center.size_x() == 5);
     HPX_ASSERT(center.size_y() == 5);
     HPX_ASSERT(center.get_cell(3, 3) == 18);
+
+    //test non-empty square with custom type
+    grid::partition_data<vector_cell> sq_pdata_cell(7, 7, 4);
+    HPX_ASSERT(sq_pdata_cell.size_x() == 7);
+    HPX_ASSERT(sq_pdata_cell.size_y() == 7);
+    HPX_ASSERT(sq_pdata_cell.size() == 49);
+    HPX_ASSERT(sq_pdata_cell[15].first == 4 && sq_pdata_cell[15].second == 4);
 
     return hpx::finalize();
 }

@@ -9,7 +9,7 @@ class custom_chunk_solver : public solver {
 
     using solver::solver;
 
-    virtual void set_velocity_on_boundary(grid_type& u_grid, grid_type& v_grid);
+    virtual void set_velocity_on_boundary(vector_grid_type& uv_grid);
 };
 
 }//namespace

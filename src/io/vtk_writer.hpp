@@ -13,10 +13,8 @@
 
 namespace io {
 
-typedef std::vector<std::vector<grid::partition_data<> > > grid_type;
-
-
-void do_async_print(grid_type const& grid, std::string const message, uint partitions_x, uint partitions_y, uint cells_x, uint cells_y, boost::shared_ptr<hpx::lcos::local::promise<int> > p)
+template<typename T>
+void do_async_print(std::vector<std::vector<grid::partition_data<T> > > const& grid, std::string const message, uint partitions_x, uint partitions_y, uint cells_x, uint cells_y, boost::shared_ptr<hpx::lcos::local::promise<int> > p)
 {
     uint res_x_, res_y_;
     if (hpx::get_num_localities_sync() == 2)
@@ -30,10 +28,8 @@ void do_async_print(grid_type const& grid, std::string const message, uint parti
         res_y_ = res_x_;
     }
 
-
-
-   std::cout << message  << std::endl;
-        for (uint j = partitions_y - 1; j <= partitions_y; --j)
+    std::cout << message  << std::endl;
+    for (uint j = partitions_y - 1; j <= partitions_y; --j)
     {
         for (uint row = cells_y - 1 ; row <= cells_y; --row)
         {
@@ -41,7 +37,7 @@ void do_async_print(grid_type const& grid, std::string const message, uint parti
             {
                 for (uint col = 0; col <  cells_x; col++)
                 {
-                    std::cout << "{" << grid[i][j].get_cell(col, row) << "} ";
+                    std::cout << grid[i][j].get_cell(col, row) << " ";
                 }
             }
             std::cout << std::endl;

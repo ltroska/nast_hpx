@@ -73,7 +73,7 @@ vector_partition set_velocity_on_boundary_action(hpx::shared_future<vector_data>
         }
     }
 
-    return vector_partition(hpx::find_here(), center);
+    return vector_partition(where, center);
 }
 
 vector_partition dispatch_set_velocity_on_boundary(vector_partition const& center, uint global_i, uint global_j, uint i_max, uint j_max)

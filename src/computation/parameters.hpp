@@ -1,7 +1,7 @@
-#ifndef SOLVER_PARAMETERS_HPP
-#define SOLVER_PARAMETERS_HPP
+#ifndef COMPUTATION_PARAMETERS_HPP
+#define COMPUTATION_PARAMETERS_HPP
 
-namespace solver {
+namespace computation {
 
 struct parameters
 {

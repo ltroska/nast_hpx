@@ -38,7 +38,7 @@ add_hpx_component(
 add_hpx_executable(
     main
     ESSENTIAL
-    SOURCES src/main.cpp src/io/manager.cpp src/solver/custom_chunk_solver.cpp
+    SOURCES src/main.cpp src/io/manager.cpp src/computation/custom_grain_size.cpp
     DEPENDENCIES pugixml
     COMPONENT_DEPENDENCIES partition_server stepper_server
 )
@@ -66,4 +66,14 @@ add_hpx_executable(
     COMPONENT_DEPENDENCIES partition_server
 )
 add_test(partition_test test_partition)
+
+# custom_grain_size
+
+add_hpx_executable(
+    test_custom_grain_size
+    ESSENTIAL
+    SOURCES tests/test_custom_grain_size.cpp src/computation/custom_grain_size.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(custom_grain_size_test test_custom_grain_size)
 

@@ -46,5 +46,4 @@ struct partition
     }
 };
 }//namespace grid
-
 #endif

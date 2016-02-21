@@ -3,7 +3,7 @@
 #include <cmath>
 
 #include "stepper_server.hpp"
-#include "solver/custom_chunk_solver.hpp"
+#include "computation/custom_grain_size.hpp"
 
 #include "io/vtk_writer.hpp"
 
@@ -22,6 +22,20 @@ stepper_server::stepper_server(uint nl)
 
 stepper_server::stepper_server(uint nl, io::config const& cfg)
     : num_localities(nl), c(cfg)
+{
+    initialize_parameters();
+    initialize_grids();
+
+    strategy = new computation::custom_grain_size(index_grid, params);
+    strategy->set_velocity_on_boundary(uv_grid);
+    print_grid(uv_grid, "uv_data");
+
+    std::cout << "stepper on " << hpx::get_locality_id() << " with " <<  num_partitions_x-2 << "x"<< num_partitions_y-2 << " partitions, "
+             << params.num_cells_per_partition_x << "x" <<  params.num_cells_per_partition_y << " cells each, " << "dx=" << params.dx << " dy=" << params.dx
+             << std::endl;
+}
+
+void stepper_server::initialize_parameters()
 {
     if (num_localities == 2)
     {
@@ -49,7 +63,10 @@ stepper_server::stepper_server(uint nl, io::config const& cfg)
     params.num_partitions_y = num_partitions_y;
     params.num_cells_per_partition_x = ((c.i_max + 2) / num_localities_x) / c.i_res;
     params.num_cells_per_partition_y = ((c.j_max + 2) / num_localities_y) / c.j_res;
+}
 
+void stepper_server::initialize_grids()
+{
     index_grid.resize(num_partitions_x * num_partitions_y);
     uv_grid.resize(num_partitions_x * num_partitions_y);
 
@@ -65,15 +82,6 @@ stepper_server::stepper_server(uint nl, io::config const& cfg)
 
             uv_grid[get_index(k, l)] = vector_partition(hpx::find_here(), params.num_cells_per_partition_x, params.num_cells_per_partition_y);
         }
-
-    solv = new solver::custom_chunk_solver(index_grid, params);
-
-    solv->set_velocity_on_boundary(uv_grid);
-    print_grid(uv_grid, "uv_data");
-
-    std::cout << "stepper on " << hpx::get_locality_id() << " with " <<  num_partitions_x-2 << "x"<< num_partitions_y-2 << " partitions, "
-             << params.num_cells_per_partition_x << "x" <<  params.num_cells_per_partition_y << " cells each, " << "dx=" << params.dx << " dy=" << params.dx
-             << std::endl;
 }
 
 uint stepper_server::get_index(uint k, uint l) const

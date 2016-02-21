@@ -2,6 +2,7 @@
 #define IO_MANAGER_HPP
 
 #include "config.hpp"
+
 namespace io {
 
 struct manager

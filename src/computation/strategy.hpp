@@ -12,6 +12,7 @@ class strategy {
         strategy(index_grid_type const& index_grid, parameters const& params) : index(index_grid), p(params) {}
 
         virtual void set_velocity_on_boundary(vector_grid_type& uv_grid) {}
+        virtual void compute_fg(vector_grid_type& fg_grid, vector_grid_type const& uv_grid, RealType dt) {}
 
     protected:
         index_grid_type const& index;

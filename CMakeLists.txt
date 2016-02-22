@@ -1,5 +1,5 @@
 #################################
-#Compile cdf_hpx
+#Compile nast_hpx
 #@date 2015-11
 #@author troska@ins.uni-bonn.de
 #################################
@@ -67,13 +67,35 @@ add_hpx_executable(
 )
 add_test(partition_test test_partition)
 
-# custom_grain_size
+# get_neighbor_cell()
 
 add_hpx_executable(
-    test_custom_grain_size
+    test_get_neighbor_cell
     ESSENTIAL
-    SOURCES tests/test_custom_grain_size.cpp src/computation/custom_grain_size.cpp
+    SOURCES tests/test_get_neighbor_cell.cpp
     COMPONENT_DEPENDENCIES partition_server
 )
-add_test(custom_grain_size_test test_custom_grain_size)
+add_test(get_neighbor_cell test_get_neighbor_cell)
+
+# cgs::set_velocity_on_boundary()
+
+add_hpx_executable(
+    test_cgs_set_velocity_on_boundary
+    ESSENTIAL
+    SOURCES tests/test_cgs_set_velocity_on_boundary.cpp src/computation/custom_grain_size.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(cgs_set_velocity_on_boundary_test  test_cgs_set_velocity_on_boundary)
+
+# cgs::compute_fg()
+
+add_hpx_executable(
+    test_cgs_compute_fg
+    ESSENTIAL
+    SOURCES tests/test_cgs_compute_fg.cpp src/computation/custom_grain_size.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(cgs_compute_fg_test  test_cgs_compute_fg)
+
+
 

@@ -1,16 +1,7 @@
 #ifndef UTIL_HELPERS_HPP
 #define UTIL_HELPERS_HPP
 
-#define FOR_EVERY_BOUNDARY_PARTITION    for (uint l = 1; l < p.num_partitions_y - 1; l++) \
-        for (uint k = 1; k < p.num_partitions_x - 1; k++) \
-        { \
-            if (!(k == 1 || k == p.num_partitions_x - 2 || l == 1 || l == p.num_partitions_y -1))\
-                continue;
-
-#define FOR_EVERY_PARTITION     for (uint l = 1; l < p.num_partitions_y - 1; l++) \
-        for (uint k = 1; k < p.num_partitions_x - 1; k++)
-
-#define END_FOR }
+#include "types.hpp"
 
 //needed for deleting the partition_data arrays
 template<typename T>
@@ -74,6 +65,87 @@ inline uint get_neighbor_id(uint id, direction dir, uint num_localities)
             return ((id-res_x+1) < num_localities && (id-res_x+1)/res_x == id/res_x-1) ? id-res_x+1 : num_localities;
         default:
             return num_localities;
+    }
+}
+
+template<typename T>
+inline const T get_neighbor_cell(grid::partition_data<T> const& center, grid::partition_data<T> const& left, grid::partition_data<T> const& right,
+                           grid::partition_data<T> const& bottom, grid::partition_data<T> const& top, grid::partition_data<T> const& bottomleft,
+                           grid::partition_data<T> const& bottomright, grid::partition_data<T> const& topleft, grid::partition_data<T> const& topright,
+                           uint i, uint j, direction dir)
+{
+
+    uint size_x = center.size_x();
+    uint size_y = center.size_y();
+
+    switch (dir)
+    {
+        case LEFT:
+            if (i > 0)
+                return center.get_cell(i-1, j);
+            else
+                return left.get_cell(j, 0);
+
+        case RIGHT:
+            if (i+1 < size_x)
+                return center.get_cell(i+1, j);
+            else
+                return right.get_cell(j, 0);
+
+        case BOTTOM:
+            if (j > 0)
+                return center.get_cell(i, j-1);
+            else
+                return bottom.get_cell(i, 0);
+
+        case TOP:
+            if (j+1 < size_y)
+                return center.get_cell(i, j+1);
+            else
+                return top.get_cell(i, 0);
+
+        case BOTTOM_LEFT:
+            if (i > 0 && j > 0)
+                return center.get_cell(i-1, j-1);
+            else if (i > 0)
+                return bottom.get_cell(i-1, 0);
+            else if (j > 0)
+                return left.get_cell(j-1, 0);
+            else
+                return bottomleft.get_cell(0, 0);
+
+        case BOTTOM_RIGHT:
+            if (i+1 < size_x && j > 0)
+                return center.get_cell(i+1, j-1);
+            else if (i+1 < size_x)
+                return bottom.get_cell(i+1, 0);
+            else if (j > 0)
+                return right.get_cell(j-1, 0);
+            else
+                return bottomright.get_cell(0, 0);
+
+        case TOP_LEFT:
+            if (i > 0 && j+1 < size_y)
+                return center.get_cell(i-1, j+1);
+            else if (i > 0)
+                return top.get_cell(i-1, 0);
+            else if (j+1 < size_y)
+                return left.get_cell(j+1, 0);
+            else
+                return topleft.get_cell(0, 0);
+
+        case TOP_RIGHT:
+            if (i+1 < size_x && j+1 < size_y)
+                return center.get_cell(i+1, j+1);
+            else if (i+1 < size_x)
+                return top.get_cell(i+1, 0);
+            else if (j+1 < size_y)
+                return right.get_cell(j+1, 0);
+            else
+                return topright.get_cell(0, 0);
+
+        default:
+            return center.get_cell(i, j);
     }
 }
 #endif

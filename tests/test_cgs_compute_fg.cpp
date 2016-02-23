@@ -11,7 +11,7 @@ void check_compute_fg(vector_grid_type const& fg_grid, vector_grid_type const& u
 {
     using namespace computation;
 
-    std::vector<std::vector<vector_data > > fg_data;
+    std::vector<std::vector<vector_data> > fg_data;
 
     fg_data.resize(p.num_partitions_x);
     for (uint k = 0; k < p.num_partitions_x ; k++)
@@ -155,11 +155,51 @@ void do_compute_fg_test(uint i_max, uint j_max, uint locality_id, uint localitie
 
 int hpx_main(int argc, char* argv[])
 {
-    do_compute_fg_test(6, 6, 0, 1, 1, 1, 1);
-   /* do_compute_fg_test(126, 126, 1, 2, 2, 1, 1);
-    do_compute_fg_test(126, 126, 1, 2, 2, 2, 2);
-    do_compute_fg_test(126, 126, 1, 2, 2, 4, 4);
-    do_compute_fg_test(126, 126, 5, 4, 4, 1, 1);*/
+// --- SQUARE AREA, ONE PARTITION --- //
+    do_compute_fg_test(20, 20, 0, 1, 1, 1, 1);
+    do_compute_fg_test(64, 64, 0, 1, 1, 1, 1);
+
+// --- SQUARE AREA, MULTIPLE PARTITIONS --- //
+    do_compute_fg_test(64, 64, 0, 1, 1, 8, 8);
+    do_compute_fg_test(256, 256, 0, 1, 1, 8, 16);
+    do_compute_fg_test(256, 256, 0, 1, 1, 1, 8);
+    do_compute_fg_test(256, 256, 0, 1, 1, 4, 8);
+
+// --- SQUARE AREA, MULTIPLE PARTITIONS, NOT FIRST LOCALITY --- //
+    do_compute_fg_test(32, 32, 2, 2, 2, 8, 8);
+    do_compute_fg_test(512, 512, 1, 1, 2, 8, 16);
+    do_compute_fg_test(512, 512, 1, 2, 1, 8, 16);
+//    do_compute_fg_test(1024, 1024, 3, 2, 2, 1, 8);
+//    do_compute_fg_test(1024, 1024, 7, 4, 4, 4, 8);
+
+/*
+// --- NON-SQUARE AREA, ONE PARTITION --- //
+    do_compute_fg_test(20, 40, 0, 1, 1, 1, 1);
+    do_compute_fg_test(40, 20, 0, 1, 1, 1, 1);
+    do_compute_fg_test(64, 512, 0, 1, 1, 1, 1);
+    do_compute_fg_test(512, 64, 0, 1, 1, 1, 1);
+
+// --- NON-SQUARE AREA, MULTIPLE PARTITIONS --- //
+    do_compute_fg_test(64, 32, 0, 1, 1, 8, 8);
+    do_compute_fg_test(32, 64, 0, 1, 1, 8, 8);
+    do_compute_fg_test(128, 256, 0, 1, 1, 8, 16);
+    do_compute_fg_test(256, 128, 0, 1, 1, 8, 16);
+    do_compute_fg_test(256, 128, 0, 1, 1, 1, 16);
+    do_compute_fg_test(256, 128, 0, 1, 1, 1, 16);
+    do_compute_fg_test(256, 64, 0, 1, 1, 4, 8);
+    do_compute_fg_test(64, 256, 0, 1, 1, 4, 8);
+
+// --- NON-SQUARE AREA, MULTIPLE PARTITIONS, NOT FIRST LOCALITY --- //
+    do_compute_fg_test(64, 32, 2, 2, 2, 8, 8);
+    do_compute_fg_test(32, 64, 2, 2, 2, 8, 8);
+    do_compute_fg_test(512, 128, 1, 1, 2, 8, 16);
+    do_compute_fg_test(256, 512, 1, 1, 2, 8, 16);
+    do_compute_fg_test(512, 128, 1, 2, 1, 8, 16);
+    do_compute_fg_test(128, 512, 1, 2, 1, 8, 16);
+    do_compute_fg_test(512, 128, 3, 2, 2, 1, 8);
+    do_compute_fg_test(512, 256, 3, 2, 2, 1, 8);
+    do_compute_fg_test(512, 256, 7, 4, 4, 4, 8);
+    do_compute_fg_test(256, 512, 7, 4, 4, 4, 8);*/
 
     return hpx::finalize();
 }

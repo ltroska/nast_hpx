@@ -130,8 +130,6 @@ void do_set_velocity_on_boundary_test(uint i_max, uint j_max, uint locality_id, 
 
 int hpx_main(int argc, char* argv[])
 {
-// ------------------------------- SET VELOCITY ON BOUNDARY ------------------------------- //
-
 // --- SQUARE AREA, ONE PARTITION --- //
     do_set_velocity_on_boundary_test(6, 6, 0, 1, 1, 1, 1);
     do_set_velocity_on_boundary_test(62, 62, 0, 1, 1, 1, 1);
@@ -146,9 +144,10 @@ int hpx_main(int argc, char* argv[])
     do_set_velocity_on_boundary_test(30, 30, 2, 2, 2, 8, 8);
     do_set_velocity_on_boundary_test(510, 510, 1, 1, 2, 8, 16);
     do_set_velocity_on_boundary_test(510, 510, 1, 2, 1, 8, 16);
-    do_set_velocity_on_boundary_test(1022, 1022, 3, 2, 2, 1, 8);
-    do_set_velocity_on_boundary_test(1022, 1022, 7, 4, 4, 4, 8);
+//    do_set_velocity_on_boundary_test(1022, 1022, 3, 2, 2, 1, 8);
+//    do_set_velocity_on_boundary_test(1022, 1022, 7, 4, 4, 4, 8);
 
+/*
 // --- NON-SQUARE AREA, ONE PARTITION --- //
     do_set_velocity_on_boundary_test(14, 30, 0, 1, 1, 1, 1);
     do_set_velocity_on_boundary_test(30, 14, 0, 1, 1, 1, 1);
@@ -175,9 +174,8 @@ int hpx_main(int argc, char* argv[])
     do_set_velocity_on_boundary_test(510, 126, 3, 2, 2, 1, 8);
     do_set_velocity_on_boundary_test(510, 254, 3, 2, 2, 1, 8);
     do_set_velocity_on_boundary_test(510, 254, 7, 4, 4, 4, 8);
-    do_set_velocity_on_boundary_test(254, 510, 7, 4, 4, 4, 8);
+    do_set_velocity_on_boundary_test(254, 510, 7, 4, 4, 4, 8);*/
 
-// ---------------------------------------------------------------------------------------- //
 
     return hpx::finalize();
 }

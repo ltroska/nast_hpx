@@ -138,7 +138,7 @@ void do_compute_fg_test(uint i_max, uint j_max, uint locality_id, uint localitie
         maker.make_random_grid(uv_grid);
 
     //    print_grid(fg_grid, params);
-        print_grid(uv_grid, params);
+     //   print_grid(uv_grid, params);
 
         computation::custom_grain_size strat(index, params);
         strat.compute_fg(fg_grid, uv_grid, dt);
@@ -153,10 +153,10 @@ void do_compute_fg_test(uint i_max, uint j_max, uint locality_id, uint localitie
 int hpx_main(int argc, char* argv[])
 {
     do_compute_fg_test(4, 4, 0, 1, 1, 1, 1);
-   /* do_compute_fg_test(128, 128, 1, 2, 2, 1, 1);
+    do_compute_fg_test(128, 128, 1, 2, 2, 1, 1);
     do_compute_fg_test(128, 128, 1, 2, 2, 2, 2);
     do_compute_fg_test(128, 128, 1, 2, 2, 4, 4);
-    do_compute_fg_test(128, 128, 5, 4, 4, 1, 1);*/
+    do_compute_fg_test(128, 128, 5, 4, 4, 1, 1);
 
     return hpx::finalize();
 }

@@ -87,6 +87,16 @@ add_hpx_executable(
 )
 add_test(cgs_set_velocity_on_boundary_test  test_cgs_set_velocity_on_boundary)
 
+# cgs::set_pressure_on_boundary()
+
+add_hpx_executable(
+    test_cgs_set_pressure_on_boundary
+    ESSENTIAL
+    SOURCES tests/test_cgs_set_pressure_on_boundary.cpp src/computation/custom_grain_size.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(cgs_set_pressure_on_boundary_test  test_cgs_set_pressure_on_boundary)
+
 # cgs::compute_fg()
 
 add_hpx_executable(

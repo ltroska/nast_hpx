@@ -34,7 +34,7 @@ vector_partition set_velocity_on_boundary_action(hpx::naming::id_type const wher
         for (uint j = start_j; j < end_j; j++)
         {
             vector_cell& cell = center.get_cell_ref(0, j);
-            vector_cell cell2 = center.get_cell(1, j);
+            vector_cell const cell2 = center.get_cell(1, j);
 
             cell.first = 0;
             cell.second = -cell2.second;
@@ -58,7 +58,7 @@ vector_partition set_velocity_on_boundary_action(hpx::naming::id_type const wher
         for (uint i = start_i; i < end_i; i++)
         {
             vector_cell& cell = center.get_cell_ref(i, 0);
-            vector_cell cell2 = center.get_cell(i, 1);
+            vector_cell const cell2 = center.get_cell(i, 1);
 
             cell.second = 0;
             cell.first = -cell2.first;
@@ -427,6 +427,121 @@ void custom_grain_size::compute_rhs(scalar_grid_type& rhs_grid, vector_grid_type
             );
         }
     }
+}
+
+/*
+// ------------------------------------------------------------ SET VELOCITY ON BOUNDARY ------------------------------------------------------------ //
+*/
+
+scalar_partition set_pressure_on_boundary_action(hpx::naming::id_type const where, hpx::shared_future<scalar_data> center_fut,
+                                                    uint global_i, uint global_j, uint i_max, uint j_max)
+{
+    scalar_data center = center_fut.get();
+
+    uint size_x = center.size_x();
+    uint size_y = center.size_y();
+
+    bool is_left = (global_i == 0);
+    bool is_right = (global_i + size_x > i_max);
+
+    bool is_bottom = (global_j == 0);
+    bool is_top = (global_j + size_y > j_max);
+
+    uint start_i = (is_left ? 1 : 0);
+    uint end_i = (is_right ? size_x - 1 : size_x);
+    uint start_j = (is_bottom ? 1 : 0);
+    uint end_j = (is_top ? size_y - 1 : size_y);
+
+    if (is_left)
+    {
+        for (uint j = start_j; j < end_j; j++)
+        {
+            scalar_cell& cell = center.get_cell_ref(0, j);
+            scalar_cell const cell2 = center.get_cell(1, j);
+
+            cell.value = cell2.value;
+        }
+    }
+
+    if (is_right)
+    {
+        for (uint j = start_j; j < end_j; j++)
+        {
+            scalar_cell& cell = center.get_cell_ref(size_x - 1, j);
+            scalar_cell const cell2 = center.get_cell_ref(size_x - 2, j);
+
+            cell.value = cell2.value;
+        }
+    }
+
+    if (is_bottom)
+    {
+        for (uint i = start_i; i < end_i; i++)
+        {
+            scalar_cell& cell = center.get_cell_ref(i, 0);
+            scalar_cell const cell2 = center.get_cell(i, 1);
+
+            cell.value = cell2.value;
+        }
+    }
+
+    if (is_top)
+    {
+        for (uint i = start_i; i < end_i; i++)
+        {
+            scalar_cell& cell = center.get_cell_ref(i, size_y - 1);
+            scalar_cell const cell2 = center.get_cell_ref(i, size_y - 2);
+
+            cell.value = cell2.value;
+        }
+    }
+
+    return scalar_partition(where, center);
+}
+
+scalar_partition dispatch_set_pressure_on_boundary(scalar_partition const& center, uint global_i, uint global_j, uint i_max, uint j_max)
+{
+    hpx::shared_future<scalar_data> center_data = center.get_data(CENTER);
+
+    hpx::naming::id_type const where = center.get_id();
+
+    return hpx::dataflow(
+            hpx::launch::async,
+            &set_pressure_on_boundary_action,
+            where,
+            center_data,
+            global_i,
+            global_j,
+            i_max,
+            j_max
+    );
+}
+
+void custom_grain_size::set_pressure_on_boundary(scalar_grid_type& p_grid)
+{
+    for (uint l = 1; l < p.num_partitions_y - 1; l++)
+    {
+        for (uint k = 1; k < p.num_partitions_x - 1; k++)
+        {
+            //skip interior
+            if (!(k == 1 || k == p.num_partitions_x - 2 || l == 1 || l == p.num_partitions_y - 2))
+                continue;
+
+            scalar_partition& next = p_grid[get_index(k, l)];
+
+            next =
+                hpx::dataflow(
+                    hpx::launch::async,
+                    &dispatch_set_pressure_on_boundary,
+                    next,
+                    index[get_index(k, l)].first,
+                    index[get_index(k, l)].second,
+                    p.i_max,
+                    p.j_max
+            );
+        }
+    }
+
 }
 
 

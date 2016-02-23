@@ -57,15 +57,15 @@ void check_set_velocity_on_boundary(vector_grid_type grid, index_grid_type index
                     if (in_range(1, p.i_max, 0, 0, global_i, global_j))
                     {
                         HPX_ASSERT_MSG(cell.second == 0, (msg + ident + expected_string(0, cell.second)).c_str());
-                        HPX_ASSERT_MSG(cell.first == -data[k][l].get_cell(i+1, j).first,
-                                        (msg + ident + expected_string(-data[k][l].get_cell(i+1, j).first, cell.first)).c_str());
+                        HPX_ASSERT_MSG(cell.first == -data[k][l].get_cell(i, j+1).first,
+                                        (msg + ident + expected_string(-cell.first, data[k][l].get_cell(i, j+1).first)).c_str());
                     }
 
                     if (in_range(1, p.i_max, p.j_max, p.j_max, global_i, global_j))
                     {
                         HPX_ASSERT_MSG(cell.second == 0, (msg + ident + expected_string(0, cell.second)).c_str());
-                        HPX_ASSERT_MSG(cell.first == 2-data[k][l].get_cell(i+1, j).first,
-                                        (msg + ident + expected_string(2-data[k][l].get_cell(i+1, j).first, cell.first)).c_str());
+                        HPX_ASSERT_MSG(2-cell.first == data[k][l].get_cell(i, j+1).first,
+                                        (msg + ident + expected_string(2-cell.first, data[k][l].get_cell(i, j+1).first)).c_str());
                     }
 
                 }
@@ -93,7 +93,7 @@ void do_set_velocity_on_boundary_test(uint i_max, uint j_max, uint locality_id, 
         vector_grid_type grid;
 
         maker.make_index_grid(index);
-        maker.make_vector_grid(grid, 0);
+        maker.make_random_grid(grid);
 
         computation::custom_grain_size strat(index, params);
         strat.set_velocity_on_boundary(grid);
@@ -109,7 +109,7 @@ int hpx_main(int argc, char* argv[])
 // ------------------------------- SET VELOCITY ON BOUNDARY ------------------------------- //
 
 // --- SQUARE AREA, ONE PARTITION --- //
-    do_set_velocity_on_boundary_test(20, 20, 0, 1, 1, 1, 1);
+    do_set_velocity_on_boundary_test(4, 4, 0, 1, 1, 1, 1);
     do_set_velocity_on_boundary_test(64, 64, 0, 1, 1, 1, 1);
 
 // --- SQUARE AREA, MULTIPLE PARTITIONS --- //

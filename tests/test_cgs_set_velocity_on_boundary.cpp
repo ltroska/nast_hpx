@@ -40,28 +40,28 @@ void check_set_velocity_on_boundary(vector_grid_type grid, index_grid_type index
                     vector_cell cell = data[k][l].get_cell(i, j);
                     std::string ident = " partition/cell " + std::to_string(k) + " " + std::to_string(l) + " " + std::to_string(i) + " " + std::to_string(j) + " ";
 
-                    if (global_i == 0 && (global_j >= 1 && global_j <= p.j_max))
+                    if (in_range(0, 0, 1, p.j_max, global_i, global_j))
                     {
                         HPX_ASSERT_MSG(cell.first == 0, (msg + ident + expected_string(0, cell.first)).c_str());
                         HPX_ASSERT_MSG(cell.second == -data[k][l].get_cell(i+1, j).second,
                                         (msg + ident + expected_string(-data[k][l].get_cell(i+1, j).second, cell.second)).c_str());
                     }
 
-                    if (global_i == p.i_max && (global_j >= 1 && global_j <= p.j_max))
+                    if (in_range(p.i_max, p.i_max, 1, p.j_max, global_i, global_j))
                     {
                         HPX_ASSERT_MSG(cell.first == 0, (msg + ident + expected_string(0, cell.first)).c_str());
                         HPX_ASSERT_MSG(cell.second == -data[k][l].get_cell(i+1, j).second,
                                         (msg + ident + expected_string(-data[k][l].get_cell(i+1, j).second, cell.second)).c_str());
                     }
 
-                    if (global_j == 0 && (global_i >= 1 && global_i <= p.i_max))
+                    if (in_range(1, p.i_max, 0, 0, global_i, global_j))
                     {
                         HPX_ASSERT_MSG(cell.second == 0, (msg + ident + expected_string(0, cell.second)).c_str());
                         HPX_ASSERT_MSG(cell.first == -data[k][l].get_cell(i+1, j).first,
                                         (msg + ident + expected_string(-data[k][l].get_cell(i+1, j).first, cell.first)).c_str());
                     }
 
-                    if (global_j == p.j_max && (global_i >= 1 && global_i <= p.i_max))
+                    if (in_range(1, p.i_max, p.j_max, p.j_max, global_i, global_j))
                     {
                         HPX_ASSERT_MSG(cell.second == 0, (msg + ident + expected_string(0, cell.second)).c_str());
                         HPX_ASSERT_MSG(cell.first == 2-data[k][l].get_cell(i+1, j).first,

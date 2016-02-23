@@ -20,6 +20,8 @@ struct HPX_COMPONENT_EXPORT stepper_server
         stepper_server(uint num_localities);
         stepper_server(uint num_localities, io::config const& cfg);
 
+        void do_timestep(RealType dt);
+
     protected:
         template<typename T>
         void print_grid(std::vector<grid::partition<T> > const& grid, const std::string message = "") const;
@@ -30,17 +32,17 @@ struct HPX_COMPONENT_EXPORT stepper_server
         void initialize_parameters();
         void initialize_grids();
 
+        RealType compute_new_dt(RealType u_max, RealType v_max);
+
         io::config c;
         computation::parameters params;
         computation::strategy* strategy;
 
         uint num_localities, num_localities_x, num_localities_y;
-        uint num_partitions_x, num_partitions_y;
 
         index_grid_type index_grid;
-        vector_grid_type uv_grid;
-
-
+        vector_grid_type uv_grid, fg_grid;
+        scalar_grid_type p_grid, rhs_grid;
 
 };
 

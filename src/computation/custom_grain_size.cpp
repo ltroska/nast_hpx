@@ -794,7 +794,9 @@ hpx::future<RealType> custom_grain_size::sor_cycle(scalar_grid_type& p_grid, sca
         for (uint k = 1; k < p.num_partitions_x - 1; k++)
         {
                 residual = hpx::dataflow(
+                    hpx::launch::async,
                     [](hpx::future<RealType> prev_sum, hpx::future<RealType> next_summand)
+                        -> RealType
                     {
                         return prev_sum.get() + next_summand.get();
                     }
@@ -820,6 +822,210 @@ hpx::future<RealType> custom_grain_size::sor_cycle(scalar_grid_type& p_grid, sca
     }
 
     return residual;
+}
+
+/*
+// ------------------------------------------------------------ UPDATE VELOCITIES ------------------------------------------------------------ //
+*/
+
+vector_partition update_velocities_action(hpx::naming::id_type const where, hpx::shared_future<vector_data> uv_center_fut, hpx::shared_future<scalar_data> center_fut,
+                            hpx::shared_future<scalar_data> right_fut, hpx::shared_future<scalar_data> top_fut, hpx::shared_future<vector_data> fg_fut,
+                            uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy, RealType dt)
+{
+    /*
+    *@TODO: Maybe create new vector_data here
+    */
+
+    vector_data uv_center = uv_center_fut.get();
+    scalar_data p_center = center_fut.get();
+    scalar_data p_right = right_fut.get();
+    scalar_data p_top = top_fut.get();
+    vector_data fg_center = fg_fut.get();
+
+    uint size_x = uv_center.size_x();
+    uint size_y = uv_center.size_y();
+
+    bool is_left = (global_i == 0);
+    bool is_right = (global_i + size_x > i_max);
+    bool is_bottom = (global_j == 0);
+    bool is_top = (global_j + size_y > j_max);
+
+    RealType over_dx = 1./dx;
+    RealType over_dy = 1./dy;
+
+    //do computation for i = 1, ..., i_max-1, j = 1, ..., j_max-1 first
+    uint start_i = (is_left ? 1 : 0);
+    uint end_i = (is_right ? size_x - 2 : size_x);
+    uint start_j = (is_bottom ? 1 : 0);
+    uint end_j = (is_top ? size_y - 2 : size_y);
+
+    for (uint j = start_j; j < end_j; j++)
+        for (uint i = start_i; i < end_i; i++)
+        {
+            vector_cell& center_uv = uv_center.get_cell_ref(i, j);
+            vector_cell const center_fg = fg_center.get_cell(i, j);
+            scalar_cell const center_p = p_center.get_cell(i, j);
+            scalar_cell const right_p = get_neighbor_cell(p_center, p_right, p_right, p_right, p_top, p_top, p_top, p_top, p_top, i, j, RIGHT);
+            scalar_cell const top_p = get_neighbor_cell(p_center, p_right, p_right, p_right, p_top, p_top, p_top, p_top, p_top, i, j, TOP);
+
+            center_uv.first = center_fg.first - dt*over_dx * (right_p.value - center_p.value);
+            center_uv.second = center_fg.second- dt*over_dy * (top_p.value - center_p.value);
+        }
+
+    // compute top strip i = 1, ..., i_max-1, j = j_max for F and set top boundary G = v
+    if (is_top)
+    {
+        uint j = size_y - 2;
+
+        for (uint i = start_i; i < end_i; i++)
+        {
+            vector_cell& center_uv = uv_center.get_cell_ref(i, j);
+            vector_cell const center_fg = fg_center.get_cell(i, j);
+            scalar_cell const center_p = p_center.get_cell(i, j);
+            scalar_cell const right_p = get_neighbor_cell(p_center, p_right, p_right, p_right, p_top, p_top, p_top, p_top, p_top, i, j, RIGHT);
+            scalar_cell const top_p = get_neighbor_cell(p_center, p_right, p_right, p_right, p_top, p_top, p_top, p_top, p_top, i, j, TOP);
+
+            center_uv.first = center_fg.first - dt*over_dx * (right_p.value - center_p.value);
+        }
+    }
+
+    // compute right strip i = i_max, j = 1, ..., j_max-1 and set right boundary F = u
+    if (is_right)
+    {
+        uint i = size_x - 2;
+
+        for (uint j = start_j; j < end_j; j++)
+        {
+            vector_cell& center_uv = uv_center.get_cell_ref(i, j);
+            vector_cell const center_fg = fg_center.get_cell(i, j);
+            scalar_cell const center_p = p_center.get_cell(i, j);
+            scalar_cell const right_p = get_neighbor_cell(p_center, p_right, p_right, p_right, p_top, p_top, p_top, p_top, p_top, i, j, RIGHT);
+            scalar_cell const top_p = get_neighbor_cell(p_center, p_right, p_right, p_right, p_top, p_top, p_top, p_top, p_top, i, j, TOP);
+
+            center_uv.second = center_fg.second- dt*over_dy * (top_p.value - center_p.value);
+        }
+    }
+
+    return vector_partition(where, uv_center);
+}
+
+vector_partition dispatch_update_velocities(vector_partition const& uv_center, scalar_partition const& center, scalar_partition const& right,
+                                        scalar_partition const& top, vector_partition const& fg,
+                                        uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy, RealType dt)
+{
+    hpx::shared_future<vector_data> uv_center_data = uv_center.get_data(CENTER);
+    hpx::shared_future<scalar_data> center_data = center.get_data(CENTER);
+    hpx::shared_future<scalar_data> right_data = right.get_data(RIGHT);
+    hpx::shared_future<scalar_data> top_data = top.get_data(TOP);
+    hpx::shared_future<vector_data> fg_data = fg.get_data(CENTER);
+
+    hpx::naming::id_type const where = center.get_id();
+
+    return hpx::dataflow(
+            hpx::launch::async,
+            &update_velocities_action,
+            where,
+            uv_center_data, center_data, right_data, top_data, fg_data,
+            global_i,
+            global_j,
+            i_max,
+            j_max,
+            dx,
+            dy,
+            dt
+    );
+}
+
+std::pair<RealType, RealType> compute_max_uv_action(hpx::shared_future<vector_data> uv_center_fut)
+{
+    vector_data center = uv_center_fut.get();
+
+    uint size_x = center.size_x();
+    uint size_y = center.size_y();
+
+    std::pair<RealType, RealType> max_uv(0, 0);
+
+    for (uint j = 0; j < size_y; j++)
+        for (uint i = 0; i < size_x; i++)
+        {
+            vector_cell const current = center.get_cell(i, j);
+            max_uv.first = (std::abs(current.first) > max_uv.first ? std::abs(current.first) : max_uv.first);
+            max_uv.second = (std::abs(current.second) > max_uv.second ? std::abs(current.second) : max_uv.second);
+        }
+
+    return max_uv;
+}
+
+hpx::future<std::pair<RealType, RealType> > dispatch_compute_max_uv(vector_partition const& uv_center)
+{
+    hpx::shared_future<vector_data> uv_center_data = uv_center.get_data(CENTER);
+
+    return hpx::dataflow(
+            hpx::launch::async,
+            &compute_max_uv_action,
+            uv_center_data
+    );
+}
+
+hpx::future<std::pair<RealType, RealType> > custom_grain_size::update_velocities(vector_grid_type& uv_grid,
+                                                vector_grid_type const& fg_grid, scalar_grid_type const& p_grid, RealType dt)
+{
+    for (uint l = 1; l < p.num_partitions_y - 1; l++)
+    {
+        for (uint k = 1; k < p.num_partitions_x - 1; k++)
+        {
+            vector_partition& next = uv_grid[get_index(k, l)];
+
+            next =
+                hpx::dataflow(
+                    hpx::launch::async,
+                    &dispatch_update_velocities,
+                    next,
+                    p_grid[get_index(k, l)], //center
+                    p_grid[get_index(k+1, l)], //right
+                    p_grid[get_index(k, l+1)], //top
+                    fg_grid[get_index(k, l)], //center
+                    index[get_index(k, l)].first,
+                    index[get_index(k, l)].second,
+                    p.i_max,
+                    p.j_max,
+                    p.dx,
+                    p.dy,
+                    dt
+            );
+        }
+    }
+
+    hpx::future<std::pair<RealType, RealType> > max_uv = hpx::make_ready_future(std::pair<RealType, RealType>(0, 0));
+
+    for (uint l = 1; l < p.num_partitions_y - 1; l++)
+    {
+        for (uint k = 1; k < p.num_partitions_x - 1; k++)
+        {
+            max_uv = hpx::dataflow(
+                hpx::launch::async,
+                [](hpx::future<std::pair<RealType, RealType> > old_max_uv, hpx::future<std::pair<RealType, RealType> > new_values)
+                    -> std::pair<RealType, RealType>
+                {
+                    std::pair<RealType, RealType> max_uv = old_max_uv.get();
+                    std::pair<RealType, RealType> values = new_values.get();
+
+                    max_uv.first = (values.first > max_uv.first ? values.first : max_uv.first);
+                    max_uv.second = (values.second > max_uv.second ? values.second : max_uv.second);
+
+                    return max_uv;
+                }
+                , max_uv
+                , hpx::dataflow(
+                    hpx::launch::async,
+                    &dispatch_compute_max_uv,
+                    uv_grid[get_index(k, l)]
+                    )
+            );
+        }
+    }
+
+    return max_uv;
 }
 
 

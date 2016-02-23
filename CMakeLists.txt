@@ -127,4 +127,13 @@ add_hpx_executable(
 )
 add_test(cgs_sor_cycle_test  test_cgs_sor_cycle)
 
+# cgs::update_velocities()
+
+add_hpx_executable(
+    test_cgs_update_velocities
+    ESSENTIAL
+    SOURCES tests/test_cgs_update_velocities.cpp src/computation/custom_grain_size.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(cgs_update_velocities_test  test_cgs_update_velocities)
 

@@ -18,23 +18,12 @@ class strategy {
 
         virtual hpx::future<RealType> sor_cycle(scalar_grid_type& p_grid, scalar_grid_type const& rhs_grid) {}
 
+        virtual hpx::future<std::pair<RealType, RealType> > update_velocities(vector_grid_type& uv_grid,
+                                                        vector_grid_type const& fg_grid, scalar_grid_type const& p_grid, RealType dt) {}
+
     protected:
         index_grid_type const& index;
         parameters const& p;
-
-        template <typename F, typename... Args>
-        auto dispatch(F const& f, uint k, uint l, Args... args) -> decltype(f(args..., std::declval<uint>(), std::declval<uint>(), std::declval<uint>(), std::declval<uint>()))
-        {
-            return hpx::dataflow(
-                    hpx::launch::async,
-                    f,
-                    args...,
-                    index[get_index(k, l)].first,
-                    index[get_index(k, l)].second,
-                    p.i_max,
-                    p.j_max
-            );
-        }
 
         inline uint get_index(uint k, uint l) { return l * p.num_partitions_x + k;}
 

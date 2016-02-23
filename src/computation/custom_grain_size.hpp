@@ -16,7 +16,8 @@ class custom_grain_size : public strategy {
 
         virtual hpx::future<RealType> sor_cycle(scalar_grid_type& p_grid, scalar_grid_type const& rhs_grid);
 
-
+        virtual hpx::future<std::pair<RealType, RealType> > update_velocities(vector_grid_type& uv_grid,
+                                                        vector_grid_type const& fg_grid, scalar_grid_type const& p_grid, RealType dt);
 };
 
 }//namespace

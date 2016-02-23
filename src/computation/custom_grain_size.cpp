@@ -195,7 +195,7 @@ vector_partition compute_fg_action(hpx::naming::id_type const where, hpx::shared
                                     );
             }
 
-    // compute top strip i = 1, ..., i_max-1, j = j_max
+    // compute top strip i = 1, ..., i_max-1, j = j_max for F and set top boundary G = v
     if (is_top)
     {
         uint j = size_y - 2;
@@ -220,10 +220,12 @@ vector_partition compute_fg_action(hpx::naming::id_type const where, hpx::shared
                                     - first_derivative_of_product_y(right.second, center.second, bottom.second, bottomright.second,
                                                                     bottom.first, center.first, top.first, dy, alpha)
                                     );
+
+            fg_cell.second = center.second;
         }
     }
 
-    // compute right strip i = i_max, j = 1, ..., j_max-1
+    // compute right strip i = i_max, j = 1, ..., j_max-1 and set right boundary F = u
     if (is_right)
     {
         uint i = size_x - 2;
@@ -248,6 +250,35 @@ vector_partition compute_fg_action(hpx::naming::id_type const where, hpx::shared
                                                                     left.second, center.second, right.second, dx, alpha)
                                     - first_derivative_of_square_y(top.second, center.second, bottom.second, dy, alpha)
                                     );
+
+            fg_cell.first = center.first;
+        }
+    }
+
+
+    // setting left boundary F = u
+    if (is_left)
+    {
+        uint i = 0;
+        for (uint j = start_j; j < end_j; j++)
+        {
+            vector_cell& fg_cell = fg_data.get_cell_ref(i, j);
+            vector_cell const center = uv_center.get_cell(i, j);
+
+            fg_cell.first = center.first;
+        }
+    }
+
+    // setting bottom boundary G = v
+    if (is_bottom)
+    {
+        uint j = 0;
+        for (uint i = start_i; i < end_i; i++)
+        {
+            vector_cell& fg_cell = fg_data.get_cell_ref(i, j);
+            vector_cell const center = uv_center.get_cell(i, j);
+
+            fg_cell.second = center.second;
         }
     }
 

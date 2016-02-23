@@ -104,6 +104,13 @@ void check_compute_fg(vector_grid_type const& fg_grid, vector_grid_type const& u
                                         (msg + ident + " for G: " + expected_string(res, fg_cell.second)).c_str());
                     }
 
+                    if (in_range(0, 0, 1, p.j_max, global_i, global_j) || in_range(p.i_max, p.i_max, 1, p.j_max, global_i, global_j))
+                            HPX_ASSERT_MSG(uv_cell.first == fg_cell.first,
+                                        (msg + ident + " for F: " + expected_string(uv_cell.first, fg_cell.first)).c_str());
+
+                    if (in_range(1, p.i_max, 0, 0, global_i, global_j) || in_range(1, p.i_max, p.j_max, p.j_max, global_i, global_j))
+                            HPX_ASSERT_MSG(uv_cell.second == fg_cell.second,
+                                        (msg + ident + " for G: " + expected_string(uv_cell.second, fg_cell.second)).c_str());
 
                 }
             }

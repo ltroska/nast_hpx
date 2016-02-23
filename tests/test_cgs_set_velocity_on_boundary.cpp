@@ -38,7 +38,7 @@ void check_set_velocity_on_boundary(vector_grid_type grid, index_grid_type index
                     global_j = index[l * p.num_partitions_x + k].second + j;
 
                     vector_cell cell = data[k][l].get_cell(i, j);
-                    std::string ident = std::to_string(k) + " " + std::to_string(l) + " " + std::to_string(i) + " " + std::to_string(j);
+                    std::string ident = " partition/cell " + std::to_string(k) + " " + std::to_string(l) + " " + std::to_string(i) + " " + std::to_string(j) + " ";
 
                     if (global_i == 0 && (global_j >= 1 && global_j <= p.j_max))
                     {
@@ -120,10 +120,10 @@ int hpx_main(int argc, char* argv[])
 
 // --- SQUARE AREA, MULTIPLE PARTITIONS, NOT FIRST LOCALITY --- //
     do_set_velocity_on_boundary_test(32, 32, 2, 2, 2, 8, 8);
-    do_set_velocity_on_boundary_test(1028, 1028, 1, 1, 2, 8, 16);
-    do_set_velocity_on_boundary_test(1028, 1028, 1, 2, 1, 8, 16);
-    do_set_velocity_on_boundary_test(2056, 2056, 3, 2, 2, 1, 8);
-    do_set_velocity_on_boundary_test(2056, 2056, 7, 4, 4, 4, 8);
+    do_set_velocity_on_boundary_test(512, 512, 1, 1, 2, 8, 16);
+    do_set_velocity_on_boundary_test(512, 512, 1, 2, 1, 8, 16);
+    do_set_velocity_on_boundary_test(1024, 1024, 3, 2, 2, 1, 8);
+    do_set_velocity_on_boundary_test(1024, 1024, 7, 4, 4, 4, 8);
 
 // --- NON-SQUARE AREA, ONE PARTITION --- //
     do_set_velocity_on_boundary_test(20, 40, 0, 1, 1, 1, 1);
@@ -144,14 +144,14 @@ int hpx_main(int argc, char* argv[])
 // --- NON-SQUARE AREA, MULTIPLE PARTITIONS, NOT FIRST LOCALITY --- //
     do_set_velocity_on_boundary_test(64, 32, 2, 2, 2, 8, 8);
     do_set_velocity_on_boundary_test(32, 64, 2, 2, 2, 8, 8);
-    do_set_velocity_on_boundary_test(1028, 512, 1, 1, 2, 8, 16);
-    do_set_velocity_on_boundary_test(512, 1028, 1, 1, 2, 8, 16);
-    do_set_velocity_on_boundary_test(1028, 2056, 1, 2, 1, 8, 16);
-    do_set_velocity_on_boundary_test(2056, 1028, 1, 2, 1, 8, 16);
-    do_set_velocity_on_boundary_test(2056, 512, 3, 2, 2, 1, 8);
-    do_set_velocity_on_boundary_test(512, 2056, 3, 2, 2, 1, 8);
-    do_set_velocity_on_boundary_test(2056, 1028, 7, 4, 4, 4, 8);
-    do_set_velocity_on_boundary_test(1028, 2056, 7, 4, 4, 4, 8);
+    do_set_velocity_on_boundary_test(512, 128, 1, 1, 2, 8, 16);
+    do_set_velocity_on_boundary_test(256, 512, 1, 1, 2, 8, 16);
+    do_set_velocity_on_boundary_test(512, 128, 1, 2, 1, 8, 16);
+    do_set_velocity_on_boundary_test(128, 512, 1, 2, 1, 8, 16);
+    do_set_velocity_on_boundary_test(512, 128, 3, 2, 2, 1, 8);
+    do_set_velocity_on_boundary_test(512, 256, 3, 2, 2, 1, 8);
+    do_set_velocity_on_boundary_test(512, 256, 7, 4, 4, 4, 8);
+    do_set_velocity_on_boundary_test(256, 512, 7, 4, 4, 4, 8);
 
 // ---------------------------------------------------------------------------------------- //
 

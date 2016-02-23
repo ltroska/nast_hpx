@@ -24,19 +24,6 @@ void check_compute_fg(vector_grid_type const& fg_grid, vector_grid_type const& u
         }
     }
 
-    std::vector<std::vector<vector_data > > uv_data;
-
-    uv_data.resize(p.num_partitions_x);
-    for (uint k = 0; k < p.num_partitions_x ; k++)
-    {
-        uv_data[k].resize(p.num_partitions_y);
-        for (uint l = 0; l < p.num_partitions_y ; l++)
-        {
-            vector_data base = uv_grid[l * p.num_partitions_x + k].get_data(CENTER).get();
-            uv_data[k][l] = vector_data(base);
-        }
-    }
-
     uint global_i, global_j, size_x, size_y;
 
     for (uint l = 1; l < p.num_partitions_y-1; l++)
@@ -54,27 +41,38 @@ void check_compute_fg(vector_grid_type const& fg_grid, vector_grid_type const& u
                     global_j = index[l * p.num_partitions_x + k].second + j;
 
                     vector_cell fg_cell = fg_data[k][l].get_cell(i, j);
-                    vector_cell uv_cell = uv_data[k][l].get_cell(i, j);
 
-                    vector_cell uv_left = get_neighbor_cell(uv_data[k][l], uv_data[k-1][l], uv_data[k+1][l], uv_data[k][l-1], uv_data[k][l+1],
-                                                uv_data[k-1][l-1], uv_data[k+1][l-1], uv_data[k-1][l+1], uv_data[k+1][l+1], i, j, LEFT);
-                    vector_cell uv_right = get_neighbor_cell(uv_data[k][l], uv_data[k-1][l], uv_data[k+1][l], uv_data[k][l-1], uv_data[k][l+1],
-                                                uv_data[k-1][l-1], uv_data[k+1][l-1], uv_data[k-1][l+1], uv_data[k+1][l+1], i, j, RIGHT);
-                    vector_cell uv_bottom = get_neighbor_cell(uv_data[k][l], uv_data[k-1][l], uv_data[k+1][l], uv_data[k][l-1], uv_data[k][l+1],
-                                                uv_data[k-1][l-1], uv_data[k+1][l-1], uv_data[k-1][l+1], uv_data[k+1][l+1], i, j, BOTTOM);
-                    vector_cell uv_top = get_neighbor_cell(uv_data[k][l], uv_data[k-1][l], uv_data[k+1][l], uv_data[k][l-1], uv_data[k][l+1],
-                                                uv_data[k-1][l-1], uv_data[k+1][l-1], uv_data[k-1][l+1], uv_data[k+1][l+1], i, j, TOP);
-                    vector_cell uv_bottomleft = get_neighbor_cell(uv_data[k][l], uv_data[k-1][l], uv_data[k+1][l], uv_data[k][l-1], uv_data[k][l+1],
-                                                uv_data[k-1][l-1], uv_data[k+1][l-1], uv_data[k-1][l+1], uv_data[k+1][l+1], i, j, BOTTOM_LEFT);
-                    vector_cell uv_bottomright = get_neighbor_cell(uv_data[k][l], uv_data[k-1][l], uv_data[k+1][l], uv_data[k][l-1], uv_data[k][l+1],
-                                                uv_data[k-1][l-1], uv_data[k+1][l-1], uv_data[k-1][l+1], uv_data[k+1][l+1], i, j, BOTTOM_RIGHT);
-                    vector_cell uv_topleft = get_neighbor_cell(uv_data[k][l], uv_data[k-1][l], uv_data[k+1][l], uv_data[k][l-1], uv_data[k][l+1],
-                                                uv_data[k-1][l-1], uv_data[k+1][l-1], uv_data[k-1][l+1], uv_data[k+1][l+1], i, j, TOP_LEFT);
-                    vector_cell uv_topright = get_neighbor_cell(uv_data[k][l], uv_data[k-1][l], uv_data[k+1][l], uv_data[k][l-1], uv_data[k][l+1],
-                                                uv_data[k-1][l-1], uv_data[k+1][l-1], uv_data[k-1][l+1], uv_data[k+1][l+1], i, j, TOP_RIGHT);
+                    vector_data uv_center_data = uv_grid[l * p.num_partitions_x + k].get_data(CENTER).get();
+                    vector_data uv_left_data = uv_grid[l * p.num_partitions_x + k-1].get_data(LEFT).get();
+                    vector_data uv_right_data = uv_grid[l * p.num_partitions_x + k+1].get_data(RIGHT).get();
+                    vector_data uv_bottom_data = uv_grid[(l-1) * p.num_partitions_x + k].get_data(BOTTOM).get();
+                    vector_data uv_top_data = uv_grid[(l+1) * p.num_partitions_x + k].get_data(TOP).get();
+                    vector_data uv_bottomleft_data = uv_grid[(l-1) * p.num_partitions_x + k-1].get_data(BOTTOM_LEFT).get();
+                    vector_data uv_bottomright_data = uv_grid[(l-1) * p.num_partitions_x + k+1].get_data(BOTTOM_RIGHT).get();
+                    vector_data uv_topleft_data = uv_grid[(l+1)* p.num_partitions_x + k-1].get_data(TOP_LEFT).get();
+                    vector_data uv_topright_data = uv_grid[(l+1) * p.num_partitions_x + k+1].get_data(TOP_RIGHT).get();
 
-                    std::string ident = std::to_string(k) + " " + std::to_string(l) + " " + std::to_string(i) + " " + std::to_string(j);
-                    std::cout << fg_cell ;
+
+                    vector_cell uv_cell = uv_center_data.get_cell(i, j);
+
+                    vector_cell uv_left = get_neighbor_cell(uv_center_data, uv_left_data, uv_right_data, uv_bottom_data, uv_top_data, uv_bottomleft_data,
+                                                                uv_bottomright_data, uv_topleft_data, uv_topright_data, i, j, LEFT);
+                    vector_cell uv_right = get_neighbor_cell(uv_center_data, uv_left_data, uv_right_data, uv_bottom_data, uv_top_data, uv_bottomleft_data,
+                                                                uv_bottomright_data, uv_topleft_data, uv_topright_data, i, j, RIGHT);
+                    vector_cell uv_bottom = get_neighbor_cell(uv_center_data, uv_left_data, uv_right_data, uv_bottom_data, uv_top_data, uv_bottomleft_data,
+                                                                uv_bottomright_data, uv_topleft_data, uv_topright_data, i, j, BOTTOM);
+                    vector_cell uv_top = get_neighbor_cell(uv_center_data, uv_left_data, uv_right_data, uv_bottom_data, uv_top_data, uv_bottomleft_data,
+                                                                uv_bottomright_data, uv_topleft_data, uv_topright_data, i, j, TOP);
+                    vector_cell uv_bottomleft = get_neighbor_cell(uv_center_data, uv_left_data, uv_right_data, uv_bottom_data, uv_top_data, uv_bottomleft_data,
+                                                                        uv_bottomright_data, uv_topleft_data, uv_topright_data, i, j, BOTTOM_LEFT);
+                    vector_cell uv_bottomright = get_neighbor_cell(uv_center_data, uv_left_data, uv_right_data, uv_bottom_data, uv_top_data, uv_bottomleft_data,
+                                                                        uv_bottomright_data, uv_topleft_data, uv_topright_data, i, j, BOTTOM_RIGHT);
+                    vector_cell uv_topleft = get_neighbor_cell(uv_center_data, uv_left_data, uv_right_data, uv_bottom_data, uv_top_data, uv_bottomleft_data,
+                                                                    uv_bottomright_data, uv_topleft_data, uv_topright_data, i, j, TOP_LEFT);
+                    vector_cell uv_topright = get_neighbor_cell(uv_center_data, uv_left_data, uv_right_data, uv_bottom_data, uv_top_data, uv_bottomleft_data,
+                                                                    uv_bottomright_data, uv_topleft_data, uv_topright_data, i, j, TOP_RIGHT);
+
+                    std::string ident = " partition/cell " + std::to_string(k) + " " + std::to_string(l) + " " + std::to_string(i) + " " + std::to_string(j) + " ";
 
                     if (in_range(1, p.i_max-1, 1, p.j_max, global_i, global_j))
                     {
@@ -87,11 +85,10 @@ void check_compute_fg(vector_grid_type const& fg_grid, vector_grid_type const& u
                                                                                 uv_bottom.first, uv_cell.first, uv_top.first, p.dy, p.alpha)
                                                     );
 
-                        std::cout  << " " <<res ;
 
 
                         HPX_ASSERT_MSG(res == fg_cell.first,
-                                        (msg + ident + expected_string(res, fg_cell.first)).c_str());
+                                        (msg + ident + " for F: " +expected_string(res, fg_cell.first)).c_str());
                     }
 
                     if (in_range(1, p.i_max, 1, p.j_max-1, global_i, global_j))
@@ -101,12 +98,13 @@ void check_compute_fg(vector_grid_type const& fg_grid, vector_grid_type const& u
                                                             + second_derivative_fwd_bkwd_y(uv_top.second, uv_cell.second, uv_bottom.second, p.dy))
                                                     - first_derivative_of_product_x(uv_left.first, uv_cell.first, uv_top.first, uv_topleft.first,
                                                         uv_left.second, uv_cell.second, uv_right.second, p.dx, p.alpha)
+                                                    - first_derivative_of_square_y(uv_top.second, uv_cell.second, uv_bottom.second, p.dy, p.alpha)
                                                     );
-                        std::cout  << " " <<res ;
-
-                        HPX_ASSERT_MSG(res == fg_cell.second, (msg + ident + expected_string(res, fg_cell.second)).c_str());
+                        HPX_ASSERT_MSG(res == fg_cell.second,
+                                        (msg + ident + " for G: " + expected_string(res, fg_cell.second)).c_str());
                     }
-                    std::cout << std::endl;
+
+
                 }
             }
         }
@@ -137,14 +135,14 @@ void do_compute_fg_test(uint i_max, uint j_max, uint locality_id, uint localitie
 
         maker.make_index_grid(index);
         maker.make_vector_grid(fg_grid, 0);
-        maker.make_vector_grid(uv_grid, 2);
+        maker.make_random_grid(uv_grid);
 
-       print_grid(fg_grid, params);
+    //    print_grid(fg_grid, params);
         print_grid(uv_grid, params);
 
         computation::custom_grain_size strat(index, params);
         strat.compute_fg(fg_grid, uv_grid, dt);
-        print_grid(fg_grid, params);
+   //     print_grid(fg_grid, params);
 
         std::string msg = "\nfailed with settings " + std::to_string(i_max) + " " + std::to_string(j_max) + " " + std::to_string(locality_id) + " "
                             + std::to_string(localities_x) + " " + std::to_string(localities_y) + " " + std::to_string(i_res) + " " + std::to_string(j_res) + " ";
@@ -155,6 +153,10 @@ void do_compute_fg_test(uint i_max, uint j_max, uint locality_id, uint localitie
 int hpx_main(int argc, char* argv[])
 {
     do_compute_fg_test(4, 4, 0, 1, 1, 1, 1);
+   /* do_compute_fg_test(128, 128, 1, 2, 2, 1, 1);
+    do_compute_fg_test(128, 128, 1, 2, 2, 2, 2);
+    do_compute_fg_test(128, 128, 1, 2, 2, 4, 4);
+    do_compute_fg_test(128, 128, 5, 4, 4, 1, 1);*/
 
     return hpx::finalize();
 }

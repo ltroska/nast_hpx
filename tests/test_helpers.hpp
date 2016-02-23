@@ -1,7 +1,21 @@
 #ifndef TEST_HELPERS_HPP
 #define TEST_HELPERS_HPP
 
+#include <random>
+
 #include "grid/partition.hpp"
+
+class rand_double
+{
+public:
+    rand_double(double low, double high)
+    :r(std::bind(std::uniform_real_distribution<>(low,high),std::default_random_engine())){}
+
+    double operator()(){ return r(); }
+
+private:
+    std::function<double()> r;
+};
 
 /*
 * Makes the needed grids for testing the computation component
@@ -41,6 +55,39 @@ struct grid_maker
             for (uint k = 0; k < p.num_partitions_x; k++)
             {
                 grid[get_index(k, l)] = vector_partition(hpx::find_here(), p.num_cells_per_partition_x, p.num_cells_per_partition_y, initial_value);
+            }
+    }
+
+    void make_scalar_grid(scalar_grid_type& grid, RealType initial_value)
+    {
+        grid.resize(p.num_partitions_x * p.num_partitions_y);
+
+        for (uint l = 0; l < p.num_partitions_y; l++)
+            for (uint k = 0; k < p.num_partitions_x; k++)
+            {
+                grid[get_index(k, l)] = scalar_partition(hpx::find_here(), p.num_cells_per_partition_x, p.num_cells_per_partition_y, initial_value);
+            }
+    }
+
+    template<typename T>
+    void make_random_grid(std::vector<grid::partition<T> >& grid, RealType lower_bound = -10, RealType upper_bound = 10)
+    {
+        rand_double rd{lower_bound, upper_bound};
+
+        grid.resize(p.num_partitions_x * p.num_partitions_y);
+
+        for (uint l = 0; l < p.num_partitions_y; l++)
+            for (uint k = 0; k < p.num_partitions_x; k++)
+            {
+                grid::partition_data<T> data = grid::partition_data<T>(p.num_cells_per_partition_x, p.num_cells_per_partition_y);
+
+                for (uint i = 0; i < p.num_cells_per_partition_x; i++)
+                    for (uint j = 0; j < p.num_cells_per_partition_y; j++)
+                    {
+                        data.get_cell_ref(i, j) = T(rd());
+                    }
+
+                grid[get_index(k, l)] = grid::partition<T>(hpx::find_here(), data);
             }
     }
 

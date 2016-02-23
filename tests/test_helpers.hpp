@@ -91,6 +91,22 @@ struct grid_maker
             }
     }
 
+    template<typename T>
+    void copy_grid(std::vector<grid::partition<T> > const & src_grid, std::vector<grid::partition<T> >& target_grid)
+    {
+        target_grid.resize(p.num_partitions_x * p.num_partitions_y);
+
+        for (uint k = 0; k < p.num_partitions_x ; k++)
+        {
+            for (uint l = 0; l < p.num_partitions_y; l++)
+            {
+                grid::partition_data<T> base = grid::partition_data<T>(src_grid[get_index(k, l)].get_data(CENTER).get());
+
+                target_grid[get_index(k, l)] = grid::partition<T>(hpx::find_here(), base);
+            }
+        }
+    }
+
     void make_neighbor_test_grid(vector_grid_type& grid)
     {
         grid.resize(p.num_partitions_x * p.num_partitions_y);
@@ -119,26 +135,33 @@ struct grid_maker
 };
 
 template<typename T>
-void print_grid(std::vector<grid::partition<T> > const& grid, computation::parameters p)
+void print_grid(std::vector<grid::partition<T> > const& grid, computation::parameters p, uint start_k = 0, uint end_k = 0, uint start_l = 0, uint end_l = 0)
 {
     std::vector<std::vector<grid::partition_data<T> > > data;
 
     data.resize(p.num_partitions_x);
 
-    for (uint k = 0; k < p.num_partitions_x ; k++)
+    if (end_k == 0)
+        end_k = p.num_partitions_x - 1;
+
+    if (end_l == 0)
+        end_l = p.num_partitions_y - 1;
+
+    for (uint k = start_k; k <= end_k ; k++)
     {
         data[k].resize(p.num_partitions_y );
-        for (uint l = 0; l < p.num_partitions_y; l++)
+        for (uint l = start_l; l <= end_l; l++)
         {
             grid::partition_data<T> base = grid[l * p.num_partitions_x + k].get_data(CENTER).get();
             data[k][l] = grid::partition_data<T>(base);
         }
     }
-    for (uint j = p.num_partitions_y - 1; j <= p.num_partitions_y; --j)
+
+    for (uint j = ((end_l > p.num_partitions_y -1) ? p.num_partitions_y - 1 : end_l); j <= p.num_partitions_y && j >= start_l; --j)
     {
         for (uint row = p.num_cells_per_partition_y - 1 ; row <= p.num_cells_per_partition_y; --row)
         {
-            for (uint i = 0; i < p.num_partitions_x; ++i)
+            for (uint i = start_k; i <= end_k; ++i)
             {
                 for (uint col = 0; col < p.num_cells_per_partition_x; col++)
                 {

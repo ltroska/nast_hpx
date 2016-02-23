@@ -128,8 +128,8 @@ void do_compute_fg_test(uint i_max, uint j_max, uint locality_id, uint localitie
         params.num_partitions_y = num_partitions_y;
         params.i_max = i_max;
         params.j_max = j_max;
-        params.num_cells_per_partition_x = (i_max / localities_x) / i_res;
-        params.num_cells_per_partition_y = (j_max / localities_y) / j_res;
+        params.num_cells_per_partition_x = ((i_max + 2) / localities_x) / i_res;
+        params.num_cells_per_partition_y = ((j_max + 2) / localities_y) / j_res;
         params.re = re;
         params.dx = 0.25;
         params.dy = 0.25;
@@ -144,12 +144,8 @@ void do_compute_fg_test(uint i_max, uint j_max, uint locality_id, uint localitie
         maker.make_vector_grid(fg_grid, 0);
         maker.make_random_grid(uv_grid);
 
-    //    print_grid(fg_grid, params);
-     //   print_grid(uv_grid, params);
-
         computation::custom_grain_size strat(index, params);
         strat.compute_fg(fg_grid, uv_grid, dt);
-   //     print_grid(fg_grid, params);
 
         std::string msg = "\nfailed with settings " + std::to_string(i_max) + " " + std::to_string(j_max) + " " + std::to_string(locality_id) + " "
                             + std::to_string(localities_x) + " " + std::to_string(localities_y) + " " + std::to_string(i_res) + " " + std::to_string(j_res) + " ";
@@ -159,11 +155,11 @@ void do_compute_fg_test(uint i_max, uint j_max, uint locality_id, uint localitie
 
 int hpx_main(int argc, char* argv[])
 {
-    do_compute_fg_test(4, 4, 0, 1, 1, 1, 1);
-    do_compute_fg_test(128, 128, 1, 2, 2, 1, 1);
-    do_compute_fg_test(128, 128, 1, 2, 2, 2, 2);
-    do_compute_fg_test(128, 128, 1, 2, 2, 4, 4);
-    do_compute_fg_test(128, 128, 5, 4, 4, 1, 1);
+    do_compute_fg_test(6, 6, 0, 1, 1, 1, 1);
+   /* do_compute_fg_test(126, 126, 1, 2, 2, 1, 1);
+    do_compute_fg_test(126, 126, 1, 2, 2, 2, 2);
+    do_compute_fg_test(126, 126, 1, 2, 2, 4, 4);
+    do_compute_fg_test(126, 126, 5, 4, 4, 1, 1);*/
 
     return hpx::finalize();
 }

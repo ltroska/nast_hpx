@@ -71,8 +71,8 @@ void do_set_pressure_on_boundary_test(uint i_max, uint j_max, uint locality_id, 
         params.num_partitions_y = num_partitions_y;
         params.i_max = i_max;
         params.j_max = j_max;
-        params.num_cells_per_partition_x = (i_max / localities_x) / i_res;
-        params.num_cells_per_partition_y = (j_max / localities_y) / j_res;
+        params.num_cells_per_partition_x = ((i_max + 2) / localities_x) / i_res;
+        params.num_cells_per_partition_y = ((j_max + 2) / localities_y) / j_res;
 
         grid_maker maker = grid_maker(localities_x, localities_y, locality_id, params);
 

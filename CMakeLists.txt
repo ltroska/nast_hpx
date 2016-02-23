@@ -117,4 +117,14 @@ add_hpx_executable(
 )
 add_test(cgs_compute_rhs_test  test_cgs_compute_rhs)
 
+# cgs::sor_cycle()
+
+add_hpx_executable(
+    test_cgs_sor_cycle
+    ESSENTIAL
+    SOURCES tests/test_cgs_sor_cycle.cpp src/computation/custom_grain_size.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(cgs_sor_cycle_test  test_cgs_sor_cycle)
+
 

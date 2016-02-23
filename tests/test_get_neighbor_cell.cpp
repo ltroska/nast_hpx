@@ -21,8 +21,8 @@ void do_get_neighbor_cell_test(uint k, uint l, uint i, uint j, uint i_max, uint 
     params.num_partitions_y = num_partitions_y;
     params.i_max = i_max;
     params.j_max = j_max;
-    params.num_cells_per_partition_x = (i_max / localities_x) / i_res;
-    params.num_cells_per_partition_y = (j_max / localities_y) / j_res;
+    params.num_cells_per_partition_x = ((i_max + 2) / localities_x) / i_res;
+    params.num_cells_per_partition_y = ((j_max + 2) / localities_y) / j_res;
 
     vector_grid_type grid;
     grid_maker maker = grid_maker(localities_x, localities_y, locality_id, params);
@@ -86,8 +86,8 @@ void do_get_neighbor_cell_test(uint k, uint l, uint i, uint j, uint i_max, uint 
 
 int hpx_main(int argc, char* argv[])
 {
-    uint i_max = 4;
-    uint j_max = 4;
+    uint i_max = 6;
+    uint j_max = 6;
     uint i_res = 1;
     uint j_res = 1;
 

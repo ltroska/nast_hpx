@@ -16,6 +16,8 @@ class strategy {
         virtual void compute_fg(vector_grid_type& fg_grid, vector_grid_type const& uv_grid, RealType dt) {}
         virtual void compute_rhs(scalar_grid_type& rhs_grid, vector_grid_type const& fg_grid, RealType dt) {}
 
+        virtual hpx::future<RealType> sor_cycle(scalar_grid_type& p_grid, scalar_grid_type const& rhs_grid) {}
+
     protected:
         index_grid_type const& index;
         parameters const& p;

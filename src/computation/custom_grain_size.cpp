@@ -12,6 +12,9 @@ namespace computation {
 vector_partition set_velocity_on_boundary_action(hpx::naming::id_type const where, hpx::shared_future<vector_data> center_fut,
                                                     uint global_i, uint global_j, uint i_max, uint j_max)
 {
+    /*
+    *@TODO: maybe create new vector_data here
+    */
     vector_data center = center_fut.get();
 
     uint size_x = center.size_x();
@@ -41,18 +44,6 @@ vector_partition set_velocity_on_boundary_action(hpx::naming::id_type const wher
         }
     }
 
-    if (is_right)
-    {
-        for (uint j = start_j; j < end_j; j++)
-        {
-            vector_cell& cell = center.get_cell_ref(size_x - 2, j);
-            vector_cell& cell2 = center.get_cell_ref(size_x - 1, j);
-
-            cell.first = 0;
-            cell2.second = -cell.second;
-        }
-    }
-
     if (is_bottom)
     {
         for (uint i = start_i; i < end_i; i++)
@@ -66,6 +57,22 @@ vector_partition set_velocity_on_boundary_action(hpx::naming::id_type const wher
         }
     }
 
+    // need to buffer this value, in case this is top and(!) right boundary, because then
+    // the right and the top equations both try set this value, resulting in an inconsistent state
+    RealType conflicting_u = center.get_cell(size_x - 2, size_y - 2).first;
+
+    if (is_right)
+    {
+        for (uint j = start_j; j < end_j; j++)
+        {
+            vector_cell& cell = center.get_cell_ref(size_x - 2, j);
+            vector_cell& cell2 = center.get_cell_ref(size_x - 1, j);
+
+            cell.first = 0;
+            cell2.second = -cell.second;
+        }
+    }
+
     if (is_top)
     {
         for (uint i = start_i; i < end_i; i++)
@@ -73,10 +80,13 @@ vector_partition set_velocity_on_boundary_action(hpx::naming::id_type const wher
             vector_cell& cell = center.get_cell_ref(i, size_y - 2);
             vector_cell& cell2 = center.get_cell_ref(i, size_y - 1);
 
-            cell2.second = 0;
+            cell.second = 0;
             cell2.first = 2. - cell.first;
         }
     }
+
+    if (is_right && is_top)
+        center.get_cell_ref(size_x - 2, size_y - 1).first = 2 - conflicting_u;
 
     return vector_partition(where, center);
 }
@@ -255,6 +265,8 @@ vector_partition compute_fg_action(hpx::naming::id_type const where, hpx::shared
         }
     }
 
+    end_i = (is_right ? size_x - 1 : size_x);
+    end_j = (is_top ? size_y - 1 : size_y);
 
     // setting left boundary F = u
     if (is_left)
@@ -281,6 +293,13 @@ vector_partition compute_fg_action(hpx::naming::id_type const where, hpx::shared
             fg_cell.second = center.second;
         }
     }
+
+    // set top cell we missed in above computation
+    if (is_top)
+        fg_data.get_cell_ref(size_x - 2, size_y - 2).second = uv_center.get_cell(size_x - 2, size_y - 2).second;
+
+    if (is_top)
+        fg_data.get_cell_ref(size_x - 2, size_y - 2).first = uv_center.get_cell(size_x - 2, size_y - 2).first;
 
     return vector_partition(where, fg_data);
 }
@@ -543,6 +562,266 @@ void custom_grain_size::set_pressure_on_boundary(scalar_grid_type& p_grid)
     }
 
 }
+
+/*
+// ------------------------------------------------------------ SOR CYCLE ------------------------------------------------------------ //
+*/
+
+scalar_partition sor_cycle_action(hpx::naming::id_type const where, hpx::shared_future<scalar_data> center_fut, hpx::shared_future<scalar_data> left_fut,
+                                        hpx::shared_future<scalar_data> right_fut, hpx::shared_future<scalar_data> bottom_fut, hpx::shared_future<scalar_data> top_fut,
+                                        hpx::shared_future<scalar_data> rhs_fut, uint global_i, uint global_j, uint i_max, uint j_max,
+                                        RealType omega, RealType dx, RealType dy, uint flag)
+{
+    /*
+    *@TODO: maybe create new scalar_data
+    */
+
+    scalar_data p_center = center_fut.get();
+    scalar_data p_left = left_fut.get();
+    scalar_data p_right = right_fut.get();
+    scalar_data p_bottom = bottom_fut.get();
+    scalar_data p_top = top_fut.get();
+    scalar_data rhs_center = rhs_fut.get();
+
+    uint size_x = p_center.size_x();
+    uint size_y = p_center.size_y();
+
+    bool is_left = (global_i == 0);
+    bool is_right = (global_i + size_x > i_max);
+    bool is_bottom = (global_j == 0);
+    bool is_top = (global_j + size_y > j_max);
+
+    uint global_start_i = (is_left ? 1 : 0);
+    uint end_i = (is_right ? size_x - 1 : size_x);
+    uint start_j = (is_bottom ? 1 : 0);
+    uint end_j = (is_top ? size_y - 1 : size_y);
+
+    uint row_start_i;
+
+
+    RealType over_dx_sq = 1./(dx*dx);
+    RealType over_dy_sq = 1./(dy*dy);
+
+    for (uint j = start_j; j < end_j; j++)
+    {
+        // have to start one cell to the right if parity of left most cell in this row does not correspond to flag
+        row_start_i = global_start_i + std::abs(flag - (global_i + global_j + j) % 2);
+
+        for (uint i = row_start_i; i < end_i; i++)
+        {
+            scalar_cell& next_p = p_center.get_cell_ref(i, j);
+            scalar_cell const current_rhs = rhs_center.get_cell(i, j);
+            scalar_cell const left = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, LEFT);
+            scalar_cell const right = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, RIGHT);
+            scalar_cell const bottom = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, BOTTOM);
+            scalar_cell const top = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, TOP);
+
+            next_p.value = (1 - omega)*next_p.value
+                            + omega/(2*(over_dx_sq + over_dy_sq)) * ( (right.value + left.value)*over_dx_sq + (top.value + bottom.value)*over_dy_sq - current_rhs.value);
+        }
+    }
+
+    return scalar_partition(where, p_center);
+}
+
+scalar_partition dispatch_sor_cycle(scalar_partition const& center, scalar_partition const& left, scalar_partition const& right,
+                                        scalar_partition const& bottom, scalar_partition const& top, scalar_partition const& rhs,
+                                        uint global_i, uint global_j, uint i_max, uint j_max, RealType omega, RealType dx, RealType dy, uint flag)
+{
+    hpx::shared_future<scalar_data> center_data = center.get_data(CENTER);
+    hpx::shared_future<scalar_data> left_data = left.get_data(LEFT);
+    hpx::shared_future<scalar_data> right_data = right.get_data(RIGHT);
+    hpx::shared_future<scalar_data> bottom_data = bottom.get_data(BOTTOM);
+    hpx::shared_future<scalar_data> top_data = top.get_data(TOP);
+    hpx::shared_future<scalar_data> rhs_data = rhs.get_data(CENTER);
+
+    hpx::naming::id_type const where = center.get_id();
+
+    return hpx::dataflow(
+            hpx::launch::async,
+            &sor_cycle_action,
+            where,
+            center_data, left_data, right_data,
+            bottom_data, top_data, rhs_data,
+            global_i,
+            global_j,
+            i_max,
+            j_max,
+            omega,
+            dx,
+            dy,
+            flag
+    );
+}
+
+
+RealType compute_residual_action(hpx::shared_future<scalar_data> center_fut, hpx::shared_future<scalar_data> left_fut,
+                            hpx::shared_future<scalar_data> right_fut, hpx::shared_future<scalar_data> bottom_fut, hpx::shared_future<scalar_data> top_fut,
+                            hpx::shared_future<scalar_data> rhs_fut, uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy)
+{
+    scalar_data p_center = center_fut.get();
+    scalar_data p_left = left_fut.get();
+    scalar_data p_right = right_fut.get();
+    scalar_data p_bottom = bottom_fut.get();
+    scalar_data p_top = top_fut.get();
+    scalar_data rhs_center = rhs_fut.get();
+
+    uint size_x = p_center.size_x();
+    uint size_y = p_center.size_y();
+
+    bool is_left = (global_i == 0);
+    bool is_right = (global_i + size_x > i_max);
+    bool is_bottom = (global_j == 0);
+    bool is_top = (global_j + size_y > j_max);
+
+    uint start_i = (is_left ? 1 : 0);
+    uint end_i = (is_right ? size_x - 1 : size_x);
+    uint start_j = (is_bottom ? 1 : 0);
+    uint end_j = (is_top ? size_y - 1 : size_y);
+
+    RealType local_residual = 0;
+
+    RealType over_dx_sq = 1./(dx*dx);
+    RealType over_dy_sq = 1./(dy*dy);
+
+    for (uint j = start_j; j < end_j; j++)
+        for (uint i = start_i; i < end_i; i++)
+        {
+            scalar_cell const center = p_center.get_cell(i, j);
+            scalar_cell const rhs = rhs_center.get_cell(i, j);
+            scalar_cell const left = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, LEFT);
+            scalar_cell const right = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, RIGHT);
+            scalar_cell const bottom = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, BOTTOM);
+            scalar_cell const top = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, TOP);
+
+            RealType tmp = (right.value - 2*center.value + left.value)*over_dx_sq + (top.value - 2*center.value + bottom.value)*over_dy_sq - rhs.value;
+            local_residual += tmp*tmp;
+        }
+
+    return local_residual/(i_max*j_max);
+}
+
+hpx::future<RealType> dispatch_compute_residual(scalar_partition const& center, scalar_partition const& left, scalar_partition const& right,
+                                        scalar_partition const& bottom, scalar_partition const& top, scalar_partition const& rhs,
+                                        uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy)
+{
+    hpx::shared_future<scalar_data> center_data = center.get_data(CENTER);
+    hpx::shared_future<scalar_data> left_data = left.get_data(LEFT);
+    hpx::shared_future<scalar_data> right_data = right.get_data(RIGHT);
+    hpx::shared_future<scalar_data> bottom_data = bottom.get_data(BOTTOM);
+    hpx::shared_future<scalar_data> top_data = top.get_data(TOP);
+    hpx::shared_future<scalar_data> rhs_data = rhs.get_data(CENTER);
+
+
+    return hpx::dataflow(
+            hpx::launch::async,
+            &compute_residual_action,
+            center_data, left_data, right_data,
+            bottom_data, top_data, rhs_data,
+            global_i,
+            global_j,
+            i_max,
+            j_max,
+            dx,
+            dy
+    );
+}
+
+hpx::future<RealType> custom_grain_size::sor_cycle(scalar_grid_type& p_grid, scalar_grid_type const& rhs_grid)
+{
+    // even cells first
+    for (uint l = 1; l < p.num_partitions_y - 1; l++)
+    {
+        for (uint k = 1; k < p.num_partitions_x - 1; k++)
+        {
+            scalar_partition& next = p_grid[get_index(k, l)];
+
+            next =
+                hpx::dataflow(
+                    hpx::launch::async,
+                    &dispatch_sor_cycle,
+                    next,
+                    p_grid[get_index(k-1, l)], //left
+                    p_grid[get_index(k+1, l)], //right
+                    p_grid[get_index(k, l-1)], //bottom
+                    p_grid[get_index(k, l+1)], //top
+                    rhs_grid[get_index(k, l)],
+                    index[get_index(k, l)].first,
+                    index[get_index(k, l)].second,
+                    p.i_max,
+                    p.j_max,
+                    p.omega,
+                    p.dx,
+                    p.dy,
+                    0
+            );
+        }
+    }
+
+    // odd cells second
+    for (uint l = 1; l < p.num_partitions_y - 1; l++)
+    {
+        for (uint k = 1; k < p.num_partitions_x - 1; k++)
+        {
+            scalar_partition& next = p_grid[get_index(k, l)];
+
+            next =
+                hpx::dataflow(
+                    hpx::launch::async,
+                    &dispatch_sor_cycle,
+                    next,
+                    p_grid[get_index(k-1, l)], //left
+                    p_grid[get_index(k+1, l)], //right
+                    p_grid[get_index(k, l-1)], //bottom
+                    p_grid[get_index(k, l+1)], //top
+                    rhs_grid[get_index(k, l)],
+                    index[get_index(k, l)].first,
+                    index[get_index(k, l)].second,
+                    p.i_max,
+                    p.j_max,
+                    p.omega,
+                    p.dx,
+                    p.dy,
+                    1
+            );
+        }
+    }
+
+    // residuals
+    hpx::future<RealType> residual = hpx::make_ready_future(0.0);
+    for (uint l = 1; l < p.num_partitions_y - 1; l++)
+    {
+        for (uint k = 1; k < p.num_partitions_x - 1; k++)
+        {
+                residual = hpx::dataflow(
+                    [](hpx::future<RealType> prev_sum, hpx::future<RealType> next_summand)
+                    {
+                        return prev_sum.get() + next_summand.get();
+                    }
+                    , residual
+                    , hpx::dataflow(
+                            hpx::launch::async,
+                            &dispatch_compute_residual,
+                            p_grid[get_index(k, l)], //center
+                            p_grid[get_index(k-1, l)], //left
+                            p_grid[get_index(k+1, l)], //right
+                            p_grid[get_index(k, l-1)], //bottom
+                            p_grid[get_index(k, l+1)], //top
+                            rhs_grid[get_index(k, l)],
+                            index[get_index(k, l)].first,
+                            index[get_index(k, l)].second,
+                            p.i_max,
+                            p.j_max,
+                            p.dx,
+                            p.dy
+                        )
+                    );
+        }
+    }
+
+    return residual;
+}
+
 
 
 }//namespace

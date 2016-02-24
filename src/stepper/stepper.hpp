@@ -10,9 +10,9 @@ struct stepper
 {
     typedef hpx::components::client_base<stepper, server::stepper_server> base_type;
 
-    stepper(io::config const& cfg)
+    stepper()
       : base_type(hpx::new_<server::stepper_server>
-          (hpx::find_here(), hpx::get_num_localities_sync(), cfg))
+          (hpx::find_here(), hpx::get_num_localities_sync()))
     {
         hpx::register_with_basename(server::stepper_basename, get_id(), hpx::get_locality_id());
     }
@@ -29,6 +29,12 @@ struct stepper
     stepper(hpx::future<hpx::id_type> && id)
       : base_type(std::move(id))
     {}
+
+    hpx::future<void> setup(io::config cfg)
+    {
+        server::stepper_server::setup_action act;
+        return hpx::async(act, get_id(), cfg);
+    }
 };
 
 

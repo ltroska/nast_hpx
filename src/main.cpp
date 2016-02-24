@@ -1,5 +1,6 @@
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
+#include <hpx/lcos/gather.hpp>
 
 #include "io/manager.hpp"
 #include "stepper/stepper.hpp"
@@ -9,7 +10,8 @@ int hpx_main(int argc, char* argv[])
     io::config config = io::manager::read_config_from_file("input.xml");
     std::cout << config << std::endl;
 
-    stepper::stepper step(config);
+    stepper::stepper step;
+    step.setup(config);
 
     return hpx::finalize();
 }

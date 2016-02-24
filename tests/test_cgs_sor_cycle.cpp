@@ -45,7 +45,6 @@ void do_sor_cycle_test(uint i_max, uint j_max, uint locality_id, uint localities
         {
             strat.set_pressure_on_boundary(p_grid);
             new_res = strat.sor_cycle(p_grid, rhs_grid).get();
-
             HPX_ASSERT_MSG(new_res - old_res <= eps, (msg + " old res: " + std::to_string(old_res) + " new res: " + std::to_string(new_res)).c_str());
             old_res = new_res;
         }
@@ -53,7 +52,7 @@ void do_sor_cycle_test(uint i_max, uint j_max, uint locality_id, uint localities
 
 int hpx_main(int argc, char* argv[])
 {
-    do_sor_cycle_test(6, 6, 0, 1, 1, 1, 1);
+    for (uint i = 0; i < 10; i++)
     do_sor_cycle_test(126, 126, 0, 1, 1, 1, 1);
 
     return hpx::finalize();

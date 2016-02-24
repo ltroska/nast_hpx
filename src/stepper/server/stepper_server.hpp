@@ -20,11 +20,13 @@ struct HPX_COMPONENT_EXPORT stepper_server
         stepper_server(uint num_localities);
         stepper_server(uint num_localities, io::config const& cfg);
 
-        void do_timestep(RealType dt);
+        void do_work();
+        hpx::future<std::pair<RealType, RealType> > do_timestep(uint step, RealType dt);
 
     protected:
         template<typename T>
         void print_grid(std::vector<grid::partition<T> > const& grid, const std::string message = "") const;
+        void write_vtk(uint step);
 
         uint get_index(uint k, uint l) const;
 
@@ -32,7 +34,7 @@ struct HPX_COMPONENT_EXPORT stepper_server
         void initialize_parameters();
         void initialize_grids();
 
-        RealType compute_new_dt(RealType u_max, RealType v_max);
+        RealType compute_new_dt(std::pair<RealType, RealType>);
 
         io::config c;
         computation::parameters params;

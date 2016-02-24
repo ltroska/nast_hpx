@@ -17,10 +17,7 @@ class array_deleter {
 //check if point is in global id range
 inline bool in_range(uint start_i, uint end_i, uint start_j, uint end_j, uint i,  uint j)
 {
-    if (i < start_i || i > end_i || j < start_j || j > end_j)
-        return false;
-
-    return true;
+    return !(i < start_i || i > end_i || j < start_j || j > end_j);
 }
 
 //finding id of neighboring localities
@@ -63,13 +60,51 @@ inline uint get_neighbor_id(uint id, direction dir, uint num_localities)
 
         case BOTTOM_RIGHT:
             return ((id-res_x+1) < num_localities && (id-res_x+1)/res_x == id/res_x-1) ? id-res_x+1 : num_localities;
+        case CENTER:
+            return id;
         default:
             return num_localities;
     }
 }
 
 template<typename T>
-inline const T get_neighbor_cell(grid::partition_data<T> const& center, grid::partition_data<T> const& left, grid::partition_data<T> const& right,
+const T get_left_neighbor(grid::partition_data<T> const& center, grid::partition_data<T> const& left, uint i, uint j)
+{
+    if (i > 0)
+        return center.get_cell(i-1, j);
+    else
+        return left.get_cell(j, 0);
+}
+
+template<typename T>
+const T get_right_neighbor(grid::partition_data<T> const& center, grid::partition_data<T> const& right, uint i, uint j)
+{
+    if (i+1 < center.size_x())
+        return center.get_cell(i+1, j);
+    else
+        return right.get_cell(j, 0);
+}
+
+template<typename T>
+const T get_bottom_neighbor(grid::partition_data<T> const& center, grid::partition_data<T> const& bottom, uint i, uint j)
+{
+    if (j > 0)
+        return center.get_cell(i, j-1);
+    else
+        return bottom.get_cell(i, 0);
+}
+
+template<typename T>
+const T get_top_neighbor(grid::partition_data<T> const& center, grid::partition_data<T> const& top, uint i, uint j)
+{
+    if (j+1 < center.size_y())
+        return center.get_cell(i, j+1);
+    else
+        return top.get_cell(i, 0);
+}
+
+template<typename T>
+const T get_neighbor_cell(grid::partition_data<T> const& center, grid::partition_data<T> const& left, grid::partition_data<T> const& right,
                            grid::partition_data<T> const& bottom, grid::partition_data<T> const& top, grid::partition_data<T> const& bottomleft,
                            grid::partition_data<T> const& bottomright, grid::partition_data<T> const& topleft, grid::partition_data<T> const& topright,
                            uint i, uint j, direction dir)

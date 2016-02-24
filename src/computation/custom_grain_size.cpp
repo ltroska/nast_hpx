@@ -2,6 +2,7 @@
 
 #include "util/helpers.hpp"
 #include "stencils.hpp"
+#include <hpx/parallel/algorithm.hpp>
 
 namespace computation {
 
@@ -604,6 +605,26 @@ scalar_partition sor_cycle_action(hpx::naming::id_type const where, hpx::shared_
     RealType part1 = 1. - omega;
     RealType part2 = omega / (2. * (over_dx_sq + over_dy_sq));
 
+  /*  auto range = boost::irange(0, (int)(size_x*size_y));
+
+    hpx::parallel::for_each(hpx::parallel::par, boost::begin(range),
+        boost::end(range),
+        [&](uint cnt)
+        {
+            uint i = cnt%size_x;
+            uint j = cnt/size_x;
+            scalar_cell& next_p = p_center.get_cell_ref(i, j);
+            scalar_cell const current_rhs = rhs_center.get_cell(i, j);
+            scalar_cell const left = get_left_neighbor(p_center, p_left, i, j);
+            scalar_cell const right = get_right_neighbor(p_center, p_right, i, j);
+            scalar_cell const bottom = get_bottom_neighbor(p_center, p_bottom, i, j);
+            scalar_cell const top = get_top_neighbor(p_center, p_top, i, j);
+
+            next_p.value = part1 * next_p.value
+                            + part2 * ( (right.value + left.value)*over_dx_sq + (top.value + bottom.value)*over_dy_sq - current_rhs.value);
+        }
+    );*/
+
     for (uint i = start_i; i < end_i; i++)
     {
         // have to start one cell to the right if parity of left most cell in this row does not correspond to flag
@@ -614,10 +635,10 @@ scalar_partition sor_cycle_action(hpx::naming::id_type const where, hpx::shared_
 
             scalar_cell& next_p = p_center.get_cell_ref(i, j);
             scalar_cell const current_rhs = rhs_center.get_cell(i, j);
-            scalar_cell const left = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, LEFT);
-            scalar_cell const right = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, RIGHT);
-            scalar_cell const bottom = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, BOTTOM);
-            scalar_cell const top = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, TOP);
+            scalar_cell const left = get_left_neighbor(p_center, p_left, i, j);
+            scalar_cell const right = get_right_neighbor(p_center, p_right, i, j);
+            scalar_cell const bottom = get_bottom_neighbor(p_center, p_bottom, i, j);
+            scalar_cell const top = get_top_neighbor(p_center, p_top, i, j);
 
             next_p.value = part1 * next_p.value
                             + part2 * ( (right.value + left.value)*over_dx_sq + (top.value + bottom.value)*over_dy_sq - current_rhs.value);

@@ -121,6 +121,15 @@ config manager::read_config_from_file(const char *path)
         config.delta_t = config_node.child("deltaT").first_attribute().as_double();
 	}
 
+	if(config_node.child("outputSkipSize") != NULL)
+	{
+        config.output_skip_size = config_node.child("outputSkipSize").first_attribute().as_int();
+	}
+	else
+	{
+        config.output_skip_size = 1;
+	}
+
 	return config;
 }
 }//namespace io

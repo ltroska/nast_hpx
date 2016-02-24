@@ -591,24 +591,27 @@ scalar_partition sor_cycle_action(hpx::naming::id_type const where, hpx::shared_
     bool is_bottom = (global_j == 0);
     bool is_top = (global_j + size_y > j_max);
 
-    uint global_start_i = (is_left ? 1 : 0);
+    uint start_i = (is_left ? 1 : 0);
     uint end_i = (is_right ? size_x - 1 : size_x);
     uint start_j = (is_bottom ? 1 : 0);
     uint end_j = (is_top ? size_y - 1 : size_y);
 
-    uint row_start_i;
+    uint row_start_i, col_start_j;
 
 
-    RealType over_dx_sq = 1./(dx*dx);
-    RealType over_dy_sq = 1./(dy*dy);
+    RealType over_dx_sq = 1./std::pow(dx, 2);
+    RealType over_dy_sq = 1./std::pow(dy, 2);
+    RealType part1 = 1. - omega;
+    RealType part2 = omega / (2. * (over_dx_sq + over_dy_sq));
 
-    for (uint j = start_j; j < end_j; j++)
+    for (uint i = start_i; i < end_i; i++)
     {
         // have to start one cell to the right if parity of left most cell in this row does not correspond to flag
-        row_start_i = global_start_i + std::abs(flag - (global_i + global_j + j) % 2);
+        col_start_j = start_j + abs(flag - (global_i + i + global_j + start_j) % 2);
 
-        for (uint i = row_start_i; i < end_i; i++)
+        for (uint j = col_start_j; j < end_j; j += 2)
         {
+
             scalar_cell& next_p = p_center.get_cell_ref(i, j);
             scalar_cell const current_rhs = rhs_center.get_cell(i, j);
             scalar_cell const left = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, LEFT);
@@ -616,8 +619,8 @@ scalar_partition sor_cycle_action(hpx::naming::id_type const where, hpx::shared_
             scalar_cell const bottom = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, BOTTOM);
             scalar_cell const top = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, TOP);
 
-            next_p.value = (1 - omega)*next_p.value
-                            + omega/(2*(over_dx_sq + over_dy_sq)) * ( (right.value + left.value)*over_dx_sq + (top.value + bottom.value)*over_dy_sq - current_rhs.value);
+            next_p.value = part1 * next_p.value
+                            + part2 * ( (right.value + left.value)*over_dx_sq + (top.value + bottom.value)*over_dy_sq - current_rhs.value);
         }
     }
 
@@ -729,7 +732,37 @@ hpx::future<RealType> dispatch_compute_residual(scalar_partition const& center, 
 
 hpx::future<RealType> custom_grain_size::sor_cycle(scalar_grid_type& p_grid, scalar_grid_type const& rhs_grid)
 {
-    // even cells first
+    scalar_grid_type tmp;
+    tmp.resize(p.num_partitions_y*p.num_partitions_x);
+
+    // odd cells first
+    for (uint l = 1; l < p.num_partitions_y - 1; l++)
+    {
+        for (uint k = 1; k < p.num_partitions_x - 1; k++)
+        {
+
+            tmp[get_index(k, l)] =
+                hpx::dataflow(
+                    hpx::launch::async,
+                    &dispatch_sor_cycle,
+                    p_grid[get_index(k, l)],
+                    p_grid[get_index(k-1, l)], //left
+                    p_grid[get_index(k+1, l)], //right
+                    p_grid[get_index(k, l-1)], //bottom
+                    p_grid[get_index(k, l+1)], //top
+                    rhs_grid[get_index(k, l)],
+                    index[get_index(k, l)].first,
+                    index[get_index(k, l)].second,
+                    p.i_max,
+                    p.j_max,
+                    p.omega,
+                    p.dx,
+                    p.dy,
+                    1
+            );
+        }
+    }
+
     for (uint l = 1; l < p.num_partitions_y - 1; l++)
     {
         for (uint k = 1; k < p.num_partitions_x - 1; k++)
@@ -740,7 +773,7 @@ hpx::future<RealType> custom_grain_size::sor_cycle(scalar_grid_type& p_grid, sca
                 hpx::dataflow(
                     hpx::launch::async,
                     &dispatch_sor_cycle,
-                    next,
+                    tmp[get_index(k, l)],
                     p_grid[get_index(k-1, l)], //left
                     p_grid[get_index(k+1, l)], //right
                     p_grid[get_index(k, l-1)], //bottom
@@ -758,7 +791,16 @@ hpx::future<RealType> custom_grain_size::sor_cycle(scalar_grid_type& p_grid, sca
         }
     }
 
-    // odd cells second
+   /* for (uint l = 1; l < p.num_partitions_y - 1; l++)
+    {
+        for (uint k = 1; k < p.num_partitions_x - 1; k++)
+        {
+            scalar_partition& next = p_grid[get_index(k, l)];
+
+            next = tmp[get_index(k, l)];
+        }
+    }
+   /* // even cells second
     for (uint l = 1; l < p.num_partitions_y - 1; l++)
     {
         for (uint k = 1; k < p.num_partitions_x - 1; k++)
@@ -769,7 +811,7 @@ hpx::future<RealType> custom_grain_size::sor_cycle(scalar_grid_type& p_grid, sca
                 hpx::dataflow(
                     hpx::launch::async,
                     &dispatch_sor_cycle,
-                    next,
+                    tmp[get_index(k, l)],
                     p_grid[get_index(k-1, l)], //left
                     p_grid[get_index(k+1, l)], //right
                     p_grid[get_index(k, l-1)], //bottom
@@ -785,7 +827,7 @@ hpx::future<RealType> custom_grain_size::sor_cycle(scalar_grid_type& p_grid, sca
                     1
             );
         }
-    }
+    }*/
 
     // residuals
     hpx::future<RealType> residual = hpx::make_ready_future(0.0);
@@ -868,8 +910,8 @@ vector_partition update_velocities_action(hpx::naming::id_type const where, hpx:
             scalar_cell const right_p = get_neighbor_cell(p_center, p_right, p_right, p_right, p_top, p_top, p_top, p_top, p_top, i, j, RIGHT);
             scalar_cell const top_p = get_neighbor_cell(p_center, p_right, p_right, p_right, p_top, p_top, p_top, p_top, p_top, i, j, TOP);
 
-            center_uv.first = center_fg.first - dt*over_dx * (right_p.value - center_p.value);
-            center_uv.second = center_fg.second- dt*over_dy * (top_p.value - center_p.value);
+            center_uv.first = center_fg.first - dt * over_dx * (right_p.value - center_p.value);
+            center_uv.second = center_fg.second - dt * over_dy * (top_p.value - center_p.value);
         }
 
     // compute top strip i = 1, ..., i_max-1, j = j_max for F and set top boundary G = v

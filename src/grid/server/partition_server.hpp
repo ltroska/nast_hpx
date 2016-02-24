@@ -29,6 +29,9 @@ struct HPX_COMPONENT_EXPORT partition_server
 
     partition_data<T> get_data(direction type) const
     {
+        if (type == CENTER)
+            return data_;
+        else
             return partition_data<T>(data_, type);
     }
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, get_data);

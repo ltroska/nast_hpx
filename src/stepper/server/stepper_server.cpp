@@ -99,13 +99,13 @@ void stepper_server::do_work()
         dt = compute_new_dt(max_uv);
         t += dt;
 
-        std::cout << "step: " << step << " t: " << t << " dt: " << dt;
+     //   std::cout << "step: " << step << " t: " << t << " dt: " << dt;
         max_uv = do_timestep(step, dt).get();
-        std:: cout << " max_uv: " << max_uv.first << " " << max_uv.second << std::endl;
+     //   std:: cout << " max_uv: " << max_uv.first << " " << max_uv.second << std::endl;
 
        // print_grid(p_grid);
-       if (step % c.output_skip_size == 0)
-            write_vtk(step);
+      // if (step % c.output_skip_size == 0)
+        //    write_vtk(step);
     }
 }
 
@@ -130,7 +130,7 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(uint ste
             break;
     }
 
-    std::cout << " iterations: " << iter << " residual: " << residual;
+   // std::cout << " iterations: " << iter << " residual: " << residual;
 
     return strategy->update_velocities(uv_grid, fg_grid, p_grid, dt);
 }

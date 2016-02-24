@@ -607,9 +607,9 @@ scalar_partition sor_cycle_action(hpx::naming::id_type const where, hpx::shared_
     for (uint i = start_i; i < end_i; i++)
     {
         // have to start one cell to the right if parity of left most cell in this row does not correspond to flag
-        col_start_j = start_j + abs(flag - (global_i + i + global_j + start_j) % 2);
+        col_start_j = start_j;// + abs(flag - (global_i + i + global_j + start_j) % 2);
 
-        for (uint j = col_start_j; j < end_j; j += 2)
+        for (uint j = col_start_j; j < end_j; j ++)
         {
 
             scalar_cell& next_p = p_center.get_cell_ref(i, j);
@@ -735,6 +735,12 @@ hpx::future<RealType> custom_grain_size::sor_cycle(scalar_grid_type& p_grid, sca
     scalar_grid_type tmp;
     tmp.resize(p.num_partitions_y*p.num_partitions_x);
 
+    for (uint l = 0; l < p.num_partitions_y; l++)
+        tmp[get_index(0, l)] = p_grid[get_index(0, l)];
+
+    for (uint k = 1; k < p.num_partitions_x; k++)
+        tmp[get_index(k, 0)] = p_grid[get_index(k, 0)];
+
     // odd cells first
     for (uint l = 1; l < p.num_partitions_y - 1; l++)
     {
@@ -746,9 +752,9 @@ hpx::future<RealType> custom_grain_size::sor_cycle(scalar_grid_type& p_grid, sca
                     hpx::launch::async,
                     &dispatch_sor_cycle,
                     p_grid[get_index(k, l)],
-                    p_grid[get_index(k-1, l)], //left
+                    tmp[get_index(k-1, l)], //left
                     p_grid[get_index(k+1, l)], //right
-                    p_grid[get_index(k, l-1)], //bottom
+                    tmp[get_index(k, l-1)], //bottom
                     p_grid[get_index(k, l+1)], //top
                     rhs_grid[get_index(k, l)],
                     index[get_index(k, l)].first,
@@ -763,35 +769,9 @@ hpx::future<RealType> custom_grain_size::sor_cycle(scalar_grid_type& p_grid, sca
         }
     }
 
+
+
     for (uint l = 1; l < p.num_partitions_y - 1; l++)
-    {
-        for (uint k = 1; k < p.num_partitions_x - 1; k++)
-        {
-            scalar_partition& next = p_grid[get_index(k, l)];
-
-            next =
-                hpx::dataflow(
-                    hpx::launch::async,
-                    &dispatch_sor_cycle,
-                    tmp[get_index(k, l)],
-                    p_grid[get_index(k-1, l)], //left
-                    p_grid[get_index(k+1, l)], //right
-                    p_grid[get_index(k, l-1)], //bottom
-                    p_grid[get_index(k, l+1)], //top
-                    rhs_grid[get_index(k, l)],
-                    index[get_index(k, l)].first,
-                    index[get_index(k, l)].second,
-                    p.i_max,
-                    p.j_max,
-                    p.omega,
-                    p.dx,
-                    p.dy,
-                    0
-            );
-        }
-    }
-
-   /* for (uint l = 1; l < p.num_partitions_y - 1; l++)
     {
         for (uint k = 1; k < p.num_partitions_x - 1; k++)
         {
@@ -824,7 +804,7 @@ hpx::future<RealType> custom_grain_size::sor_cycle(scalar_grid_type& p_grid, sca
                     p.omega,
                     p.dx,
                     p.dy,
-                    1
+                    0
             );
         }
     }*/

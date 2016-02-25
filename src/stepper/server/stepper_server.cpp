@@ -134,7 +134,7 @@ void stepper_server::do_work()
     {
         dt = compute_new_dt(max_uv);
          if (c.output_skip_size != 0 && ((step + 1) % c.output_skip_size == 0))
-                hpx::cout << " t: " << t << " | dt: " << dt << " | " << hpx::flush;
+                std::cout << " t: " << t << " | dt: " << dt << " | ";
 
         t += dt;
 
@@ -222,7 +222,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
         write_vtk((step + 1) / c.output_skip_size);
 
         if (hpx::get_locality_id() == 0)
-            hpx::cout << "iterations: " << iter << " | residual " << res << hpx::endl << hpx::flush;
+            std::cout << "iterations: " << iter << " | residual " << res << std::endl;
     }
     return max_uv.get();
 }

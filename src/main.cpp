@@ -8,7 +8,6 @@
 int hpx_main(int argc, char* argv[])
 {
     io::config config = io::manager::read_config_from_file("input.xml");
-    std::cout << config << std::endl;
 
     stepper::stepper step;
     step.setup(config);

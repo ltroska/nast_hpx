@@ -155,6 +155,13 @@ void do_async_write(std::vector<std::vector<grid::partition_data<scalar_cell> > 
 
     RealType part1, part2;
 
+    for (uint i = 0; i < cells_x*partitions_x+2; i++)
+    {
+        p_stream << "0\n";
+        uv_stream << "0 0 0\n";
+        vorticity_stream << "0\n";
+    }
+
     for (uint j = 0; j < partitions_y; j++)
     {
         for (int row = 0; row < cells_y; row++)
@@ -193,10 +200,26 @@ void do_async_write(std::vector<std::vector<grid::partition_data<scalar_cell> > 
                     coordinatestring += std::to_string(dy*(start_y + j*cells_y + row)) + " ";
 
                     coordinatestring += "0\n";
+
+                    if ( (col == cells_x - 1 && i == partitions_x - 1) || (row == cells_y -1 && j == partitions_y -1 ))
+                    {
+                        p_stream << "0\n";
+
+                        uv_stream << "0 0 0\n";
+
+                        vorticity_stream << "0\n";
+                    }
                 }
 
             }
         }
+    }
+
+    for (uint i = 0; i < cells_x*partitions_x+2; i++)
+    {
+        p_stream << "0\n";
+        uv_stream << "0 0 0\n";
+        vorticity_stream << "0\n";
     }
 
     std::string pdatastring = p_stream.str();

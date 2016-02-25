@@ -1,5 +1,6 @@
 #include <hpx/include/iostreams.hpp>
 #include <hpx/lcos/gather.hpp>
+#include <hpx/lcos/broadcast.hpp>
 
 #include <cmath>
 
@@ -33,12 +34,15 @@ void stepper_server::setup(io::config cfg)
 
     strategy = new computation::custom_grain_size(index_grid, params);
 
+    if (hpx::get_locality_id() == 0)
+        std::cout << cfg << std::endl;
+
     std::cout << "stepper on " << hpx::get_locality_id() << " with " <<  params.num_partitions_x-2 << "x"<< params.num_partitions_y-2 << " partitions, "
              << params.num_cells_per_partition_x << "x" <<  params.num_cells_per_partition_y << " cells each, " << "dx=" << params.dx << " dy=" << params.dx
              << std::endl;
 
-    do_work();
-
+    if (hpx::get_locality_id() == 0)
+        do_work();
 }
 
 void stepper_server::initialize_parameters()
@@ -113,11 +117,10 @@ void stepper_server::initialize_communication()
     {
         neighbor_steppers_[directionInt] = hpx::find_from_basename(stepper_basename,
                                                                    get_neighbor_id(hpx::get_locality_id(), static_cast<direction>(directionInt), num_localities));
-        std::cout << get_neighbor_id(hpx::get_locality_id(), static_cast<direction>(directionInt), num_localities) << " ";
     }
 
-    std::cout << std::endl;
-
+    for (uint loc = 0; loc < num_localities; loc++)
+                localities.push_back(hpx::find_from_basename(stepper_basename, loc).get());
 }
 
 void stepper_server::do_work()
@@ -130,19 +133,29 @@ void stepper_server::do_work()
         dt = compute_new_dt(max_uv);
         t += dt;
 
-     //   std::cout << "step: " << step << " t: " << t << " dt: " << dt;
-        max_uv = do_timestep(step, dt).get();
-     //   std:: cout << " max_uv: " << max_uv.first << " " << max_uv.second << std::endl;
+        hpx::future<std::vector<std::pair<RealType, RealType> > > local_max_uvs = hpx::lcos::broadcast<do_timestep_action> (localities, step, dt);
+        max_uv = local_max_uvs.then(
+                    [](hpx::future<std::vector<std::pair<RealType, RealType> > > local_max_uvs) -> std::pair<RealType, RealType>
+                    {
+                        std::pair<RealType, RealType> result(0, 0);
+                        std::vector<std::pair<RealType, RealType> > local_max_uv = local_max_uvs.get();
 
-       // print_grid(p_grid);
-      // if (step % c.output_skip_size == 0)
-        //    write_vtk(step);
-        break;
+                        for (std::pair<RealType, RealType> max_uv : local_max_uv)
+                        {
+                            result.first = (max_uv.first > result.first ? max_uv.first : result.first);
+                            result.second = (max_uv.second > result.second ? max_uv.second : result.second);
+                        }
+
+                        return result;
+                    }).get();
+
+        std::cout << "t: " << t << " | max uv: " << max_uv.first << " "  << max_uv.second << std::endl;
     }
 }
 
-hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(uint step, RealType dt)
+std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt)
 {
+    std::cout << "new dt " << dt << " on " << hpx::get_locality_id() << std::endl;
     strategy->set_velocity_on_boundary(uv_grid);
 
     communicate_uv_grid(step);
@@ -153,46 +166,60 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(uint ste
 
     strategy->compute_rhs(rhs_grid, fg_grid, dt);
 
-    RealType residual;
-    uint iter;
-    for (iter = 0; iter < c.iter_max; iter++)
+    uint iter = 0;
+    do
     {
-        std::cout << "iteration: " << iter << std::endl;
         strategy->set_pressure_on_boundary(p_grid);
 
         hpx::future<RealType> residual_fut = strategy->sor_cycle(p_grid, rhs_grid);
-        communicate_p_grid(iter);
-      //  std::cout << "iteration: " << iter << " | local residual: " << residual << std::endl<<std::flush;
+        communicate_p_grid(step*c.iter_max + iter);
+
         if (hpx::get_locality_id() == 0)
         {
-        hpx::future<std::vector<RealType> > overall_result =
-            hpx::lcos::gather_here(gather_basename, std::move(residual_fut), num_localities);
+            hpx::future<std::vector<RealType> > local_residuals =
+                hpx::lcos::gather_here(gather_basename, std::move(residual_fut), num_localities, iter);
 
-            std::vector<RealType> sol = overall_result.get();
+            hpx::future<RealType> residual =
+                local_residuals.then(
+                    [](hpx::future<std::vector<RealType>> local_residuals) -> RealType
+                    {
+                        RealType result = 0;
+                        std::vector<RealType> local_res = local_residuals.get();
 
-            std::cout << sol.size();
+                        for (RealType res : local_res)
+                            result += res;
 
+                        return result;
+                    });
 
-            for (int i = 0; i < sol.size(); i++)
-            {
-                std::cout << "got residual " << sol[i]  << " from " << i << std::endl;
-            }
+            RealType res = residual.get();
+            if (res <= c.eps_sq)
+                std::cout << "step: " << step << " | iterations: " << iter << " | residual: " << res << std::endl;
+
+            hpx::lcos::broadcast_apply<set_keep_running_action> (localities, iter, (res > c.eps_sq));
         }
         else
         {
-            hpx::lcos::gather_there(gather_basename, std::move(residual_fut)).wait();
+            hpx::lcos::gather_there(gather_basename, std::move(residual_fut), iter).get();
         }
 
-       // if (residual < c.eps_sq)
-         //   break;
-    }
+        iter++;
+    } while (iter <= c.iter_max && keep_running.receive(iter - 1).get());
 
-   // std::cout << " iterations: " << iter << " residual: " << residual;
+    hpx::future<std::pair<RealType, RealType> > max_uv = strategy->update_velocities(uv_grid, fg_grid, p_grid, dt);
 
-    return strategy->update_velocities(uv_grid, fg_grid, p_grid, dt);
+    if (step % c.output_skip_size == 0)
+        write_vtk(step);
+
+    return max_uv.get();
 }
 
 // ---------------------------------------- COMMUNICATION ---------------------------------------- //
+void stepper_server::set_keep_running(uint iter, bool kr)
+{
+    keep_running.store_received(iter, std::move(kr));
+}
+
 void stepper_server::communicate_p_grid(uint iter)
 {
     //SEND

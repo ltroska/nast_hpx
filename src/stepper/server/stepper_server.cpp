@@ -17,7 +17,7 @@ HPX_REGISTER_COMPONENT_MODULE();
 HPX_REGISTER_COMPONENT(stepper_server_type, stepper_component);
 HPX_REGISTER_ACTION(stepper::server::stepper_server::setup_action, stepper_server_setup_action);
 
-HPX_REGISTER_GATHER(RealType, stepper_server_space_gatherer)
+HPX_REGISTER_GATHER(RealType, stepper_server_space_gatherer);
 
 namespace stepper { namespace server {
 
@@ -37,9 +37,11 @@ void stepper_server::setup(io::config cfg)
     if (hpx::get_locality_id() == 0)
         std::cout << cfg << std::endl;
 
-    std::cout << "stepper on " << hpx::get_locality_id() << " with " <<  params.num_partitions_x-2 << "x"<< params.num_partitions_y-2 << " partitions, "
+    hpx::cout << "stepper on " << hpx::get_locality_id() << " with " <<  params.num_partitions_x-2 << "x"<< params.num_partitions_y-2 << " partitions, "
              << params.num_cells_per_partition_x << "x" <<  params.num_cells_per_partition_y << " cells each, " << "dx=" << params.dx << " dy=" << params.dx
-             << std::endl;
+             << hpx::endl << hpx::flush;
+
+    write_vtk(0);
 
     if (hpx::get_locality_id() == 0)
         do_work();
@@ -131,9 +133,13 @@ void stepper_server::do_work()
     for (uint step = 0; t < c.t_end; step++)
     {
         dt = compute_new_dt(max_uv);
+         if (c.output_skip_size != 0 && ((step + 1) % c.output_skip_size == 0))
+                hpx::cout << " t: " << t << " | dt: " << dt << " | " << hpx::flush;
+
         t += dt;
 
         hpx::future<std::vector<std::pair<RealType, RealType> > > local_max_uvs = hpx::lcos::broadcast<do_timestep_action> (localities, step, dt);
+
         max_uv = local_max_uvs.then(
                     [](hpx::future<std::vector<std::pair<RealType, RealType> > > local_max_uvs) -> std::pair<RealType, RealType>
                     {
@@ -149,13 +155,11 @@ void stepper_server::do_work()
                         return result;
                     }).get();
 
-        std::cout << "t: " << t << " | max uv: " << max_uv.first << " "  << max_uv.second << std::endl;
     }
 }
 
 std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt)
 {
-    std::cout << "new dt " << dt << " on " << hpx::get_locality_id() << std::endl;
     strategy->set_velocity_on_boundary(uv_grid);
 
     communicate_uv_grid(step);
@@ -167,6 +171,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
     strategy->compute_rhs(rhs_grid, fg_grid, dt);
 
     uint iter = 0;
+    RealType res = 0;
     do
     {
         strategy->set_pressure_on_boundary(p_grid);
@@ -177,7 +182,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
         if (hpx::get_locality_id() == 0)
         {
             hpx::future<std::vector<RealType> > local_residuals =
-                hpx::lcos::gather_here(gather_basename, std::move(residual_fut), num_localities, iter);
+                hpx::lcos::gather_here(gather_basename, std::move(residual_fut), num_localities, step*c.iter_max + iter);
 
             hpx::future<RealType> residual =
                 local_residuals.then(
@@ -192,25 +197,33 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
                         return result;
                     });
 
-            RealType res = residual.get();
-            if (res <= c.eps_sq)
-                std::cout << "step: " << step << " | iterations: " << iter << " | residual: " << res << std::endl;
+            res = residual.get();
 
-            hpx::lcos::broadcast_apply<set_keep_running_action> (localities, iter, (res > c.eps_sq));
+            hpx::lcos::broadcast_apply<set_keep_running_action> (localities, step*c.iter_max + iter, (res > c.eps_sq));
         }
         else
         {
-            hpx::lcos::gather_there(gather_basename, std::move(residual_fut), iter).get();
+            hpx::lcos::gather_there(gather_basename, std::move(residual_fut), step*c.iter_max + iter).wait();
         }
 
         iter++;
-    } while (iter <= c.iter_max && keep_running.receive(iter - 1).get());
+    } while (iter <= c.iter_max && keep_running.receive(step*c.iter_max + iter - 1).get());
+
 
     hpx::future<std::pair<RealType, RealType> > max_uv = strategy->update_velocities(uv_grid, fg_grid, p_grid, dt);
 
-    if (step % c.output_skip_size == 0)
-        write_vtk(step);
+   // for (uint i = 0; i < NUM_DIRECTIONS; i++)
+   //     p_recv_buffs_[i].clear();
 
+  //  keep_running = hpx::lcos::local::receive_buffer<bool>();
+
+    if (c.output_skip_size != 0 && ((step + 1) % c.output_skip_size == 0))
+    {
+        write_vtk((step + 1) / c.output_skip_size);
+
+        if (hpx::get_locality_id() == 0)
+            hpx::cout << "iterations: " << iter << " | residual " << res << hpx::endl << hpx::flush;
+    }
     return max_uv.get();
 }
 

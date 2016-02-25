@@ -125,17 +125,12 @@ void do_async_write(std::vector<std::vector<grid::partition_data<scalar_cell> > 
     fb.open (const_cast < char *>(filename.c_str ()), std::ios::out);
     std::ostream os (&fb);
 
-    uint left = (loc%res_x == 0) ? 1 : 0;
-    uint right = (loc%res_x == res_x - 1) ? 1 : 0;
-    uint bottom = (loc/res_x == 0) ? 1 : 0;
-    uint top = (loc/res_x == res_y-1) ? 1 : 0;
-
     int start_x, end_x, start_y, end_y;
 
-    start_x = cells_x*partitions_x*(loc%res_x) - (1-left);
-    end_x = cells_x*partitions_x*((loc%res_x)+1) - right;
-    start_y = cells_y*partitions_y*(loc/res_x) - (1 - bottom);
-    end_y = cells_y*partitions_y*((loc/res_x)+1) - top;
+    start_x = cells_x*partitions_x*(loc%res_x);
+    end_x = cells_x*partitions_x*((loc%res_x)+1)-1;
+    start_y = cells_y*partitions_y*(loc/res_x) ;
+    end_y = cells_y*partitions_y*((loc/res_x)+1)-1;
 
 
     std::string coordinatestring;

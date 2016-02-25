@@ -13,15 +13,8 @@ class array_deleter {
         }
 };
 
-
-//check if point is in global id range
-inline bool in_range(uint start_i, uint end_i, uint start_j, uint end_j, uint i,  uint j)
-{
-    return !(i < start_i || i > end_i || j < start_j || j > end_j);
-}
-
 //finding id of neighboring localities
-inline uint get_neighbor_id(uint id, direction dir, uint num_localities)
+inline const uint get_neighbor_id(uint id, direction dir, uint num_localities)
 {
     uint res_x, res_y;
     if (num_localities == 2)
@@ -65,6 +58,12 @@ inline uint get_neighbor_id(uint id, direction dir, uint num_localities)
         default:
             return num_localities;
     }
+}
+
+//check if point is in global id range
+inline bool in_range(uint start_i, uint end_i, uint start_j, uint end_j, uint i,  uint j)
+{
+    return !(i < start_i || i > end_i || j < start_j || j > end_j);
 }
 
 template<typename T>

@@ -97,10 +97,10 @@ void do_async_write(std::vector<std::vector<grid::partition_data<scalar_cell> > 
             uint bottom = (loc/res_x == 0) ? 1 : 0;
             uint top = (loc/res_x == res_y-1) ? 1 : 0;
 
-            os  << "<Piece Extent=\"" << cells_x*partitions_x*(loc%res_x)- (1-left)
-                << " " << cells_x*partitions_x*((loc%res_x)+1)-right
-                << " " << cells_y*partitions_y*(loc/res_x) - (1-bottom)
-                << " " << cells_y*partitions_y*((loc/res_x)+1)-top
+            os  << "<Piece Extent=\"" << static_cast<int>(cells_x*partitions_x*(loc%res_x)) - 1
+                << " " << cells_x*partitions_x*((loc%res_x)+1)
+                << " " << static_cast<int>(cells_y*partitions_y*(loc/res_x)) - 1
+                << " " << cells_y*partitions_y*((loc/res_x)+1)
                 << " 0 0\" Source=\"field_" << step << "_locality_" << loc << ".vts\"></Piece>" << std::endl;
         }
 
@@ -130,12 +130,12 @@ void do_async_write(std::vector<std::vector<grid::partition_data<scalar_cell> > 
     uint bottom = (loc/res_x == 0) ? 1 : 0;
     uint top = (loc/res_x == res_y-1) ? 1 : 0;
 
-    uint start_x, end_x, start_y, end_y;
+    int start_x, end_x, start_y, end_y;
 
     start_x = cells_x*partitions_x*(loc%res_x) - (1-left);
-    end_x = cells_x*partitions_x*((loc%res_x)+1)-right;
-    start_y = cells_y*partitions_y*(loc/res_x) - (1-bottom);
-    end_y = cells_y*partitions_y*((loc/res_x)+1)-top;
+    end_x = cells_x*partitions_x*((loc%res_x)+1) - right;
+    start_y = cells_y*partitions_y*(loc/res_x) - (1 - bottom);
+    end_y = cells_y*partitions_y*((loc/res_x)+1) - top;
 
 
     std::string coordinatestring;
@@ -155,11 +155,18 @@ void do_async_write(std::vector<std::vector<grid::partition_data<scalar_cell> > 
 
     RealType part1, part2;
 
-    for (uint i = 0; i < cells_x*partitions_x+2; i++)
+    for (int i = -1; i < static_cast<int>(cells_x * partitions_x + 1); i++)
     {
+
         p_stream << "0\n";
         uv_stream << "0 0 0\n";
         vorticity_stream << "0\n";
+
+        coordinatestring += std::to_string(dx*(start_x + i)) + " ";
+
+        coordinatestring += std::to_string(dy*(start_y - 1)) + " ";
+
+        coordinatestring += "0\n";
     }
 
     for (uint j = 0; j < partitions_y; j++)
@@ -170,6 +177,22 @@ void do_async_write(std::vector<std::vector<grid::partition_data<scalar_cell> > 
             {
                 for (int col = 0; col < cells_x; col++)
                 {
+                    if ((col == 0 && i == 0))
+                    {
+                        p_stream << "0\n";
+
+                        uv_stream << "0 0 0\n";
+
+                        vorticity_stream << "0\n";
+
+                        coordinatestring += std::to_string(dx*(start_x - 1)) + " ";
+
+                        coordinatestring += std::to_string(dy*(start_y + j*cells_y + row)) + " ";
+
+                        coordinatestring += "0\n";
+
+                    }
+
                     if (row + 1 < cells_y)
                         p_stream << (p_grid[i][j].get_cell(col, row).value + p_grid[i][j].get_cell(col, row+1).value)/2 << "\n";
                     else if (j+1 < partitions_y)
@@ -201,13 +224,20 @@ void do_async_write(std::vector<std::vector<grid::partition_data<scalar_cell> > 
 
                     coordinatestring += "0\n";
 
-                    if ( (col == cells_x - 1 && i == partitions_x - 1) || (row == cells_y -1 && j == partitions_y -1 ))
+                    if ((col == cells_x - 1 && i == partitions_x - 1))
                     {
                         p_stream << "0\n";
 
                         uv_stream << "0 0 0\n";
 
                         vorticity_stream << "0\n";
+
+                        coordinatestring += std::to_string(dx*(start_x + i*cells_x + col + 1)) + " ";
+
+                        coordinatestring += std::to_string(dy*(start_y + j*cells_y + row)) + " ";
+
+                        coordinatestring += "0\n";
+
                     }
                 }
 
@@ -215,12 +245,23 @@ void do_async_write(std::vector<std::vector<grid::partition_data<scalar_cell> > 
         }
     }
 
-    for (uint i = 0; i < cells_x*partitions_x+2; i++)
+    for (int i = -1; i < static_cast<int>(cells_x * partitions_x + 1); i++)
     {
         p_stream << "0\n";
         uv_stream << "0 0 0\n";
         vorticity_stream << "0\n";
+
+        coordinatestring += std::to_string(dx*(start_x+i)) + " ";
+
+        coordinatestring += std::to_string(dy*(end_y + 1)) + " ";
+
+        coordinatestring += "0\n";
     }
+
+    start_x--;
+    end_x++;
+    start_y--;
+    end_y++;
 
     std::string pdatastring = p_stream.str();
     std::string uvdatastring = uv_stream.str();

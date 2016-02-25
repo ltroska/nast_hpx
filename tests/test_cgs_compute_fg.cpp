@@ -160,15 +160,16 @@ int hpx_main(int argc, char* argv[])
     do_compute_fg_test(64, 64, 0, 1, 1, 1, 1);
 
 // --- SQUARE AREA, MULTIPLE PARTITIONS --- //
-    do_compute_fg_test(64, 64, 0, 1, 1, 8, 8);
-    do_compute_fg_test(256, 256, 0, 1, 1, 8, 16);
-    do_compute_fg_test(256, 256, 0, 1, 1, 1, 8);
-    do_compute_fg_test(256, 256, 0, 1, 1, 4, 8);
+    do_compute_fg_test(8, 8, 0, 1, 1, 2, 2);
+   do_compute_fg_test(64, 64, 0, 1, 1, 8, 8);
+  //  do_compute_fg_test(256, 256, 0, 1, 1, 8, 16);
+  //  do_compute_fg_test(256, 256, 0, 1, 1, 1, 8);
+ //   do_compute_fg_test(256, 256, 0, 1, 1, 4, 8);
 
 // --- SQUARE AREA, MULTIPLE PARTITIONS, NOT FIRST LOCALITY --- //
     do_compute_fg_test(32, 32, 2, 2, 2, 8, 8);
-    do_compute_fg_test(512, 512, 1, 1, 2, 8, 16);
-    do_compute_fg_test(512, 512, 1, 2, 1, 8, 16);
+    do_compute_fg_test(128, 128, 1, 1, 2, 8, 16);
+  //  do_compute_fg_test(512, 512, 1, 2, 1, 8, 16);
 //    do_compute_fg_test(1024, 1024, 3, 2, 2, 1, 8);
 //    do_compute_fg_test(1024, 1024, 7, 4, 4, 4, 8);
 

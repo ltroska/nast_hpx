@@ -16,7 +16,7 @@ vector_partition set_velocity_on_boundary_action(hpx::naming::id_type const wher
     /*
     *@TODO: maybe create new vector_data here
     */
-    vector_data center = center_fut.get();
+    vector_data center(center_fut.get());
 
     uint size_x = center.size_x();
     uint size_y = center.size_y();
@@ -32,30 +32,36 @@ vector_partition set_velocity_on_boundary_action(hpx::naming::id_type const wher
     uint start_j = (is_bottom ? 1 : 0);
     uint end_j = (is_top ? size_y - 1 : size_y);
 
+    auto range_j = boost::irange(start_j, end_j);
+    auto range_i = boost::irange(start_i, end_i);
+
     //eq 17+18
     if (is_left)
     {
-        for (uint j = start_j; j < end_j; j++)
-        {
-            vector_cell& cell = center.get_cell_ref(0, j);
-            vector_cell const cell2 = center.get_cell(1, j);
+        hpx::parallel::for_each(hpx::parallel::par, boost::begin(range_j), boost::end(range_j),
+            [&center](uint j)
+            {
+                vector_cell& cell = center.get_cell_ref(0, j);
+                vector_cell const cell2 = center.get_cell(1, j);
 
-            cell.first = 0;
-            cell.second = -cell2.second;
-        }
+                cell.first = 0;
+                cell.second = -cell2.second;
+            }
+        );
     }
 
     if (is_bottom)
     {
-        for (uint i = start_i; i < end_i; i++)
-        {
-            vector_cell& cell = center.get_cell_ref(i, 0);
-            vector_cell const cell2 = center.get_cell(i, 1);
+        hpx::parallel::for_each(hpx::parallel::par, boost::begin(range_i), boost::end(range_i),
+            [&center](uint i)
+            {
+                vector_cell& cell = center.get_cell_ref(i, 0);
+                vector_cell const cell2 = center.get_cell(i, 1);
 
-            cell.second = 0;
-            cell.first = -cell2.first;
-
-        }
+                cell.second = 0;
+                cell.first = -cell2.first;
+            }
+        );
     }
 
     // need to buffer this value, in case this is top and(!) right boundary, because then
@@ -64,26 +70,30 @@ vector_partition set_velocity_on_boundary_action(hpx::naming::id_type const wher
 
     if (is_right)
     {
-        for (uint j = start_j; j < end_j; j++)
-        {
-            vector_cell& cell = center.get_cell_ref(size_x - 2, j);
-            vector_cell& cell2 = center.get_cell_ref(size_x - 1, j);
+        hpx::parallel::for_each(hpx::parallel::par, boost::begin(range_j), boost::end(range_j),
+            [&center, size_x](uint j)
+            {
+                vector_cell& cell = center.get_cell_ref(size_x - 2, j);
+                vector_cell& cell2 = center.get_cell_ref(size_x - 1, j);
 
-            cell.first = 0;
-            cell2.second = -cell.second;
-        }
+                cell.first = 0;
+                cell2.second = -cell.second;
+            }
+        );
     }
 
     if (is_top)
     {
-        for (uint i = start_i; i < end_i; i++)
-        {
-            vector_cell& cell = center.get_cell_ref(i, size_y - 2);
-            vector_cell& cell2 = center.get_cell_ref(i, size_y - 1);
+        hpx::parallel::for_each(hpx::parallel::par, boost::begin(range_i), boost::end(range_i),
+            [&center, size_y](uint i)
+            {
+                vector_cell& cell = center.get_cell_ref(i, size_y - 2);
+                vector_cell& cell2 = center.get_cell_ref(i, size_y - 1);
 
-            cell.second = 0;
-            cell2.first = 2. - cell.first;
-        }
+                cell.second = 0;
+                cell2.first = 2. - cell.first;
+            }
+        );
     }
 
     if (is_right && is_top)
@@ -91,6 +101,9 @@ vector_partition set_velocity_on_boundary_action(hpx::naming::id_type const wher
 
     return vector_partition(where, center);
 }
+
+
+HPX_DEFINE_PLAIN_ACTION(set_velocity_on_boundary_action);
 
 vector_partition dispatch_set_velocity_on_boundary(vector_partition const& center, uint global_i, uint global_j, uint i_max, uint j_max)
 {
@@ -100,7 +113,8 @@ vector_partition dispatch_set_velocity_on_boundary(vector_partition const& cente
 
     return hpx::dataflow(
             hpx::launch::async,
-            &set_velocity_on_boundary_action,
+            set_velocity_on_boundary_action_action(),
+            hpx::find_here(),
             where,
             center_data,
             global_i,
@@ -110,8 +124,12 @@ vector_partition dispatch_set_velocity_on_boundary(vector_partition const& cente
     );
 }
 
+HPX_DEFINE_PLAIN_ACTION(dispatch_set_velocity_on_boundary);
+
+
 void custom_grain_size::set_velocity_on_boundary(vector_grid_type& uv_grid)
 {
+
     for (uint l = 1; l < p.num_partitions_y - 1; l++)
     {
         for (uint k = 1; k < p.num_partitions_x - 1; k++)
@@ -125,7 +143,8 @@ void custom_grain_size::set_velocity_on_boundary(vector_grid_type& uv_grid)
             next =
                 hpx::dataflow(
                     hpx::launch::async,
-                    &dispatch_set_velocity_on_boundary,
+                    dispatch_set_velocity_on_boundary_action(),
+                    hpx::find_here(),
                     next,
                     index[get_index(k, l)].first,
                     index[get_index(k, l)].second,
@@ -134,7 +153,6 @@ void custom_grain_size::set_velocity_on_boundary(vector_grid_type& uv_grid)
             );
         }
     }
-
 }
 
 /*
@@ -305,6 +323,8 @@ vector_partition compute_fg_action(hpx::naming::id_type const where, hpx::shared
     return vector_partition(where, fg_data);
 }
 
+HPX_DEFINE_PLAIN_ACTION(compute_fg_action);
+
 vector_partition dispatch_compute_fg(vector_partition const& uv_center, vector_partition const& uv_left, vector_partition const& uv_right,
                                         vector_partition const& uv_bottom, vector_partition const& uv_top, vector_partition const& uv_bottomright,
                                         vector_partition const& uv_topleft, uint global_i, uint global_j, uint i_max, uint j_max, RealType dx,
@@ -322,7 +342,8 @@ vector_partition dispatch_compute_fg(vector_partition const& uv_center, vector_p
 
     return hpx::dataflow(
             hpx::launch::async,
-            &compute_fg_action,
+            compute_fg_action_action(),
+            hpx::find_here(),
             where,
             uv_center_data, uv_left_data, uv_right_data,
             uv_bottom_data, uv_top_data, uv_bottomright_data, uv_topleft_data,
@@ -332,6 +353,8 @@ vector_partition dispatch_compute_fg(vector_partition const& uv_center, vector_p
     );
 
 }
+
+HPX_DEFINE_PLAIN_ACTION(dispatch_compute_fg);
 
 void custom_grain_size::compute_fg(vector_grid_type& fg_grid, vector_grid_type const& uv_grid, RealType dt)
 {
@@ -345,7 +368,8 @@ void custom_grain_size::compute_fg(vector_grid_type& fg_grid, vector_grid_type c
             next =
                 hpx::dataflow(
                     hpx::launch::async,
-                    &dispatch_compute_fg,
+                    dispatch_compute_fg_action(),
+                    hpx::find_here(),
                     uv_grid[get_index(k, l)], //center
                     uv_grid[get_index(k-1, l)], //left
                     uv_grid[get_index(k+1, l)], //right
@@ -404,6 +428,8 @@ scalar_partition compute_rhs_action(hpx::naming::id_type const where, hpx::share
     return scalar_partition(where, rhs_data);
 }
 
+HPX_DEFINE_PLAIN_ACTION(compute_rhs_action);
+
 scalar_partition dispatch_compute_rhs(vector_partition const& fg_center, vector_partition const& fg_left, vector_partition const& fg_bottom,
                                         uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy, RealType dt)
 {
@@ -415,7 +441,8 @@ scalar_partition dispatch_compute_rhs(vector_partition const& fg_center, vector_
 
     return hpx::dataflow(
             hpx::launch::async,
-            &compute_rhs_action,
+            compute_rhs_action_action(),
+            hpx::find_here(),
             where,
             fg_center_data, fg_left_data, fg_bottom_data,
             global_i,
@@ -424,6 +451,8 @@ scalar_partition dispatch_compute_rhs(vector_partition const& fg_center, vector_
     );
 
 }
+
+HPX_DEFINE_PLAIN_ACTION(dispatch_compute_rhs);
 
 void custom_grain_size::compute_rhs(scalar_grid_type& rhs_grid, vector_grid_type const& fg_grid, RealType dt)
 {
@@ -437,7 +466,8 @@ void custom_grain_size::compute_rhs(scalar_grid_type& rhs_grid, vector_grid_type
             next =
                 hpx::dataflow(
                     hpx::launch::async,
-                    &dispatch_compute_rhs,
+                    dispatch_compute_rhs_action(),
+                    hpx::find_here(),
                     fg_grid[get_index(k, l)], //center
                     fg_grid[get_index(k-1, l)], //left
                     fg_grid[get_index(k, l-1)], //bottom
@@ -519,6 +549,8 @@ scalar_partition set_pressure_on_boundary_action(hpx::naming::id_type const wher
     return scalar_partition(where, center);
 }
 
+HPX_DEFINE_PLAIN_ACTION(set_pressure_on_boundary_action);
+
 scalar_partition dispatch_set_pressure_on_boundary(scalar_partition const& center, uint global_i, uint global_j, uint i_max, uint j_max)
 {
     hpx::shared_future<scalar_data> center_data = center.get_data(CENTER);
@@ -527,7 +559,8 @@ scalar_partition dispatch_set_pressure_on_boundary(scalar_partition const& cente
 
     return hpx::dataflow(
             hpx::launch::async,
-            &set_pressure_on_boundary_action,
+            set_pressure_on_boundary_action_action(),
+            hpx::find_here(),
             where,
             center_data,
             global_i,
@@ -536,6 +569,8 @@ scalar_partition dispatch_set_pressure_on_boundary(scalar_partition const& cente
             j_max
     );
 }
+
+HPX_DEFINE_PLAIN_ACTION(dispatch_set_pressure_on_boundary);
 
 void custom_grain_size::set_pressure_on_boundary(scalar_grid_type& p_grid)
 {
@@ -552,7 +587,8 @@ void custom_grain_size::set_pressure_on_boundary(scalar_grid_type& p_grid)
             next =
                 hpx::dataflow(
                     hpx::launch::async,
-                    &dispatch_set_pressure_on_boundary,
+                    dispatch_set_pressure_on_boundary_action(),
+                    hpx::find_here(),
                     next,
                     index[get_index(k, l)].first,
                     index[get_index(k, l)].second,
@@ -644,6 +680,8 @@ scalar_partition sor_cycle_action(hpx::naming::id_type const where, hpx::shared_
     return scalar_partition(where, center);
 }
 
+HPX_DEFINE_PLAIN_ACTION(sor_cycle_action);
+
 scalar_partition dispatch_sor_cycle(scalar_partition const& center, scalar_partition const& left, scalar_partition const& right,
                                         scalar_partition const& bottom, scalar_partition const& top, scalar_partition const& rhs,
                                         uint global_i, uint global_j, uint i_max, uint j_max, RealType omega, RealType dx, RealType dy)
@@ -659,7 +697,8 @@ scalar_partition dispatch_sor_cycle(scalar_partition const& center, scalar_parti
 
     return hpx::dataflow(
             hpx::launch::async,
-            &sor_cycle_action,
+            sor_cycle_action_action(),
+            hpx::find_here(),
             where,
             center_data, left_data, right_data,
             bottom_data, top_data, rhs_data,
@@ -673,6 +712,38 @@ scalar_partition dispatch_sor_cycle(scalar_partition const& center, scalar_parti
     );
 }
 
+HPX_DEFINE_PLAIN_ACTION(dispatch_sor_cycle);
+
+void custom_grain_size::sor_cycle(scalar_grid_type& p_grid, scalar_grid_type const& rhs_grid)
+{
+    for (uint k = 1; k < p.num_partitions_x - 1; k++)
+    {   // odd cells first
+    for (uint l = 1; l < p.num_partitions_y - 1; l++)
+    {
+
+
+            p_grid[get_index(k, l)] =
+                hpx::dataflow(
+                    hpx::launch::async,
+                    dispatch_sor_cycle_action(),
+                    hpx::find_here(),
+                    p_grid[get_index(k, l)],
+                    p_grid[get_index(k-1, l)], //left
+                    p_grid[get_index(k+1, l)], //right
+                    p_grid[get_index(k, l-1)], //bottom
+                    p_grid[get_index(k, l+1)], //top
+                    rhs_grid[get_index(k, l)],
+                    index[get_index(k, l)].first,
+                    index[get_index(k, l)].second,
+                    p.i_max,
+                    p.j_max,
+                    p.omega,
+                    p.dx,
+                    p.dy
+            );
+        }
+    }
+}
 
 RealType compute_residual_action(hpx::shared_future<scalar_data> center_fut, hpx::shared_future<scalar_data> left_fut,
                             hpx::shared_future<scalar_data> right_fut, hpx::shared_future<scalar_data> bottom_fut, hpx::shared_future<scalar_data> top_fut,
@@ -702,10 +773,10 @@ RealType compute_residual_action(hpx::shared_future<scalar_data> center_fut, hpx
 
     RealType over_dx_sq = 1./(dx*dx);
     RealType over_dy_sq = 1./(dy*dy);
+        for (uint i = start_i; i < end_i; i++)
 
     for (uint j = start_j; j < end_j; j++)
-        for (uint i = start_i; i < end_i; i++)
-        {
+    {
             scalar_cell const center = p_center.get_cell(i, j);
             scalar_cell const rhs = rhs_center.get_cell(i, j);
             scalar_cell const left = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, LEFT);
@@ -719,6 +790,8 @@ RealType compute_residual_action(hpx::shared_future<scalar_data> center_fut, hpx
 
     return local_residual/(i_max*j_max);
 }
+
+HPX_DEFINE_PLAIN_ACTION(compute_residual_action);
 
 hpx::future<RealType> dispatch_compute_residual(scalar_partition const& center, scalar_partition const& left, scalar_partition const& right,
                                         scalar_partition const& bottom, scalar_partition const& top, scalar_partition const& rhs,
@@ -734,7 +807,8 @@ hpx::future<RealType> dispatch_compute_residual(scalar_partition const& center, 
 
     return hpx::dataflow(
             hpx::launch::async,
-            &compute_residual_action,
+            compute_residual_action_action(),
+            hpx::find_here(),
             center_data, left_data, right_data,
             bottom_data, top_data, rhs_data,
             global_i,
@@ -746,36 +820,11 @@ hpx::future<RealType> dispatch_compute_residual(scalar_partition const& center, 
     );
 }
 
-hpx::future<RealType> custom_grain_size::sor_cycle(scalar_grid_type& p_grid, scalar_grid_type const& rhs_grid)
+HPX_DEFINE_PLAIN_ACTION(dispatch_compute_residual);
+
+hpx::future<RealType> custom_grain_size::compute_residual(scalar_grid_type const& p_grid, scalar_grid_type const& rhs_grid)
 {
-    // odd cells first
-    for (uint l = 1; l < p.num_partitions_y - 1; l++)
-    {
-        for (uint k = 1; k < p.num_partitions_x - 1; k++)
-        {
-
-            p_grid[get_index(k, l)] =
-                hpx::dataflow(
-                    hpx::launch::async,
-                    &dispatch_sor_cycle,
-                    p_grid[get_index(k, l)],
-                    p_grid[get_index(k-1, l)], //left
-                    p_grid[get_index(k+1, l)], //right
-                    p_grid[get_index(k, l-1)], //bottom
-                    p_grid[get_index(k, l+1)], //top
-                    rhs_grid[get_index(k, l)],
-                    index[get_index(k, l)].first,
-                    index[get_index(k, l)].second,
-                    p.i_max,
-                    p.j_max,
-                    p.omega,
-                    p.dx,
-                    p.dy
-            );
-        }
-    }
-
-    // residuals
+ // residuals
     hpx::future<RealType> residual = hpx::make_ready_future(0.0);
     for (uint l = 1; l < p.num_partitions_y - 1; l++)
     {
@@ -791,7 +840,7 @@ hpx::future<RealType> custom_grain_size::sor_cycle(scalar_grid_type& p_grid, sca
                     , residual
                     , hpx::dataflow(
                             hpx::launch::async,
-                            &dispatch_compute_residual,
+                            &dispatch_compute_residual, //TODO CHANGE THIS
                             p_grid[get_index(k, l)], //center
                             p_grid[get_index(k-1, l)], //left
                             p_grid[get_index(k+1, l)], //right
@@ -805,7 +854,7 @@ hpx::future<RealType> custom_grain_size::sor_cycle(scalar_grid_type& p_grid, sca
                             p.dx,
                             p.dy
                         )
-                    );
+                );
         }
     }
 

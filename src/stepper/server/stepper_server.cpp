@@ -174,11 +174,11 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
     RealType res = 0;
     do
     {
-        for (uint subiter = 0; subiter < 50; subiter++)
+        for (uint subiter = 0; subiter < c.sub_iterations; subiter++)
         {
             strategy->set_pressure_on_boundary(p_grid);
             strategy->sor_cycle(p_grid, rhs_grid);
-            communicate_p_grid(step*c.iter_max + 50*iter + subiter);
+            communicate_p_grid(step*c.iter_max + c.sub_iterations*iter + subiter);
         }
 
         hpx::future<RealType> residual_fut = strategy->compute_residual(p_grid, rhs_grid);
@@ -226,7 +226,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
         write_vtk((step + 1) / c.output_skip_size);
 
         if (hpx::get_locality_id() == 0)
-            std::cout << "iterations: " << 50*iter << " | residual " << res << std::endl;
+            std::cout << "iterations: " << c.sub_iterations*iter << " | residual " << res << std::endl;
     }
     return max_uv.get();
 }

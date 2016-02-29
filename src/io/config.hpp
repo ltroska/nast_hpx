@@ -22,6 +22,7 @@ struct config
         RealType t_end;
         RealType delta_t;
         uint output_skip_size;
+        uint sub_iterations;
         uint iter_max;
 
         template <typename Archive>

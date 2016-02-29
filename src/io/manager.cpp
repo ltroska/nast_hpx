@@ -130,6 +130,15 @@ config manager::read_config_from_file(const char *path)
         config.output_skip_size = 1;
 	}
 
+	if(config_node.child("subIterations") != NULL)
+	{
+        config.sub_iterations = config_node.child("subIterations").first_attribute().as_int();
+	}
+	else
+	{
+        config.sub_iterations = 1;
+	}
+
 	return config;
 }
 }//namespace io

@@ -9,55 +9,6 @@
 
 namespace grid {
 
-template <typename T>
-struct partition_allocator
-{
-private:
-    typedef hpx::lcos::local::spinlock mutex_type;
-
-public:
-    partition_allocator(std::size_t max_size = std::size_t(-1))
-      : max_size_(max_size)
-    {
-    }
-
-    ~partition_allocator()
-    {
-        boost::lock_guard<mutex_type> l(mtx_);
-        while (!heap_.empty())
-        {
-            T* p = heap_.top();
-            heap_.pop();
-            delete [] p;
-        }
-    }
-
-    T* allocate(std::size_t n)
-    {
-        boost::lock_guard<mutex_type> l(mtx_);
-        if (heap_.empty())
-            return new T[n];
-
-        T* next = heap_.top();
-        heap_.pop();
-        return next;
-    }
-
-    void deallocate(T* p)
-    {
-        boost::lock_guard<mutex_type> l(mtx_);
-        if (max_size_ == static_cast<std::size_t>(-1) || heap_.size() < max_size_)
-            heap_.push(p);
-        else
-            delete [] p;
-    }
-
-private:
-    mutex_type mtx_;
-    std::size_t max_size_;
-    std::stack<T*> heap_;
-};
-
 //partition_data
 template<typename T = RealType>
 struct partition_data
@@ -72,14 +23,14 @@ public:
     {}
 
     partition_data(uint size_x, uint size_y)
-    : data_(alloc_.allocate(size_x*size_y), size_x * size_y, buffer_type::take, &partition_data::deallocate),
+    : data_(new T[size_x*size_y], size_x * size_y, buffer_type::take, array_deleter<T>()),
       size_x_(size_x),
       size_y_(size_y),
       size_(size_x * size_y)
     {}
 
     partition_data(uint size_x, uint size_y, RealType initial_value)
-    : data_(alloc_.allocate(size_x*size_y), size_x * size_y, buffer_type::take, &partition_data::deallocate),
+    : data_(new T[size_x*size_y], size_x * size_y, buffer_type::take, array_deleter<T>()),
       size_x_(size_x),
       size_y_(size_y),
       size_(size_x * size_y)
@@ -211,13 +162,6 @@ public:
     T* end() { return data_.end(); }
 
 private:
-    static partition_allocator<T> alloc_;
-
-    static void deallocate(T* p)
-    {
-        alloc_.deallocate(p);
-    }
-
     friend class hpx::serialization::access;
 
     template <typename Archive>
@@ -239,9 +183,6 @@ private:
     uint size_y_;
     uint size_;
 };
-
-template <typename T>
-partition_allocator<T> partition_data<T>::alloc_;
 
 }//namespace grid
 

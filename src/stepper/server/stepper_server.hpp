@@ -2,218 +2,98 @@
 #define STEPPER_SERVER_STEPPER_HPP
 
 #include <hpx/include/components.hpp>
-#include <hpx/hpx.hpp>
+#include <hpx/lcos/local/receive_buffer.hpp>
 
+#include "io/config.hpp"
+#include "computation/parameters.hpp"
+#include "computation/strategy.hpp"
 #include "grid/partition.hpp"
-#include "internal/cfd_config.hpp"
+
+#include <hpx/error.hpp>
 
 namespace stepper { namespace server {
 
-char const* stepper_basename = "/cfd_hpx/stepper/";
-char const* gather_residual_basename = "/cfd_hpx/gather_residual/";
-char const* gather_go_basename = "/cfd_hpx/gather_go/";
-
-enum direction
-{
-    left, right, top, bottom, top_left, top_right, bottom_left, bottom_right
-};
-
-enum stepper_type
-{
-    left_boundary, right_boundary, top_boundary, bottom_boundary, top_left_boundary, top_right_boundary, bottom_left_boundary, bottom_right_boundary, interior
-};
+char const* stepper_basename = "/nast_hpx/stepper/";
+char const* gather_basename = "/nast_hpx/gather/";
 
 struct HPX_COMPONENT_EXPORT stepper_server
     : hpx::components::component_base<stepper_server>
 {
     public:
-        typedef std::vector<std::vector<grid::partition> > space;
-
         stepper_server() {}
         stepper_server(uint num_localities);
 
-        uint compute_fg();
-
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, compute_fg, compute_fg_action);
-
-        uint set_rhs();
-
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_rhs, set_rhs_action);
-
-        grid::vector_cell update_velocities();
-
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, update_velocities, update_velocities_action);
-
-        uint set_pressure();
-
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_pressure, set_pressure_action);
-
-        uint set_velocity();
-
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_velocity, set_velocity_action);
-
-        uint sor_cycle();
-
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, sor_cycle, sor_cycle_action);
-
-        RealType get_residual();
-
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, get_residual, get_residual_action);
-
-        uint do_work(uint num_local_partitions_x, uint num_local_partitions_y, uint num_cells_x, uint num_cells_y, RealType delta_x, RealType delta_y);
-
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_work, do_work_action);
-
-        uint setup(uint i_max, uint j_max, RealType x_length, RealType y_length,  uint num_partitions_x, uint num_partitions_y);
-
+        void setup(io::config cfg);
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, setup, setup_action);
 
-        uint setup_with_config(cfd_config config);
+        void do_work();
 
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, setup_with_config, setup_with_config_action);
+        std::pair<RealType, RealType> do_timestep(uint step, RealType dt);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_timestep, do_timestep_action);
 
-        uint update_delta_t(RealType dt);
+        void set_keep_running(uint iter, bool kr);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_keep_running, set_keep_running_action);
 
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, update_delta_t, update_delta_t_action);
+        void receive_p_action_(uint t, scalar_partition p, direction to_dir);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, receive_p_action_, receive_p_action);
 
-        void receive_from_neighbor(uint t, grid::partition p, direction dir)
-        {
-            switch (dir)
-            {
-                case left:
-                    U[num_local_partitions_x_ - 1][t] = std::move(p);
-                    break;
-                case right:
-                    U[0][t] = std::move(p);
-                    break;
-                case top:
-                    U[t][0] = std::move(p);
-                    break;
-                case bottom:
-                    U[t][num_local_partitions_y_ - 1] = std::move(p);
-                    break;
-                case top_left:
-                    U[num_local_partitions_x_ - 1][0] = std::move(p);
-                    break;
-                case top_right:
-                    U[0][0] = std::move(p);
-                    break;
-                case bottom_left:
-                    U[num_local_partitions_x_ - 1][num_local_partitions_y_ - 1] = std::move(p);
-                    break;
-                case bottom_right:
-                    U[0][num_local_partitions_y_ - 1] = std::move(p);
-                    break;
-                default:
-                    return;
-            }
-        }
+        void receive_fg_action_(uint t, vector_partition fg, direction to_dir);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, receive_fg_action_, receive_fg_action);
 
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, receive_from_neighbor, receive_action);
+        void receive_uv_action_(uint t, vector_partition uv, direction to_dir);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, receive_uv_action_, receive_uv_action);
 
     protected:
+        template<typename T>
+        void print_grid(std::vector<grid::partition<T> > const& grid, const std::string message = "") const;
+        void write_vtk(uint step) const;
 
-        void write_vtk_files();
+        uint get_index(uint k, uint l) const;
 
-        void send_to_neighbor(uint t, grid::partition p, direction dir)
-        {
-            hpx::id_type neighbor;
+        void send_p_to_neighbor(uint t, scalar_partition p, direction dir);
+        scalar_partition receive_p_from_neighbor(uint t, direction dir);
+        void communicate_p_grid(uint iter);
 
-            switch (dir)
-            {
-                case left:
-                    neighbor = left_.get();
-                    break;
-                case right:
-                    neighbor = right_.get();
-                    break;
-                case top:
-                    neighbor = top_.get();
-                    break;
-                case bottom:
-                    neighbor = bottom_.get();
-                    break;
-                case top_left:
-                    neighbor = top_left_.get();
-                    break;
-                case top_right:
-                    neighbor = top_right_.get();
-                    break;
-                case bottom_left:
-                    neighbor = bottom_left_.get();
-                    break;
-                case bottom_right:
-                    neighbor = bottom_right_.get();
-                    break;
-                default:
-                    return;
-            }
+        void send_fg_to_neighbor(uint t, vector_partition fg, direction dir);
+        vector_partition receive_fg_from_neighbor(uint t, direction dir);
+        void communicate_fg_grid(uint step);
 
-            hpx::apply(receive_action(), neighbor, t, p, dir);
-        }
-
-  /*      grid::cell& get_neighbor_cell(uint i, uint j, uint k, uint l, direction dir)
-        {
-            switch (dir)
-            {
-                case left:
-                    if
-            }
-        }*/
+        void send_uv_to_neighbor(uint t, vector_partition uv, direction dir);
+        vector_partition receive_uv_from_neighbor(uint t, direction dir);
+        void communicate_uv_grid(uint step);
 
     private:
+        void initialize_parameters();
+        void initialize_grids();
+        void initialize_communication();
 
-        uint do_compute_fg(uint i, uint j);
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_compute_fg, do_compute_fg_action);
+        RealType compute_new_dt(std::pair<RealType, RealType>) const;
 
-        uint do_set_rhs(uint i, uint j);
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_set_rhs, do_set_rhs_action);
+        io::config c;
+        computation::parameters params;
+        computation::strategy* strategy;
 
-        grid::vector_cell do_update_velocities(uint i, uint j);
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_update_velocities, do_update_velocities_action);
+        uint num_localities, num_localities_x, num_localities_y;
+        std::vector<hpx::naming::id_type> localities;
 
-        uint do_sor_cycle(uint i, uint j, uint even);
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_sor_cycle, do_sor_cycle_action);
+        index_grid_type index_grid;
+        vector_grid_type uv_grid, fg_grid;
+        scalar_grid_type p_grid, rhs_grid;
 
-        RealType do_get_residual(uint i, uint j);
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_get_residual, do_get_residual_action);
+        bool has_neighbor[NUM_DIRECTIONS];
+        hpx::shared_future<hpx::id_type> neighbor_steppers_[NUM_DIRECTIONS];
+        hpx::lcos::local::receive_buffer<scalar_partition> p_recv_buffs_[NUM_DIRECTIONS];
+        hpx::lcos::local::receive_buffer<vector_partition> fg_recv_buffs_[NUM_DIRECTIONS];
+        hpx::lcos::local::receive_buffer<vector_partition> uv_recv_buffs_[NUM_DIRECTIONS];
+        hpx::lcos::local::receive_buffer<bool> keep_running;
 
-        space U;
-
-        RealType dx_;
-        RealType dy_;
-
-        RealType dt_;
-
-        RealType Re_;
-        RealType alpha_;
-        RealType omega_;
-
-        RealType x_length_;
-        RealType y_length_;
-
-        uint num_local_partitions_x_;
-        uint num_local_partitions_y_;
-        uint num_cells_x_;
-        uint num_cells_y_;
-        uint res_x_;
-        uint res_y_;
-        uint i_max_;
-        uint j_max_;
-
-        uint num_localities_;
-        uint locality_id_;
-        stepper_type type_;
-
-        hpx::shared_future<hpx::id_type> left_, right_, top_, bottom_, top_left_, top_right_, bottom_left_, bottom_right_;
+        scalar_partition scalar_dummy;
+        vector_partition vector_dummy;
 };
 
 }//namespace server
 }//namespace stepper
 
-HPX_REGISTER_ACTION_DECLARATION(stepper::server::stepper_server::do_work_action, stepper_server_do_work_action);
 HPX_REGISTER_ACTION_DECLARATION(stepper::server::stepper_server::setup_action, stepper_server_setup_action);
-HPX_REGISTER_ACTION_DECLARATION(stepper::server::stepper_server::set_velocity_action, stepper_server_set_velocity_action);
-HPX_REGISTER_ACTION_DECLARATION(stepper::server::stepper_server::set_pressure_action, stepper_server_set_pressure_action);
-HPX_REGISTER_ACTION_DECLARATION(stepper::server::stepper_server::compute_fg_action, stepper_server_compute_fg_action);
+
 #endif

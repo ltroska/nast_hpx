@@ -2,29 +2,30 @@
 #define GRID_PARTITION_HPP
 
 #include "server/partition_server.hpp"
-#include "internal/types.hpp"
 
 namespace grid {
 
+template <typename T=RealType>
 struct partition
-    : hpx::components::client_base<partition, server::partition_server>
+    : hpx::components::client_base<partition<T>, server::partition_server<T> >
 {
-    typedef hpx::components::client_base<partition, server::partition_server> base_type;
+    typedef hpx::components::client_base<partition<T>, server::partition_server<T> > base_type;
+    typedef server::partition_server<T> server_type;
 
     partition() {}
 
     partition(hpx::id_type where, uint size_x, uint size_y, RealType initial_value)
-        : base_type(hpx::new_<server::partition_server>(where, size_x, size_y, initial_value))
+        : base_type(hpx::new_<server::partition_server<T> >(where, size_x, size_y, initial_value))
     {}
 
     partition(hpx::id_type where, uint size_x, uint size_y)
-        : base_type(hpx::new_<server::partition_server>(where, size_x, size_y, 0))
+        : base_type(hpx::new_<server::partition_server<T> >(where, size_x, size_y, 0))
     {}
 
     // Create a new component on the locality co-located to the id 'where'. The
     // new instance will be initialized from the given partition_data.
-    partition(hpx::id_type where, partition_data const& data)
-      : base_type(hpx::new_<server::partition_server>(hpx::colocated(where), data))
+    partition(hpx::id_type where, partition_data<T> const& data)
+      : base_type(hpx::new_<server::partition_server<T> >(hpx::colocated(where), data))
     {}
 
     // Attach a future representing a (possibly remote) partition.
@@ -38,13 +39,11 @@ struct partition
       : base_type(std::move(c))
     {}
 
-    hpx::future<partition_data> get_data(partition_type type) const
+    hpx::future<partition_data<T> > get_data(direction type) const
     {
-        server::partition_server::get_data_action act;
-        return hpx::async(act, get_id(), type);
+        typename server_type::get_data_action act;
+        return hpx::async(act, this->get_id(), type);
     }
 };
-
 }//namespace grid
-
 #endif

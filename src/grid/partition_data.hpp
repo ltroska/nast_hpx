@@ -2,28 +2,69 @@
 #define GRID_PARTITION_DATA_HPP
 
 #include <hpx/runtime/serialization/serialize.hpp>
-#include <boost/shared_array.hpp>
+//#include <boost/shared_array.hpp>
 
-#include "internal/types.hpp"
-#include "internal/utils.hpp"
-#include "cell.hpp"
+#include "util/types.hpp"
+#include "util/helpers.hpp"
 
 namespace grid {
 
-//flag for which data we are requesting
-enum partition_type
+template <typename T>
+struct partition_allocator
 {
-    left_partition, center_partition, right_partition, top_partition, bottom_partition, top_left_partition, top_right_partition,
-    bottom_left_partition, bottom_right_partition
+private:
+    typedef hpx::lcos::local::spinlock mutex_type;
+
+public:
+    partition_allocator(std::size_t max_size = std::size_t(-1))
+      : max_size_(max_size)
+    {
+    }
+
+    ~partition_allocator()
+    {
+        boost::lock_guard<mutex_type> l(mtx_);
+        while (!heap_.empty())
+        {
+            T* p = heap_.top();
+            heap_.pop();
+            delete [] p;
+        }
+    }
+
+    T* allocate(std::size_t n)
+    {
+        boost::lock_guard<mutex_type> l(mtx_);
+        if (heap_.empty())
+            return new T[n];
+
+        T* next = heap_.top();
+        heap_.pop();
+        return next;
+    }
+
+    void deallocate(T* p)
+    {
+        boost::lock_guard<mutex_type> l(mtx_);
+        if (max_size_ == static_cast<std::size_t>(-1) || heap_.size() < max_size_)
+            heap_.push(p);
+        else
+            delete [] p;
+    }
+
+private:
+    mutex_type mtx_;
+    std::size_t max_size_;
+    std::stack<T*> heap_;
 };
 
 //partition_data
+template<typename T = RealType>
 struct partition_data
 {
-private:
-    typedef hpx::serialization::serialize_buffer<cell> buffer_type;
-
 public:
+    typedef hpx::serialization::serialize_buffer<T> buffer_type;
+
     partition_data()
     : size_x_(0),
       size_y_(0),
@@ -31,28 +72,43 @@ public:
     {}
 
     partition_data(uint size_x, uint size_y)
-    : data_(new cell [size_x * size_y], size_x * size_y, buffer_type::take, array_deleter<cell>()),
+    : data_(alloc_.allocate(size_x*size_y), size_x * size_y, buffer_type::take, &partition_data::deallocate),
       size_x_(size_x),
       size_y_(size_y),
       size_(size_x * size_y)
     {}
 
     partition_data(uint size_x, uint size_y, RealType initial_value)
-    : data_(new cell [size_x * size_y], size_x * size_y, buffer_type::take, array_deleter<cell>()),
+    : data_(alloc_.allocate(size_x*size_y), size_x * size_y, buffer_type::take, &partition_data::deallocate),
       size_x_(size_x),
       size_y_(size_y),
       size_(size_x * size_y)
     {
         for(uint i = 0; i < size_; ++i)
-            data_[i] = cell(initial_value);
+            data_[i] = T(initial_value);
     }
 
-    partition_data(partition_data const& base, partition_type type)
+    partition_data(partition_data const& base)
     {
+        data_ = buffer_type(base.data_.data(), base.size(), buffer_type::copy);
+        size_x_ = base.size_x();
+        size_y_ = base.size_y();
+        size_ = base.size();
+    }
+
+    partition_data(partition_data const& base, direction type)
+    {
+        if (base.size() == 0)
+        {
+            size_x_ = 0;
+            size_y_ = 0;
+            size_ = 0;
+        }
+        else
         //return only needed data, depending on who asks for it.
         switch (type)
         {
-            case top_left_partition:
+            case TOP_LEFT:
             {
                 data_ = buffer_type(base.data_.data()+base.size_x()-1, 1, buffer_type::reference);
                 size_x_ = 1;
@@ -61,7 +117,7 @@ public:
                 break;
             }
 
-            case top_partition:
+            case TOP:
             {
                 data_ = buffer_type(base.data_.data(), base.size_x(), buffer_type::reference);
                 size_x_ = base.size_x();
@@ -70,7 +126,7 @@ public:
                 break;
             }
 
-            case top_right_partition:
+            case TOP_RIGHT:
             {
                 data_ = buffer_type(base.data_.data(), 1, buffer_type::reference);
                 size_x_ = 1;
@@ -79,12 +135,9 @@ public:
                 break;
             }
 
-            /*
-            * @todo make it so this does not copy
-            */
-            case left_partition:
+            case LEFT:
             {
-                data_ = buffer_type(new cell [base.size_y()], base.size_y(), buffer_type::take, array_deleter<cell>());
+                data_ = buffer_type(new T [base.size_y()], base.size_y(), buffer_type::take, array_deleter<T>());
                 for(int i = 0; i < base.size_y(); ++i) {
                     data_[i] = base.get_cell(base.size_x()-1,i);
                 }
@@ -95,12 +148,9 @@ public:
                 break;
             }
 
-            /*
-            * @todo make it so this does not copy
-            */
-            case right_partition:
+            case RIGHT:
             {
-                data_ = buffer_type(new cell [base.size_y()], base.size_y(), buffer_type::take, array_deleter<cell>());
+                data_ = buffer_type(new T [base.size_y()], base.size_y(), buffer_type::take, array_deleter<T>());
                 for(int i = 0; i < base.size_y(); ++i) {
                     data_[i] = base.get_cell(0,i);
                 }
@@ -111,7 +161,7 @@ public:
                 break;
             }
 
-            case bottom_left_partition:
+            case BOTTOM_LEFT:
             {
                 data_ = buffer_type(base.data_.data()+base.size()-1, 1, buffer_type::reference);
                 size_x_ = 1;
@@ -120,7 +170,7 @@ public:
                 break;
             }
 
-            case bottom_partition:
+            case BOTTOM:
             {
                 data_ = buffer_type(base.data_.data()+base.size()-base.size_x(), base.size_x(), buffer_type::reference);
                 size_x_ = base.size_x();
@@ -129,7 +179,7 @@ public:
                 break;
             }
 
-            case bottom_right_partition:
+            case BOTTOM_RIGHT:
             {
                 data_ = buffer_type(base.data_.data()+base.size()-base.size_x(), 1, buffer_type::reference);
                 size_x_ = 1;
@@ -139,7 +189,10 @@ public:
             }
 
             default:
-                HPX_ASSERT(false);
+                data_ = buffer_type(base.data_.data(), base.size(), buffer_type::reference);
+                size_x_ = base.size_x();
+                size_y_ = base.size_y();
+                size_ = base.size();
                 break;
         }
     }
@@ -148,35 +201,23 @@ public:
     uint size_y() const { return size_y_;}
     uint size() const { return size_;}
 
-    cell get_cell(uint idx, uint idy) const { return data_[index(idx, idy)];}
-    cell& get_cell_ref(uint idx, uint idy) { return data_[index(idx, idy)];}
+    T get_cell(uint idx, uint idy) const { return data_[index(idx, idy)];}
+    T& get_cell_ref(uint idx, uint idy) { return data_[index(idx, idy)];}
 
-    cell operator[](uint idx) const { return data_[idx];}
-    cell& operator[](uint idx) { return data_[idx];}
+    T operator[](uint idx) const { return data_[idx];}
+    T& operator[](uint idx) { return data_[idx];}
 
-    friend std::ostream& operator<<(std::ostream& os, partition_data const& data)
-    {
-        os << "[[";
-        for(uint j = 0; j < data.size_y(); ++j)
-        {
-            for(uint i = 0; i < data.size_x(); ++i)
-            {
-                os << data.get_cell(i, j).p;
-                if(i != data.size_x()-1)
-                    os << ", ";
-            }
-            os << "]";
-            if(j < data.size_y()-1)
-                os << ",[";
-        }
-        os << "]";
-        return os;
-    }
+    T* begin() { return data_.begin(); }
+    T* end() { return data_.end(); }
 
 private:
-    // Serialization support: even if all of the code below runs on one
-    // locality only, we need to provide an (empty) implementation for the
-    // serialization as all arguments passed to actions have to support this.
+    static partition_allocator<T> alloc_;
+
+    static void deallocate(T* p)
+    {
+        alloc_.deallocate(p);
+    }
+
     friend class hpx::serialization::access;
 
     template <typename Archive>
@@ -199,5 +240,9 @@ private:
     uint size_;
 };
 
+template <typename T>
+partition_allocator<T> partition_data<T>::alloc_;
+
 }//namespace grid
+
 #endif

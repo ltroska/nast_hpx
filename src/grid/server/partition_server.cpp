@@ -1,10 +1,13 @@
 #include "partition_server.hpp"
-
-typedef grid::server::partition_server partition_component;
-typedef hpx::components::component<partition_component> partition_server_type;
+#include "util/cell.hpp"
 
 HPX_REGISTER_COMPONENT_MODULE();
 
-HPX_REGISTER_COMPONENT(partition_server_type, partition_component);
+/*
+*@TODO: Why does this work???
+*/
 
-HPX_REGISTER_ACTION(grid::server::partition_server::get_data_action, partition_server_get_data_action);
+//HPX_REGISTER_PARTITION_SERVER_DECLARATION(scalar_cell);
+//HPX_REGISTER_PARTITION_SERVER_DECLARATION(vector_cell);
+HPX_REGISTER_PARTITION_SERVER(scalar_cell);
+HPX_REGISTER_PARTITION_SERVER(vector_cell);

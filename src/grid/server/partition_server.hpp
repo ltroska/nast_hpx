@@ -2,18 +2,24 @@
 #define GRID_SERVER_PARTITION_SERVER_HPP
 
 #include <hpx/include/components.hpp>
+#include <hpx/include/actions.hpp>
+#include <hpx/include/util.hpp>
+
+#include <boost/preprocessor/cat.hpp>
 
 #include "grid/partition_data.hpp"
-#include "internal/types.hpp"
+#include "util/types.hpp"
 
 namespace grid { namespace server {
 
+template<typename T>
 struct HPX_COMPONENT_EXPORT partition_server
-    : hpx::components::component_base<partition_server>
+    : public hpx::components::locking_hook<
+            hpx::components::simple_component_base<partition_server<T> > >
 {
     partition_server() {}
 
-    partition_server(partition_data const& data)
+    partition_server(partition_data<T> const& data)
     : data_(data)
     {}
 
@@ -21,22 +27,60 @@ struct HPX_COMPONENT_EXPORT partition_server
     : data_(size_x, size_y, initial_value)
     {}
 
-    partition_data get_data(partition_type type) const
+    partition_data<T> get_data(direction type) const
     {
-        if(type == center_partition)
+        if (type == CENTER)
             return data_;
         else
-            return partition_data(data_, type);
+            return partition_data<T>(data_, type);
     }
-
-    HPX_DEFINE_COMPONENT_ACTION(partition_server, get_data, get_data_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, get_data);
 
 private:
-    partition_data data_;
+    partition_data<T> data_;
 };
 
 }//namespace server
 }//namespace grid
 
-HPX_REGISTER_ACTION_DECLARATION(grid::server::partition_server::get_data_action, partition_server_get_data_action);
+#define HPX_REGISTER_PARTITION_SERVER_DECLARATION(...)                      \
+    HPX_REGISTER_PARTITION_SERVER_DECLARATION_(__VA_ARGS__)                             \
+/**/
+#define HPX_REGISTER_PARTITION_SERVER_DECLARATION_(...)                                 \
+    HPX_UTIL_EXPAND_(BOOST_PP_CAT(                                            \
+        HPX_REGISTER_PARTITION_SERVER_DECLARATION_, HPX_UTIL_PP_NARG(__VA_ARGS__)       \
+    )(__VA_ARGS__))                                                           \
+/**/
+
+#define HPX_REGISTER_PARITION_SERVER_DECLARATION_1(type)                               \
+    HPX_REGISTER_PARTITION_DECLARATION_2(type, type)                             \
+/**/
+#define HPX_REGISTER_PARTITION_SERVER_DECLARATION_2(type, name)                         \
+    HPX_REGISTER_ACTION_DECLARATION(                                          \
+        grid::server::partition_server<type>::get_data_action,              \
+        BOOST_PP_CAT(__partition_server_get_data_action_, name));                      \
+/**/
+
+#define HPX_REGISTER_PARTITION_SERVER(...)                                  \
+    HPX_REGISTER_PARTITION_SERVER_(__VA_ARGS__)                                         \
+/**/
+#define HPX_REGISTER_PARTITION_SERVER_(...)                                             \
+    HPX_UTIL_EXPAND_(BOOST_PP_CAT(                                            \
+        HPX_REGISTER_PARTITION_SERVER_, HPX_UTIL_PP_NARG(__VA_ARGS__)                   \
+    )(__VA_ARGS__))                                                           \
+/**/
+
+#define HPX_REGISTER_PARTITION_SERVER_1(type)                                           \
+    HPX_REGISTER_PARTITION_SERVER_2(type, type)                                         \
+/**/
+#define HPX_REGISTER_PARTITION_SERVER_2(type, name)                                     \
+    HPX_REGISTER_ACTION(                                                      \
+        grid::server::partition_server<type>::get_data_action,            \
+        BOOST_PP_CAT(__partition_server_get_data_action_, name));                      \
+    typedef ::hpx::components::simple_component<                              \
+        grid::server::partition_server<type>                               \
+    > BOOST_PP_CAT(__partition_server_, name);                                        \
+    HPX_REGISTER_COMPONENT(BOOST_PP_CAT(__partition_server_, name))                     \
+/**/
+
 #endif

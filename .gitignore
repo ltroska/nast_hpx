@@ -1,6 +1,4 @@
-build/
+build
 *.cbp
-*.*~
-*.txt
+*~
 *.layout
-*.xml

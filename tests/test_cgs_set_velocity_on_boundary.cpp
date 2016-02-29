@@ -98,16 +98,16 @@ void check_set_velocity_on_boundary(vector_grid_type const& orig_grid, vector_gr
 
 void do_set_velocity_on_boundary_test(uint i_max, uint j_max, uint locality_id, uint localities_x, uint localities_y, uint i_res, uint j_res)
 {
-        uint num_partitions_x = i_res + 2;
-        uint num_partitions_y = j_res + 2;
 
         computation::parameters params;
-        params.num_partitions_x = num_partitions_x;
-        params.num_partitions_y = num_partitions_y;
+        params.num_cells_per_partition_x = i_res;
+        params.num_cells_per_partition_y = j_res;
+
+        params.num_partitions_x = ((i_max + 2) / localities_x) / i_res + 2;
+        params.num_partitions_y = ((j_max + 2) / localities_y) / j_res + 2;
+
         params.i_max = i_max;
         params.j_max = j_max;
-        params.num_cells_per_partition_x = ((i_max + 2) / localities_x) / i_res;
-        params.num_cells_per_partition_y = ((j_max + 2) / localities_y) / j_res;
 
         grid_maker maker = grid_maker(localities_x, localities_y, locality_id, params);
 
@@ -116,6 +116,8 @@ void do_set_velocity_on_boundary_test(uint i_max, uint j_max, uint locality_id, 
 
         maker.make_index_grid(index);
         maker.make_random_grid(grid);
+
+       // print_grid(grid, params);
 
         maker.copy_grid(grid, orig_grid);
 
@@ -131,21 +133,21 @@ void do_set_velocity_on_boundary_test(uint i_max, uint j_max, uint locality_id, 
 int hpx_main(int argc, char* argv[])
 {
 // --- SQUARE AREA, ONE PARTITION --- //
-    do_set_velocity_on_boundary_test(6, 6, 0, 1, 1, 1, 1);
-    do_set_velocity_on_boundary_test(62, 62, 0, 1, 1, 1, 1);
+    do_set_velocity_on_boundary_test(6, 6, 0, 1, 1, 8, 8);
+    do_set_velocity_on_boundary_test(62, 62, 0, 1, 1, 64, 64);
 
 // --- SQUARE AREA, MULTIPLE PARTITIONS --- //
     do_set_velocity_on_boundary_test(62, 62, 0, 1, 1, 8, 8);
     do_set_velocity_on_boundary_test(254, 254, 0, 1, 1, 8, 16);
-    do_set_velocity_on_boundary_test(254, 254, 0, 1, 1, 1, 8);
+    do_set_velocity_on_boundary_test(254, 254, 0, 1, 1, 2, 8);
     do_set_velocity_on_boundary_test(254, 254, 0, 1, 1, 4, 8);
 
 // --- SQUARE AREA, MULTIPLE PARTITIONS, NOT FIRST LOCALITY --- //
     do_set_velocity_on_boundary_test(30, 30, 2, 2, 2, 8, 8);
     do_set_velocity_on_boundary_test(510, 510, 1, 1, 2, 8, 16);
     do_set_velocity_on_boundary_test(510, 510, 1, 2, 1, 8, 16);
-//    do_set_velocity_on_boundary_test(1022, 1022, 3, 2, 2, 1, 8);
-//    do_set_velocity_on_boundary_test(1022, 1022, 7, 4, 4, 4, 8);
+   // do_set_velocity_on_boundary_test(1022, 1022, 3, 2, 2, 2, 8);
+   // do_set_velocity_on_boundary_test(1022, 1022, 7, 4, 4, 4, 8);
 
 /*
 // --- NON-SQUARE AREA, ONE PARTITION --- //

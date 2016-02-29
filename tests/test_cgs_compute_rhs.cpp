@@ -70,16 +70,15 @@ void check_compute_rhs(scalar_grid_type const& rhs_grid, vector_grid_type const&
 
 void do_compute_rhs_test(uint i_max, uint j_max, uint locality_id, uint localities_x, uint localities_y, uint i_res, uint j_res, RealType re = 1000, RealType dt = 1)
 {
-        uint num_partitions_x = i_res + 2;
-        uint num_partitions_y = j_res + 2;
 
         computation::parameters params;
-        params.num_partitions_x = num_partitions_x;
-        params.num_partitions_y = num_partitions_y;
         params.i_max = i_max;
         params.j_max = j_max;
-        params.num_cells_per_partition_x = ((i_max + 2) / localities_x) / i_res;
-        params.num_cells_per_partition_y = ((j_max + 2) / localities_y) / j_res;
+        params.num_cells_per_partition_x = i_res;
+        params.num_cells_per_partition_y = j_res;
+
+        params.num_partitions_x = ((i_max + 2) / localities_x) / i_res + 2;
+        params.num_partitions_y = ((j_max + 2) / localities_y) / j_res + 2;
         params.re = re;
         params.dx = 0.25;
         params.dy = 0.25;
@@ -110,19 +109,19 @@ void do_compute_rhs_test(uint i_max, uint j_max, uint locality_id, uint localiti
 int hpx_main(int argc, char* argv[])
 {
 // --- SQUARE AREA, ONE PARTITION --- //
-    do_compute_rhs_test(20, 20, 0, 1, 1, 1, 1);
-    do_compute_rhs_test(64, 64, 0, 1, 1, 1, 1);
+    do_compute_rhs_test(14, 14, 0, 1, 1, 16, 16);
+    do_compute_rhs_test(62, 62, 0, 1, 1, 64, 64);
 
 // --- SQUARE AREA, MULTIPLE PARTITIONS --- //
-    do_compute_rhs_test(64, 64, 0, 1, 1, 8, 8);
-    do_compute_rhs_test(256, 256, 0, 1, 1, 8, 16);
-    do_compute_rhs_test(256, 256, 0, 1, 1, 1, 8);
-    do_compute_rhs_test(256, 256, 0, 1, 1, 4, 8);
+    do_compute_rhs_test(62, 62, 0, 1, 1, 8, 8);
+    do_compute_rhs_test(254, 254, 0, 1, 1, 8, 16);
+    do_compute_rhs_test(254, 254, 0, 1, 1, 32, 16);
+    do_compute_rhs_test(254, 254, 0, 1, 1, 16, 32);
 
 // --- SQUARE AREA, MULTIPLE PARTITIONS, NOT FIRST LOCALITY --- //
-    do_compute_rhs_test(32, 32, 2, 2, 2, 8, 8);
-    do_compute_rhs_test(512, 512, 1, 1, 2, 8, 16);
-    do_compute_rhs_test(512, 512, 1, 2, 1, 8, 16);
+    do_compute_rhs_test(30, 30, 2, 2, 2, 8, 8);
+    do_compute_rhs_test(254, 254, 1, 1, 2, 64, 32);
+   // do_compute_rhs_test(510, 510, 1, 2, 1, 64, 32);
 //    do_compute_rhs_test(1024, 1024, 3, 2, 2, 1, 8);
 //    do_compute_rhs_test(1024, 1024, 7, 4, 4, 4, 8);
 

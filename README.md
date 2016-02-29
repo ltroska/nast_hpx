@@ -1,1 +1,1 @@
-Implementing a NaSt-solver using hpx.
+Implementing a Navier-Stokes-solver using hpx.

@@ -38,7 +38,7 @@ add_hpx_component(
 add_hpx_executable(
     main
     ESSENTIAL
-    SOURCES src/main.cpp src/io/manager.cpp src/computation/custom_grain_size.cpp
+    SOURCES src/main.cpp src/io/manager.cpp src/computation/custom_grain_size.cpp src/computation/with_for_each.cpp
     DEPENDENCIES pugixml
     COMPONENT_DEPENDENCIES partition_server stepper_server
 )
@@ -136,4 +136,65 @@ add_hpx_executable(
     COMPONENT_DEPENDENCIES partition_server
 )
 add_test(cgs_update_velocities_test  test_cgs_update_velocities -t4)
+
+# wfe::set_velocity_on_boundary()
+
+add_hpx_executable(
+    test_wfe_set_velocity_on_boundary
+    ESSENTIAL
+    SOURCES tests/test_wfe_set_velocity_on_boundary.cpp src/computation/with_for_each.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(wfe_set_velocity_on_boundary_test  test_wfe_set_velocity_on_boundary -t4)
+
+# wfe::set_pressure_on_boundary()
+
+add_hpx_executable(
+    test_wfe_set_pressure_on_boundary
+    ESSENTIAL
+    SOURCES tests/test_wfe_set_pressure_on_boundary.cpp src/computation/with_for_each.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(wfe_set_pressure_on_boundary_test  test_wfe_set_pressure_on_boundary -t4)
+
+# wfe::compute_fg()
+
+add_hpx_executable(
+    test_wfe_compute_fg
+    ESSENTIAL
+    SOURCES tests/test_wfe_compute_fg.cpp src/computation/with_for_each.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(wfe_compute_fg_test  test_wfe_compute_fg -t4)
+
+# wfe::compute_rhs()
+
+add_hpx_executable(
+    test_wfe_compute_rhs
+    ESSENTIAL
+    SOURCES tests/test_wfe_compute_rhs.cpp src/computation/with_for_each.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(wfe_compute_rhs_test  test_wfe_compute_rhs -t4)
+
+# wfe::sor_cycle()
+
+add_hpx_executable(
+    test_wfe_sor_cycle
+    ESSENTIAL
+    SOURCES tests/test_wfe_sor_cycle.cpp src/computation/with_for_each.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(wfe_sor_cycle_test  test_wfe_sor_cycle -t4)
+
+# wfe::update_velocities()
+
+add_hpx_executable(
+    test_wfe_update_velocities
+    ESSENTIAL
+    SOURCES tests/test_wfe_update_velocities.cpp src/computation/with_for_each.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(wfe_update_velocities_test  test_wfe_update_velocities -t4)
+
 

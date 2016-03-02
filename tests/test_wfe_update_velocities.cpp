@@ -2,7 +2,7 @@
 #include <hpx/hpx.hpp>
 
 #include "grid/partition.hpp"
-#include "computation/custom_grain_size.hpp"
+#include "computation/with_for_each.hpp"
 #include "util/cell.hpp"
 #include "test_helpers.hpp"
 
@@ -115,7 +115,7 @@ void do_update_velocities_test(uint i_max, uint j_max, uint locality_id, uint lo
         maker.make_random_grid(fg_grid);
         maker.make_vector_grid(uv_grid, 0);
 
-        computation::custom_grain_size strat(index, params);
+        computation::with_for_each strat(index, params);
         std::pair<RealType, RealType> max_uv = strat.update_velocities(uv_grid, fg_grid, p_grid, dt).get();
 
         std::string msg = "\nfailed with settings " + std::to_string(i_max) + " " + std::to_string(j_max) + " " + std::to_string(locality_id) + " "

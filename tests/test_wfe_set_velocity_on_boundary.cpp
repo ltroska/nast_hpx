@@ -2,7 +2,7 @@
 #include <hpx/hpx.hpp>
 
 #include "grid/partition.hpp"
-#include "computation/custom_grain_size.hpp"
+#include "computation/with_for_each.hpp"
 #include "util/cell.hpp"
 #include "test_helpers.hpp"
 
@@ -121,7 +121,7 @@ void do_set_velocity_on_boundary_test(uint i_max, uint j_max, uint locality_id, 
 
         maker.copy_grid(grid, orig_grid);
 
-        computation::custom_grain_size strat(index, params);
+        computation::with_for_each strat(index, params);
         strat.set_velocity_on_boundary(grid);
 
         std::string msg = "\nfailed with settings " + std::to_string(i_max) + " " + std::to_string(j_max) + " " + std::to_string(locality_id) + " "

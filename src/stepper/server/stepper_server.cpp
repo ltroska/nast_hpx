@@ -6,6 +6,7 @@
 
 #include "stepper_server.hpp"
 #include "computation/custom_grain_size.hpp"
+#include "computation/with_for_each.hpp"
 
 #include "io/vtk_writer.hpp"
 
@@ -32,7 +33,7 @@ void stepper_server::setup(io::config cfg)
     initialize_grids();
     initialize_communication();
 
-    strategy = new computation::custom_grain_size(index_grid, params);
+    strategy = new computation::with_for_each(index_grid, params);
 
     if (hpx::get_locality_id() == 0)
         std::cout << cfg << std::endl;
@@ -127,7 +128,7 @@ void stepper_server::initialize_communication()
 
 void stepper_server::do_work()
 {
-    std::pair<RealType, RealType> max_uv(2, 0);
+    std::pair<RealType, RealType> max_uv(0, 0);
 
     RealType t = 0, dt = 0;
     for (uint step = 0; t < c.t_end; step++)
@@ -168,7 +169,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
 
     communicate_fg_grid(step);
 
-    strategy->compute_rhs(rhs_grid, fg_grid, dt);
+   // strategy->compute_rhs(rhs_grid, fg_grid, dt);
 
     uint iter = 0;
     RealType res = 0;
@@ -176,12 +177,13 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
     {
         for (uint subiter = 0; subiter < c.sub_iterations; subiter++)
         {
-            strategy->set_pressure_on_boundary(p_grid);
-            strategy->sor_cycle(p_grid, rhs_grid);
+         //   strategy->set_pressure_on_boundary(p_grid);
+         //   strategy->sor_cycle(p_grid, rhs_grid);
             communicate_p_grid(step*c.iter_max + c.sub_iterations*iter + subiter);
         }
 
-        hpx::future<RealType> residual_fut = strategy->compute_residual(p_grid, rhs_grid);
+       // hpx::future<RealType> residual_fut = strategy->compute_residual(p_grid, rhs_grid);
+        hpx::future<RealType> residual_fut = hpx::make_ready_future(0.);
 
         if (hpx::get_locality_id() == 0)
         {
@@ -211,11 +213,11 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
         }
 
         iter++;
-    } while (iter <= c.iter_max && keep_running.receive(step*c.iter_max + iter - 1).get());
+    } while (iter < c.iter_max && keep_running.receive(step*c.iter_max + iter - 1).get());
 
-
-    hpx::future<std::pair<RealType, RealType> > max_uv = strategy->update_velocities(uv_grid, fg_grid, p_grid, dt);
-
+   // print_grid(p_grid, "p");
+  ///  hpx::future<std::pair<RealType, RealType> > max_uv = strategy->update_velocities(uv_grid, fg_grid, p_grid, dt);
+hpx::future<std::pair<RealType, RealType> > max_uv = hpx::make_ready_future(std::pair<RealType, RealType> (0., 0.));
    // for (uint i = 0; i < NUM_DIRECTIONS; i++)
    //     p_recv_buffs_[i].clear();
 

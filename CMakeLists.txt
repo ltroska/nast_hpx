@@ -55,7 +55,7 @@ add_hpx_executable(
     SOURCES tests/test_partition_data.cpp
     COMPONENT_DEPENDENCIES partition_server
 )
-add_test(partition_data_test test_partition_data)
+add_test(partition_data_test test_partition_data -t4)
 
 # partition
 
@@ -65,7 +65,7 @@ add_hpx_executable(
     SOURCES tests/test_partition.cpp
     COMPONENT_DEPENDENCIES partition_server
 )
-add_test(partition_test test_partition)
+add_test(partition_test test_partition -t4)
 
 # get_neighbor_cell()
 
@@ -75,7 +75,7 @@ add_hpx_executable(
     SOURCES tests/test_get_neighbor_cell.cpp
     COMPONENT_DEPENDENCIES partition_server
 )
-add_test(get_neighbor_cell test_get_neighbor_cell)
+add_test(get_neighbor_cell test_get_neighbor_cell -t4)
 
 # cgs::set_velocity_on_boundary()
 
@@ -85,7 +85,7 @@ add_hpx_executable(
     SOURCES tests/test_cgs_set_velocity_on_boundary.cpp src/computation/custom_grain_size.cpp
     COMPONENT_DEPENDENCIES partition_server
 )
-add_test(cgs_set_velocity_on_boundary_test  test_cgs_set_velocity_on_boundary)
+add_test(cgs_set_velocity_on_boundary_test  test_cgs_set_velocity_on_boundary -t4)
 
 # cgs::set_pressure_on_boundary()
 
@@ -95,7 +95,7 @@ add_hpx_executable(
     SOURCES tests/test_cgs_set_pressure_on_boundary.cpp src/computation/custom_grain_size.cpp
     COMPONENT_DEPENDENCIES partition_server
 )
-add_test(cgs_set_pressure_on_boundary_test  test_cgs_set_pressure_on_boundary)
+add_test(cgs_set_pressure_on_boundary_test  test_cgs_set_pressure_on_boundary -t4)
 
 # cgs::compute_fg()
 
@@ -105,7 +105,7 @@ add_hpx_executable(
     SOURCES tests/test_cgs_compute_fg.cpp src/computation/custom_grain_size.cpp
     COMPONENT_DEPENDENCIES partition_server
 )
-add_test(cgs_compute_fg_test  test_cgs_compute_fg)
+add_test(cgs_compute_fg_test  test_cgs_compute_fg -t4)
 
 # cgs::compute_rhs()
 
@@ -115,7 +115,7 @@ add_hpx_executable(
     SOURCES tests/test_cgs_compute_rhs.cpp src/computation/custom_grain_size.cpp
     COMPONENT_DEPENDENCIES partition_server
 )
-add_test(cgs_compute_rhs_test  test_cgs_compute_rhs)
+add_test(cgs_compute_rhs_test  test_cgs_compute_rhs -t4)
 
 # cgs::sor_cycle()
 
@@ -125,7 +125,7 @@ add_hpx_executable(
     SOURCES tests/test_cgs_sor_cycle.cpp src/computation/custom_grain_size.cpp
     COMPONENT_DEPENDENCIES partition_server
 )
-add_test(cgs_sor_cycle_test  test_cgs_sor_cycle)
+add_test(cgs_sor_cycle_test  test_cgs_sor_cycle -t4)
 
 # cgs::update_velocities()
 
@@ -135,5 +135,5 @@ add_hpx_executable(
     SOURCES tests/test_cgs_update_velocities.cpp src/computation/custom_grain_size.cpp
     COMPONENT_DEPENDENCIES partition_server
 )
-add_test(cgs_update_velocities_test  test_cgs_update_velocities)
+add_test(cgs_update_velocities_test  test_cgs_update_velocities -t4)
 

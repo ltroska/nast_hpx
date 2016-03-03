@@ -128,7 +128,7 @@ void stepper_server::initialize_communication()
 
 void stepper_server::do_work()
 {
-    std::pair<RealType, RealType> max_uv(0, 0);
+    std::pair<RealType, RealType> max_uv(2, 0);
 
     RealType t = 0, dt = 0;
     for (uint step = 0; t < c.t_end; step++)
@@ -214,12 +214,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
         iter++;
     } while (iter < c.iter_max && keep_running.receive(step*c.iter_max + iter - 1).get());
 
-   // print_grid(p_grid, "p");
     hpx::future<std::pair<RealType, RealType> > max_uv = strategy->update_velocities(uv_grid, fg_grid, p_grid, dt);
-   // for (uint i = 0; i < NUM_DIRECTIONS; i++)
-   //     p_recv_buffs_[i].clear();
-
-  //  keep_running = hpx::lcos::local::receive_buffer<bool>();
 
     if (c.output_skip_size != 0 && ((step + 1) % c.output_skip_size == 0))
     {

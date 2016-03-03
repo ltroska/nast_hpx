@@ -440,7 +440,7 @@ scalar_partition sor_cycle(hpx::naming::id_type const where, hpx::shared_future<
 
     auto range = boost::irange(0, static_cast<int>(p_center.size()));
 
-  /*  hpx::parallel::for_each(hpx::parallel::par, boost::begin(range),
+    hpx::parallel::for_each(hpx::parallel::par, boost::begin(range),
         boost::end(range),
         [&](uint cnt)
         {
@@ -482,10 +482,10 @@ scalar_partition sor_cycle(hpx::naming::id_type const where, hpx::shared_future<
                             + part2 * ( (right.value + left.value) / dx_sq + (top.value + bottom.value) / dy_sq - current_rhs.value);
             }
         }
-    );*/
+    );
 
 
-    for (uint j = start_j; j < end_j; j ++)
+  /*  for (uint j = start_j; j < end_j; j ++)
     {
         for (uint i = start_i; i < end_i; i++)
         {
@@ -499,7 +499,7 @@ scalar_partition sor_cycle(hpx::naming::id_type const where, hpx::shared_future<
               next_p.value = part1 * next_p.value
                             + part2 * ( (right.value + left.value) / dx_sq + (top.value + bottom.value) / dy_sq - current_rhs.value);
         }
-    }
+    }*/
 
     return scalar_partition(where, center);
 }

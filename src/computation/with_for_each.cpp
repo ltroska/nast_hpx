@@ -175,16 +175,18 @@ vector_partition compute_fg(hpx::naming::id_type const where, hpx::shared_future
             vector_cell& fg_cell = fg_data.get_cell_ref(i, j);
 
             vector_cell const center = uv_center.get_cell(i, j);
-            vector_cell const left = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, LEFT);
-            vector_cell const right = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, RIGHT);
-            vector_cell const bottom = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, BOTTOM);
-            vector_cell const top = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, TOP);
-            vector_cell const bottomright = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, BOTTOM_RIGHT);
-            vector_cell const topleft = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, TOP_LEFT);
+
 
 
             if (in_range(1, i_max - 1, 1, j_max - 1, global_i +i , global_j + j))
             {
+                vector_cell const left = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, LEFT);
+                vector_cell const right = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, RIGHT);
+                vector_cell const bottom = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, BOTTOM);
+                vector_cell const top = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, TOP);
+                vector_cell const bottomright = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, BOTTOM_RIGHT);
+                vector_cell const topleft = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, TOP_LEFT);
+
                 fg_cell.first = center.first + dt * (
                                 1./re * (second_derivative_fwd_bkwd_x(right.first, center.first, left.first, dx)
                                             + second_derivative_fwd_bkwd_y(top.first, center.first, bottom.first, dy))
@@ -206,6 +208,13 @@ vector_partition compute_fg(hpx::naming::id_type const where, hpx::shared_future
 
             if (in_range(1, i_max - 1, j_max, j_max, global_i + i, global_j + j))
             {
+                vector_cell const left = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, LEFT);
+                vector_cell const right = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, RIGHT);
+                vector_cell const bottom = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, BOTTOM);
+                vector_cell const top = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, TOP);
+                vector_cell const bottomright = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, BOTTOM_RIGHT);
+                vector_cell const topleft = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, TOP_LEFT);
+
                 fg_cell.first = center.first + dt * (
                                     1./re * (second_derivative_fwd_bkwd_x(right.first, center.first, left.first, dx)
                                                 + second_derivative_fwd_bkwd_y(top.first, center.first, bottom.first, dy))
@@ -220,6 +229,13 @@ vector_partition compute_fg(hpx::naming::id_type const where, hpx::shared_future
 
             if (in_range(i_max, i_max, 1, j_max - 1, global_i + i, global_j + j))
             {
+                vector_cell const left = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, LEFT);
+                vector_cell const right = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, RIGHT);
+                vector_cell const bottom = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, BOTTOM);
+                vector_cell const top = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, TOP);
+                vector_cell const bottomright = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, BOTTOM_RIGHT);
+                vector_cell const topleft = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, TOP_LEFT);
+
                 fg_cell.second = center.second + dt * (
                                     1./re * (second_derivative_fwd_bkwd_x(right.second, center.second, left.second, dx)
                                                 + second_derivative_fwd_bkwd_y(top.second, center.second, bottom.second, dy))
@@ -243,10 +259,10 @@ vector_partition compute_fg(hpx::naming::id_type const where, hpx::shared_future
             }
 
             if (is_top && i == size_x - 2 && j == size_y - 2)
-                fg_data.get_cell_ref(i, j).second = uv_center.get_cell(i, j).second;
+                fg_cell.second = center.second;
 
             if (is_right && i == size_x - 2 && j == size_y - 2)
-                fg_data.get_cell_ref(i, j).first = uv_center.get_cell(i, j).first;
+                fg_cell.first = center.first;
 
         }
     );
@@ -424,7 +440,7 @@ scalar_partition sor_cycle(hpx::naming::id_type const where, hpx::shared_future<
 
     auto range = boost::irange(0, static_cast<int>(p_center.size()));
 
-    hpx::parallel::for_each(hpx::parallel::par, boost::begin(range),
+  /*  hpx::parallel::for_each(hpx::parallel::par, boost::begin(range),
         boost::end(range),
         [&](uint cnt)
         {
@@ -445,6 +461,45 @@ scalar_partition sor_cycle(hpx::naming::id_type const where, hpx::shared_future<
             }
         }
     );
+
+    hpx::parallel::for_each(hpx::parallel::par, boost::begin(range),
+        boost::end(range),
+        [&](uint cnt)
+        {
+            uint const i = cnt%size_x;
+            uint const j = cnt/size_x;
+
+            if (in_range(1, i_max, 1, j_max, global_i + i, global_j + j) && (global_i + i + global_j + j)% 2 == 0)
+            {
+                scalar_cell& next_p = center.get_cell_ref(i, j);
+                scalar_cell const current_rhs = rhs_center.get_cell(i, j);
+                scalar_cell const left = get_left_neighbor(center, p_left, i, j);
+                scalar_cell const right = get_right_neighbor(center, p_right, i, j);
+                scalar_cell const bottom = get_bottom_neighbor(center, p_bottom, i, j);
+                scalar_cell const top = get_top_neighbor(center, p_top, i, j);
+
+                next_p.value = part1 * next_p.value
+                            + part2 * ( (right.value + left.value) / dx_sq + (top.value + bottom.value) / dy_sq - current_rhs.value);
+            }
+        }
+    );*/
+
+
+    for (uint j = start_j; j < end_j; j ++)
+    {
+        for (uint i = start_i; i < end_i; i++)
+        {
+            scalar_cell& next_p = center.get_cell_ref(i, j);
+            scalar_cell const current_rhs = rhs_center.get_cell(i, j);
+            scalar_cell const left = get_left_neighbor(center, p_left, i, j);
+            scalar_cell const right = get_right_neighbor(center, p_right, i, j);
+            scalar_cell const bottom = get_bottom_neighbor(center, p_bottom, i, j);
+            scalar_cell const top = get_top_neighbor(center, p_top, i, j);
+
+              next_p.value = part1 * next_p.value
+                            + part2 * ( (right.value + left.value) / dx_sq + (top.value + bottom.value) / dy_sq - current_rhs.value);
+        }
+    }
 
     return scalar_partition(where, center);
 }
@@ -557,23 +612,26 @@ vector_partition update_velocities(hpx::naming::id_type const where, hpx::shared
             uint const i = cnt%size_x;
             uint const j = cnt/size_x;
 
-            vector_cell& center_uv = uv_center.get_cell_ref(i, j);
-            vector_cell const center_fg = fg_center.get_cell(i, j);
-            scalar_cell const center_p = p_center.get_cell(i, j);
-            scalar_cell const right_p = get_neighbor_cell(p_center, p_right, p_right, p_right, p_top, p_top, p_top, p_top, p_top, i, j, RIGHT);
-            scalar_cell const top_p = get_neighbor_cell(p_center, p_right, p_right, p_right, p_top, p_top, p_top, p_top, p_top, i, j, TOP);
-
-            if (in_range(1, i_max - 1, 1, j_max - 1, global_i + i, global_j + j))
+            if (in_range(1, i_max, 1, j_max, global_i + i, global_j + j))
             {
-                center_uv.first = center_fg.first - dt * over_dx * (right_p.value - center_p.value);
-                center_uv.second = center_fg.second - dt * over_dy * (top_p.value - center_p.value);
+                vector_cell& center_uv = uv_center.get_cell_ref(i, j);
+                vector_cell const center_fg = fg_center.get_cell(i, j);
+                scalar_cell const center_p = p_center.get_cell(i, j);
+                scalar_cell const right_p = get_neighbor_cell(p_center, p_right, p_right, p_right, p_top, p_top, p_top, p_top, p_top, i, j, RIGHT);
+                scalar_cell const top_p = get_neighbor_cell(p_center, p_right, p_right, p_right, p_top, p_top, p_top, p_top, p_top, i, j, TOP);
+
+                if (in_range(1, i_max - 1, 1, j_max - 1, global_i + i, global_j + j))
+                {
+                    center_uv.first = center_fg.first - dt * over_dx * (right_p.value - center_p.value);
+                    center_uv.second = center_fg.second - dt * over_dy * (top_p.value - center_p.value);
+                }
+
+                if (in_range(1, i_max - 1, j_max, j_max, global_i + i, global_j + j))
+                    center_uv.first = center_fg.first - dt*over_dx * (right_p.value - center_p.value);
+
+                if (in_range(i_max, i_max, 1, j_max - 1, global_i + i, global_j + j))
+                    center_uv.second = center_fg.second- dt*over_dy * (top_p.value - center_p.value);
             }
-
-            if (in_range(1, i_max - 1, j_max, j_max, global_i + i, global_j + j))
-                center_uv.first = center_fg.first - dt*over_dx * (right_p.value - center_p.value);
-
-            if (in_range(i_max, i_max, 1, j_max - 1, global_i + i, global_j + j))
-                center_uv.second = center_fg.second- dt*over_dy * (top_p.value - center_p.value);
 
         }
     );

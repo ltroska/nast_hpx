@@ -25,6 +25,8 @@ struct config
         uint sub_iterations;
         uint iter_max;
 
+        uint wfe;
+
         template <typename Archive>
         void serialize(Archive& ar, const unsigned int version)
         {
@@ -37,7 +39,7 @@ struct config
                 << ", iRes = " << config.i_res << ", jRes = " << config.j_res << ", xLength = " << config.x_length
                 << ", yLength = " << config.y_length << ", Re = " << config.re << ", omega = " << config.omega
                 << ", tau = " << config.tau << " eps = " << config.eps << ", alpha = " << config.alpha
-                << ", outputSkipSize = " << config.output_skip_size << ", iterMax = " << config.iter_max << "}";
+                << ", outputSkipSize = " << config.output_skip_size << ", iterMax = " << config.iter_max << ", wfe = " << config.wfe << "}";
             return os;
         }
 };

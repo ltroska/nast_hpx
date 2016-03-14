@@ -139,6 +139,15 @@ config manager::read_config_from_file(const char *path)
         config.sub_iterations = 1;
 	}
 
+    if(config_node.child("withForEach") != NULL)
+	{
+        config.wfe = config_node.child("withForEach").first_attribute().as_int();
+	}
+	else
+	{
+        config.wfe = 1;
+	}
+
 	return config;
 }
 }//namespace io

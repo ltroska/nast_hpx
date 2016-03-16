@@ -2,6 +2,7 @@
 
 #include <hpx/parallel/algorithm.hpp>
 #include <hpx/parallel/algorithms/transform_reduce.hpp>
+#include <hpx/parallel/executors/dynamic_chunk_size.hpp>
 
 #include "util/helpers.hpp"
 #include "stencils.hpp"
@@ -15,7 +16,8 @@ vector_partition set_velocity_on_boundary(hpx::naming::id_type const where, hpx:
     /*
     *@TODO: maybe create new vector_data here
     */
-    vector_data center(center_fut.get());
+    vector_data old_center = center_fut.get();
+    vector_data center(old_center);
 
     uint size_x = center.size_x();
     uint size_y = center.size_y();
@@ -36,19 +38,15 @@ vector_partition set_velocity_on_boundary(hpx::naming::id_type const where, hpx:
 
     std::vector<hpx::future<void> > futures;
 
-    vector_cell const bottom_left = center.get_cell(1, 1);
-    vector_cell const bottom_right = center.get_cell(size_x - 2, 1);
-    vector_cell const top_left = center.get_cell(1, size_y - 2);
-    vector_cell const top_right = center.get_cell(size_x - 2, size_y - 2);
-
     if (is_left)
     {
         futures.push_back(
-            hpx::parallel::for_each(hpx::parallel::par(hpx::parallel::task), boost::begin(range_j), boost::end(range_j),
-                [&center](uint j)
+            hpx::parallel::for_each(hpx::parallel::par(hpx::parallel::task).with(hpx::parallel::dynamic_chunk_size()), boost::begin(range_j), boost::end(range_j),
+                [&center, &old_center](uint j)
                 {
+                   // boost::this_thread::sleep(boost::posix_time::milliseconds(50));
                     vector_cell& cell = center.get_cell_ref(0, j);
-                    vector_cell const cell2 = center.get_cell(1, j);
+                    vector_cell const cell2 = old_center.get_cell(1, j);
 
                     cell.first = 0;
                     cell.second = -cell2.second;
@@ -57,14 +55,14 @@ vector_partition set_velocity_on_boundary(hpx::naming::id_type const where, hpx:
         );
     }
 
-    if (is_bottom)
+   /* if (is_bottom)
     {
         futures.push_back(
             hpx::parallel::for_each(hpx::parallel::par(hpx::parallel::task), boost::begin(range_i), boost::end(range_i),
-                [&center](uint i)
+                [&center, &old_center](uint i)
                 {
                     vector_cell& cell = center.get_cell_ref(i, 0);
-                    vector_cell const cell2 = center.get_cell(i, 1);
+                    vector_cell const cell2 = old_center.get_cell(i, 1);
 
                     cell.second = 0;
                     cell.first = -cell2.first;
@@ -77,13 +75,13 @@ vector_partition set_velocity_on_boundary(hpx::naming::id_type const where, hpx:
     {
         futures.push_back(
             hpx::parallel::for_each(hpx::parallel::par(hpx::parallel::task), boost::begin(range_j), boost::end(range_j),
-                [&center, size_x](uint j)
+                [&center, &old_center, size_x](uint j)
                 {
                     vector_cell& cell = center.get_cell_ref(size_x - 2, j);
                     vector_cell& cell2 = center.get_cell_ref(size_x - 1, j);
 
                     cell.first = 0;
-                    cell2.second = -cell.second;
+                    cell2.second = -old_center.get_cell(size_x - 2, j).second;
                 }
             )
         );
@@ -93,43 +91,19 @@ vector_partition set_velocity_on_boundary(hpx::naming::id_type const where, hpx:
     {
         futures.push_back(
             hpx::parallel::for_each(hpx::parallel::par(hpx::parallel::task), boost::begin(range_i), boost::end(range_i),
-                [&center, size_y](uint i)
+                [&center, &old_center, size_y](uint i)
                 {
                     vector_cell& cell = center.get_cell_ref(i, size_y - 2);
                     vector_cell& cell2 = center.get_cell_ref(i, size_y - 1);
 
                     cell.second = 0;
-                    cell2.first = 2. - cell.first;
+                    cell2.first = 2. - old_center.get_cell(i, size_y - 2).first;
                 }
             )
         );
-    }
+    }*/
 
     hpx::wait_all(futures);
-
-    if (is_right && is_top)
-    {
-        center.get_cell_ref(size_x - 2, size_y - 1).first = 2-top_right.first;
-        center.get_cell_ref(size_x - 1, size_y - 2).second = -top_right.second;
-    }
-
-    if (is_right && is_bottom)
-    {
-        center.get_cell_ref(size_x - 2, 0).first = -bottom_right.first;
-        center.get_cell_ref(size_x - 1, 1).second = -bottom_right.second;
-    }
-
-    if (is_left && is_top)
-    {
-        center.get_cell_ref(1, size_y - 1).first = 2-top_left.first;
-        center.get_cell_ref(0, size_y - 2).second = -top_left.second;
-    }
-
-    if (is_left && is_bottom)
-    {
-        center.get_cell_ref(1, 0).first = -bottom_left.first;
-        center.get_cell_ref(0, 1).second = -bottom_left.second;
-    }
 
     return vector_partition(where, center);
 }

@@ -44,7 +44,6 @@ vector_partition set_velocity_on_boundary(hpx::naming::id_type const where, hpx:
             hpx::parallel::for_each(hpx::parallel::par(hpx::parallel::task).with(hpx::parallel::dynamic_chunk_size()), boost::begin(range_j), boost::end(range_j),
                 [&center, &old_center](uint j)
                 {
-                   // boost::this_thread::sleep(boost::posix_time::milliseconds(50));
                     vector_cell& cell = center.get_cell_ref(0, j);
                     vector_cell const cell2 = old_center.get_cell(1, j);
 
@@ -55,7 +54,7 @@ vector_partition set_velocity_on_boundary(hpx::naming::id_type const where, hpx:
         );
     }
 
-   /* if (is_bottom)
+    if (is_bottom)
     {
         futures.push_back(
             hpx::parallel::for_each(hpx::parallel::par(hpx::parallel::task), boost::begin(range_i), boost::end(range_i),
@@ -101,7 +100,7 @@ vector_partition set_velocity_on_boundary(hpx::naming::id_type const where, hpx:
                 }
             )
         );
-    }*/
+    }
 
     hpx::wait_all(futures);
 

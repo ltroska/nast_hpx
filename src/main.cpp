@@ -10,7 +10,7 @@ int hpx_main(int argc, char* argv[])
     io::config config = io::manager::read_config_from_file("../input.xml");
 
     stepper::stepper step;
-    step.setup(config);
+    step.setup(config).wait();
 
     return hpx::finalize();
 }

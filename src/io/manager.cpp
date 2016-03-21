@@ -116,10 +116,12 @@ config manager::read_config_from_file(const char *path)
         config.t_end = config_node.child("tEnd").first_attribute().as_double();
 	}
 
-	if(config_node.child("deltaT") != NULL)
+	if(config_node.child("dt") != NULL)
 	{
-        config.delta_t = config_node.child("deltaT").first_attribute().as_double();
+        config.dt = config_node.child("dt").first_attribute().as_double();
 	}
+	else
+        config.dt = 0.01;
 
 	if(config_node.child("outputSkipSize") != NULL)
 	{
@@ -139,7 +141,7 @@ config manager::read_config_from_file(const char *path)
         config.sub_iterations = 1;
 	}
 
-    if(config_node.child("withForEach") != NULL)
+	if(config_node.child("withForEach") != NULL)
 	{
         config.wfe = config_node.child("withForEach").first_attribute().as_int();
 	}

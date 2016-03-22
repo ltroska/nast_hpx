@@ -1,3 +1,4 @@
+#pragma once
 #ifndef IO_VTK_WRITER_HPP
 #define IO_VTK_WRITER_HPP
 

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef IO_CONFIG_HPP
 #define IO_CONFIG_HPP
 

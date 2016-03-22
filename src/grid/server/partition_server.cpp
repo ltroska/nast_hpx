@@ -1,5 +1,5 @@
 #include "partition_server.hpp"
-#include "util/cell.hpp"
+#include "grid/types.hpp"
 
 HPX_REGISTER_COMPONENT_MODULE();
 

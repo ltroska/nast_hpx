@@ -6,8 +6,8 @@
 
 #include "io/config.hpp"
 #include "computation/parameters.hpp"
-#include "computation/strategy.hpp"
-#include "grid/partition.hpp"
+#include "grid/types.hpp"
+#include "util/helpers.hpp"
 
 #include <hpx/error.hpp>
 
@@ -31,6 +31,9 @@ struct HPX_COMPONENT_EXPORT stepper_server
         std::pair<RealType, RealType> do_timestep(uint step, RealType dt);
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_timestep, do_timestep_action);
 
+        void do_sor_cycle();
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_sor_cycle, do_sor_cycle_action);
+
         void set_keep_running(uint iter, bool kr);
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_keep_running, set_keep_running_action);
 
@@ -49,6 +52,8 @@ struct HPX_COMPONENT_EXPORT stepper_server
         void write_vtk(uint step) const;
 
         uint get_index(uint k, uint l) const;
+
+        void sor();
 
         void send_p_to_neighbor(uint t, scalar_partition p, direction dir);
         scalar_partition receive_p_from_neighbor(uint t, direction dir);
@@ -71,7 +76,6 @@ struct HPX_COMPONENT_EXPORT stepper_server
 
         io::config c;
         computation::parameters params;
-        computation::strategy* strategy;
 
         uint num_localities, num_localities_x, num_localities_y;
         std::vector<hpx::naming::id_type> localities;

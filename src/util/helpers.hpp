@@ -1,17 +1,7 @@
 #ifndef UTIL_HELPERS_HPP
 #define UTIL_HELPERS_HPP
 
-#include "types.hpp"
-
-//needed for deleting the partition_data arrays
-template<typename T>
-class array_deleter {
-    public:
-        void operator()(T const* p)
-        {
-            delete [] p;
-        }
-};
+#include "typedefs.hpp"
 
 //finding id of neighboring localities
 inline const uint get_neighbor_id(uint id, direction dir, uint num_localities)

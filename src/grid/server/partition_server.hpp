@@ -8,7 +8,7 @@
 #include <boost/preprocessor/cat.hpp>
 
 #include "grid/partition_data.hpp"
-#include "util/types.hpp"
+#include "grid/direction.hpp"
 
 namespace grid { namespace server {
 

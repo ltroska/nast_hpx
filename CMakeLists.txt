@@ -38,7 +38,7 @@ add_hpx_component(
 add_hpx_executable(
     main
     ESSENTIAL
-    SOURCES src/main.cpp src/io/manager.cpp src/computation/custom_grain_size.cpp src/computation/with_for_each.cpp
+    SOURCES src/main.cpp src/io/manager.cpp
     DEPENDENCIES pugixml
     COMPONENT_DEPENDENCIES partition_server stepper_server
 )

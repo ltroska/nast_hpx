@@ -1,7 +1,7 @@
 #ifndef IO_CONFIG_HPP
 #define IO_CONFIG_HPP
 
-#include "util/types.hpp"
+#include "util/typedefs.hpp"
 
 namespace io {
 

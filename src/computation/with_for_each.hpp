@@ -21,6 +21,9 @@ class with_for_each : public strategy {
         virtual void compute_rhs(scalar_data& rhs, vector_data const& fg_center, vector_data const& fg_left,
                                     vector_data const& fg_bottom, uint global_i, uint global_j, uint i_max, uint j_max,
                                     RealType dx, RealType dy, RealType dt);
+
+        virtual void set_pressure_on_boundary(scalar_data& p, uint global_i, uint global_j, uint i_max, uint j_max);
+
 };
 
 }//namespace

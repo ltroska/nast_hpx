@@ -1,10 +1,10 @@
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
 
-#include "grid/partition.hpp"
+#include "grid/types.hpp"
 #include "computation/with_for_each.hpp"
-#include "util/cell.hpp"
 #include "test_helpers.hpp"
+#include "util/helpers.hpp"
 
 void check_set_pressure_on_boundary(scalar_grid_type grid, index_grid_type index, computation::parameters p, std::string msg)
 {
@@ -80,8 +80,22 @@ void do_set_pressure_on_boundary_test(uint i_max, uint j_max, uint locality_id, 
         maker.make_index_grid(index);
         maker.make_random_grid(grid);
 
-        computation::with_for_each strat(index, params);
-        strat.set_pressure_on_boundary(grid);
+        computation::with_for_each strat;
+
+        for (uint k = 1; k < params.num_partitions_x -1 ; k++)
+        {
+            for (uint l = 1; l < params.num_partitions_y -1; l++)
+            {
+                uint global_i = index[l * params.num_partitions_x + k].first;
+                uint global_j = index[l * params.num_partitions_x + k].second;
+
+                scalar_data base = grid[l * params.num_partitions_x + k].get_data(CENTER).get();
+
+                strat.set_pressure_on_boundary(base, global_i, global_j, params.i_max, params.j_max);
+
+                grid[l * params.num_partitions_x + k] = scalar_partition(hpx::find_here(), base);
+            }
+        }
 
         std::string msg = "\nfailed with settings " + std::to_string(i_max) + " " + std::to_string(j_max) + " " + std::to_string(locality_id) + " "
                             + std::to_string(localities_x) + " " + std::to_string(localities_y) + " " + std::to_string(i_res) + " " + std::to_string(j_res) + " ";

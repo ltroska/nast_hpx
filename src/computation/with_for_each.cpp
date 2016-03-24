@@ -257,5 +257,88 @@ void with_for_each::compute_rhs(scalar_data& rhs, vector_data const& fg_center, 
     );
 }
 
+void with_for_each::set_pressure_on_boundary(scalar_data& p, uint global_i, uint global_j, uint i_max, uint j_max)
+{
+    uint size_x = p.size_x();
+    uint size_y = p.size_y();
+
+    bool is_left = (global_i == 0);
+    bool is_right = (global_i + size_x > i_max);
+    bool is_bottom = (global_j == 0);
+    bool is_top = (global_j + size_y > j_max);
+
+    uint start_i = (is_left ? 1 : 0);
+    uint end_i = (is_right ? size_x - 1 : size_x);
+    uint start_j = (is_bottom ? 1 : 0);
+    uint end_j = (is_top ? size_y - 1 : size_y);
+
+    auto range_j = boost::irange(start_j, end_j);
+    auto range_i = boost::irange(start_i, end_i);
+
+    std::vector<hpx::future<void> > futures;
+
+    if (is_left)
+    {
+        futures.push_back(
+            hpx::parallel::for_each(hpx::parallel::par(hpx::parallel::task), boost::begin(range_j), boost::end(range_j),
+                [&p](uint j)
+                {
+                    scalar_cell& cell = p.get_cell_ref(0, j);
+                    scalar_cell const cell2 = p.get_cell(1, j);
+
+                    cell.value = cell2.value;
+                }
+            )
+        );
+    }
+
+    if (is_right)
+    {
+        futures.push_back(
+            hpx::parallel::for_each(hpx::parallel::par(hpx::parallel::task), boost::begin(range_j), boost::end(range_j),
+                [&p, size_x](uint j)
+                {
+                    scalar_cell& cell = p.get_cell_ref(size_x - 1, j);
+                    scalar_cell const cell2 = p.get_cell_ref(size_x - 2, j);
+
+                    cell.value = cell2.value;
+                }
+            )
+        );
+    }
+
+    if (is_bottom)
+    {
+        futures.push_back(
+            hpx::parallel::for_each(hpx::parallel::par(hpx::parallel::task), boost::begin(range_i), boost::end(range_i),
+                [&p](uint i)
+                {
+                    scalar_cell& cell = p.get_cell_ref(i, 0);
+                    scalar_cell const cell2 = p.get_cell(i, 1);
+
+                    cell.value = cell2.value;
+                }
+            )
+        );
+    }
+
+    if (is_top)
+    {
+       futures.push_back(
+            hpx::parallel::for_each(hpx::parallel::par(hpx::parallel::task), boost::begin(range_i), boost::end(range_i),
+                [&p, size_y](uint i)
+                {
+                    scalar_cell& cell = p.get_cell_ref(i, size_y - 1);
+                    scalar_cell const cell2 = p.get_cell_ref(i, size_y - 2);
+
+                    cell.value = cell2.value;
+                }
+            )
+        );
+    }
+
+    hpx::wait_all(futures);
+}
+
 }//computation
 

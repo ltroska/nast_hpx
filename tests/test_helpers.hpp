@@ -4,6 +4,7 @@
 #include <random>
 
 #include "grid/partition.hpp"
+#include "computation/parameters.hpp"
 
 class rand_double
 {

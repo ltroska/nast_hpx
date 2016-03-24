@@ -1,11 +1,11 @@
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
 
-#include "grid/partition.hpp"
+#include "grid/types.hpp"
 #include "computation/with_for_each.hpp"
 #include "computation/stencils.hpp"
-#include "util/cell.hpp"
 #include "test_helpers.hpp"
+#include "util/helpers.hpp"
 
 void check_compute_rhs(scalar_grid_type const& rhs_grid, vector_grid_type const& fg_grid, index_grid_type index, computation::parameters p, RealType dt, std::string msg)
 {
@@ -91,14 +91,30 @@ void do_compute_rhs_test(uint i_max, uint j_max, uint locality_id, uint localiti
         scalar_grid_type rhs_grid;
 
         maker.make_index_grid(index);
-        maker.make_random_grid(uv_grid);
-        maker.make_vector_grid(fg_grid, 0);
+        maker.make_random_grid(fg_grid);
         maker.make_scalar_grid(rhs_grid, 0);
 
+        computation::with_for_each strat;
 
-        computation::with_for_each strat(index, params);
-        strat.compute_fg(fg_grid, uv_grid, dt);
-        strat.compute_rhs(rhs_grid, fg_grid, dt);
+        for (uint k = 1; k < params.num_partitions_x -1 ; k++)
+        {
+            for (uint l = 1; l < params.num_partitions_y -1; l++)
+            {
+                uint global_i = index[l * params.num_partitions_x + k].first;
+                uint global_j = index[l * params.num_partitions_x + k].second;
+
+                scalar_data base = rhs_grid[l * params.num_partitions_x + k].get_data(CENTER).get();
+
+                vector_data fg_center_data = fg_grid[l * params.num_partitions_x + k].get_data(CENTER).get();
+                vector_data fg_left_data = fg_grid[l * params.num_partitions_x + k-1].get_data(LEFT).get();
+                vector_data fg_bottom_data = fg_grid[(l-1) * params.num_partitions_x + k].get_data(BOTTOM).get();
+                strat.compute_rhs(base, fg_center_data, fg_left_data, fg_bottom_data, global_i, global_j,
+                                    params.i_max, params.j_max, params.dx, params.dy, dt);
+
+                rhs_grid[l * params.num_partitions_x + k] = scalar_partition(hpx::find_here(), base);
+
+            }
+        }
 
         std::string msg = "\nfailed with settings " + std::to_string(i_max) + " " + std::to_string(j_max) + " " + std::to_string(locality_id) + " "
                             + std::to_string(localities_x) + " " + std::to_string(localities_y) + " " + std::to_string(i_res) + " " + std::to_string(j_res) + " ";

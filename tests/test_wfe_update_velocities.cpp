@@ -1,10 +1,10 @@
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
 
-#include "grid/partition.hpp"
+#include "grid/types.hpp"
 #include "computation/with_for_each.hpp"
-#include "util/cell.hpp"
 #include "test_helpers.hpp"
+#include "util/helpers.hpp"
 
 void check_update_velocities(std::pair<RealType, RealType> max_uv, vector_grid_type const& uv_grid, vector_grid_type const& fg_grid, scalar_grid_type const& p_grid,
                                 index_grid_type index, computation::parameters p, RealType dt, std::string msg)
@@ -115,11 +115,34 @@ void do_update_velocities_test(uint i_max, uint j_max, uint locality_id, uint lo
         maker.make_random_grid(fg_grid);
         maker.make_vector_grid(uv_grid, 0);
 
-        computation::with_for_each strat(index, params);
-        std::pair<RealType, RealType> max_uv = strat.update_velocities(uv_grid, fg_grid, p_grid, dt).get();
+        computation::with_for_each strat;
+
+          for (uint k = 1; k < params.num_partitions_x -1 ; k++)
+            {
+                for (uint l = 1; l < params.num_partitions_y -1; l++)
+                {
+                    uint global_i = index[l * params.num_partitions_x + k].first;
+                    uint global_j = index[l * params.num_partitions_x + k].second;
+
+                    vector_data base = uv_grid[l * params.num_partitions_x + k].get_data(CENTER).get();
+                    scalar_data p_center = p_grid[l * params.num_partitions_x + k].get_data(CENTER).get();
+                    vector_data fg_center = fg_grid[l * params.num_partitions_x + k].get_data(CENTER).get();
+                    scalar_data p_right = p_grid[l * params.num_partitions_x + k +1].get_data(RIGHT).get();
+                    scalar_data p_top = p_grid[(l+1) * params.num_partitions_x + k].get_data(TOP).get();
+
+                    strat.update_velocities(base, p_center, p_right, p_top, fg_center,
+                                    index[l * params.num_partitions_x + k].first,
+                                    index[l * params.num_partitions_x + k].second, params.i_max, params.j_max,
+                                    params.dx, params.dy, dt);
+
+                    uv_grid[l * params.num_partitions_x + k] = vector_partition(hpx::find_here(), base);
+                }
+            }
 
         std::string msg = "\nfailed with settings " + std::to_string(i_max) + " " + std::to_string(j_max) + " " + std::to_string(locality_id) + " "
                             + std::to_string(localities_x) + " " + std::to_string(localities_y) + " " + std::to_string(i_res) + " " + std::to_string(j_res) + " ";
+
+        std::pair<RealType, RealType> max_uv(10000, 100000);
 
         check_update_velocities(max_uv, uv_grid, fg_grid, p_grid, index, params, dt, msg);
 }

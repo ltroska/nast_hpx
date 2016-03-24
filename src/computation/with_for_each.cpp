@@ -340,5 +340,190 @@ void with_for_each::set_pressure_on_boundary(scalar_data& p, uint global_i, uint
     hpx::wait_all(futures);
 }
 
+void with_for_each::sor_cycle(scalar_data& p_center, scalar_data const& p_left, scalar_data const& p_right,
+                                scalar_data const& p_bottom, scalar_data const& p_top,
+                                scalar_data const& rhs_center,
+                                uint global_i, uint global_j, uint i_max, uint j_max,
+                                RealType omega, RealType dx, RealType dy)
+{
+    uint size_x = p_center.size_x();
+    uint size_y = p_center.size_y();
+
+    bool is_left = (global_i == 0);
+    bool is_right = (global_i + size_x > i_max);
+    bool is_bottom = (global_j == 0);
+    bool is_top = (global_j + size_y > j_max);
+
+    uint start_i = (is_left ? 1 : 0);
+    uint end_i = (is_right ? size_x - 1 : size_x);
+    uint start_j = (is_bottom ? 1 : 0);
+    uint end_j = (is_top ? size_y - 1 : size_y);
+
+
+    RealType dx_sq = std::pow(dx, 2);
+    RealType dy_sq = std::pow(dy, 2);
+    RealType part1 = 1. - omega;
+    RealType part2 = omega * dx_sq * dy_sq / (2. * (dx_sq + dy_sq));
+
+    auto range = boost::irange(0, static_cast<int>(p_center.size()));
+
+    hpx::parallel::for_each(hpx::parallel::par, boost::begin(range),
+        boost::end(range),
+        [&](uint cnt)
+        {
+            uint const i = cnt%size_x;
+            uint const j = cnt/size_x;
+
+            if (in_range(1, i_max, 1, j_max, global_i + i, global_j + j) && (global_i + i + global_j + j)% 2 == 1)
+            {
+                scalar_cell& next_p = p_center.get_cell_ref(i, j);
+                scalar_cell const current_rhs = rhs_center.get_cell(i, j);
+                scalar_cell const left = get_left_neighbor(p_center, p_left, i, j);
+                scalar_cell const right = get_right_neighbor(p_center, p_right, i, j);
+                scalar_cell const bottom = get_bottom_neighbor(p_center, p_bottom, i, j);
+                scalar_cell const top = get_top_neighbor(p_center, p_top, i, j);
+
+                next_p.value = part1 * next_p.value
+                            + part2 * ( (right.value + left.value) / dx_sq + (top.value + bottom.value) / dy_sq - current_rhs.value);
+            }
+        }
+    );
+
+    hpx::parallel::for_each(hpx::parallel::par, boost::begin(range),
+        boost::end(range),
+        [&](uint cnt)
+        {
+            uint const i = cnt%size_x;
+            uint const j = cnt/size_x;
+
+            if (in_range(1, i_max, 1, j_max, global_i + i, global_j + j) && (global_i + i + global_j + j)% 2 == 0)
+            {
+                scalar_cell& next_p = p_center.get_cell_ref(i, j);
+                scalar_cell const current_rhs = rhs_center.get_cell(i, j);
+                scalar_cell const left = get_left_neighbor(p_center, p_left, i, j);
+                scalar_cell const right = get_right_neighbor(p_center, p_right, i, j);
+                scalar_cell const bottom = get_bottom_neighbor(p_center, p_bottom, i, j);
+                scalar_cell const top = get_top_neighbor(p_center, p_top, i, j);
+
+                next_p.value = part1 * next_p.value
+                            + part2 * ( (right.value + left.value) / dx_sq + (top.value + bottom.value) / dy_sq - current_rhs.value);
+            }
+        }
+    );
+}
+
+
+RealType with_for_each::compute_residual(scalar_data const& p_center, scalar_data const& p_left,
+                                            scalar_data const& p_right, scalar_data const& p_bottom,
+                                            scalar_data const& p_top, scalar_data const& rhs_center,
+                                            uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy)
+{
+    uint size_x = p_center.size_x();
+    uint size_y = p_center.size_y();
+
+    bool is_left = (global_i == 0);
+    bool is_right = (global_i + size_x > i_max);
+    bool is_bottom = (global_j == 0);
+    bool is_top = (global_j + size_y > j_max);
+
+    uint start_i = (is_left ? 1 : 0);
+    uint end_i = (is_right ? size_x - 1 : size_x);
+    uint start_j = (is_bottom ? 1 : 0);
+    uint end_j = (is_top ? size_y - 1 : size_y);
+
+    RealType over_dx_sq = 1./std::pow(dx, 2);
+    RealType over_dy_sq = 1./std::pow(dy, 2);
+
+    auto range = boost::irange(0, static_cast<int>(size_x * size_y));
+
+    hpx::future<RealType> local_residual = hpx::parallel::transform_reduce(hpx::parallel::par(hpx::parallel::task), boost::begin(range), boost::end(range),
+        [&](uint cnt)
+            -> RealType
+        {
+            uint const i = cnt%size_x;
+            uint const j = cnt/size_x;
+
+            if (in_range(start_i, end_i - 1, start_j, end_j - 1, i, j))
+            {
+                scalar_cell const center = p_center.get_cell(i, j);
+                scalar_cell const rhs = rhs_center.get_cell(i, j);
+                scalar_cell const left = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, LEFT);
+                scalar_cell const right = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, RIGHT);
+                scalar_cell const bottom = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, BOTTOM);
+                scalar_cell const top = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, TOP);
+
+                RealType tmp = (right.value - 2*center.value + left.value)*over_dx_sq + (top.value - 2*center.value + bottom.value)*over_dy_sq - rhs.value;
+
+                return std::pow(tmp, 2);
+            }
+
+            return 0.;
+        },
+        0.,
+        [](RealType a, RealType b) -> RealType {return a+b;}
+    );
+
+    return local_residual.then(
+                                [i_max, j_max](hpx::future<RealType> a) -> RealType
+                                    {
+                                        return a.get()/(i_max*j_max);
+                                    }
+                                ).get();
+}
+
+void with_for_each::update_velocities(vector_data& uv_center, scalar_data const& p_center, scalar_data const& p_right,
+                                        scalar_data const& p_top, vector_data const& fg_center, uint global_i,
+                                        uint global_j, uint i_max, uint j_max, RealType dx, RealType dy, RealType dt)
+{
+    uint size_x = uv_center.size_x();
+    uint size_y = uv_center.size_y();
+
+    bool is_left = (global_i == 0);
+    bool is_right = (global_i + size_x > i_max);
+    bool is_bottom = (global_j == 0);
+    bool is_top = (global_j + size_y > j_max);
+
+    RealType over_dx = 1./dx;
+    RealType over_dy = 1./dy;
+
+    //do computation for i = 1, ..., i_max-1, j = 1, ..., j_max-1 first
+    uint start_i = (is_left ? 1 : 0);
+    uint end_i = (is_right ? size_x - 2 : size_x);
+    uint start_j = (is_bottom ? 1 : 0);
+    uint end_j = (is_top ? size_y - 2 : size_y);
+
+    auto range = boost::irange(0, static_cast<int>(size_x * size_y));
+
+    hpx::parallel::for_each(hpx::parallel::par, boost::begin(range), boost::end(range),
+        [&](uint cnt)
+        {
+            uint const i = cnt%size_x;
+            uint const j = cnt/size_x;
+
+            if (in_range(1, i_max, 1, j_max, global_i + i, global_j + j))
+            {
+                vector_cell& center_uv = uv_center.get_cell_ref(i, j);
+                vector_cell const center_fg = fg_center.get_cell(i, j);
+                scalar_cell const center_p = p_center.get_cell(i, j);
+                scalar_cell const right_p = get_neighbor_cell(p_center, p_right, p_right, p_right, p_top, p_top, p_top, p_top, p_top, i, j, RIGHT);
+                scalar_cell const top_p = get_neighbor_cell(p_center, p_right, p_right, p_right, p_top, p_top, p_top, p_top, p_top, i, j, TOP);
+
+                if (in_range(1, i_max - 1, 1, j_max - 1, global_i + i, global_j + j))
+                {
+                    center_uv.first = center_fg.first - dt * over_dx * (right_p.value - center_p.value);
+                    center_uv.second = center_fg.second - dt * over_dy * (top_p.value - center_p.value);
+                }
+
+                if (in_range(1, i_max - 1, j_max, j_max, global_i + i, global_j + j))
+                    center_uv.first = center_fg.first - dt*over_dx * (right_p.value - center_p.value);
+
+                if (in_range(i_max, i_max, 1, j_max - 1, global_i + i, global_j + j))
+                    center_uv.second = center_fg.second- dt*over_dy * (top_p.value - center_p.value);
+            }
+
+        }
+    );
+}
+
 }//computation
 

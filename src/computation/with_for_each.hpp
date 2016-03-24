@@ -24,6 +24,22 @@ class with_for_each : public strategy {
 
         virtual void set_pressure_on_boundary(scalar_data& p, uint global_i, uint global_j, uint i_max, uint j_max);
 
+        virtual void sor_cycle(scalar_data& p_center, scalar_data const& p_left, scalar_data const& p_right,
+                            scalar_data const& p_bottom, scalar_data const& p_top,
+                            scalar_data const& rhs_center,
+                            uint global_i, uint global_j, uint i_max, uint j_max,
+                            RealType omega, RealType dx, RealType dy);
+
+        virtual RealType compute_residual(scalar_data const& p_center, scalar_data const& p_left,
+                                            scalar_data const& p_right, scalar_data const& p_bottom,
+                                            scalar_data const& p_top, scalar_data const& rhs_center,
+                                            uint global_i, uint global_j, uint i_max, uint j_max, RealType dx,
+                                            RealType dy);
+
+        virtual void update_velocities(vector_data& uv_center, scalar_data const& p_center, scalar_data const& p_right,
+                                scalar_data const& p_top, vector_data const& fg_center, uint global_i,
+                                uint global_j, uint i_max, uint j_max, RealType dx, RealType dy, RealType dt);
+
 };
 
 }//namespace

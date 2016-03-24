@@ -1,13 +1,12 @@
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
-#include <hpx/lcos/gather.hpp>
 
-#include "io/manager.hpp"
+#include "io/io.hpp"
 #include "stepper/stepper.hpp"
 
 int hpx_main(int argc, char* argv[])
 {
-    io::config config = io::manager::read_config_from_file("../input.xml");
+    io::config config = io::read_config_from_file("../input.xml");
 
     stepper::stepper step;
     step.setup(config).wait();

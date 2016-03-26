@@ -367,6 +367,21 @@ void with_for_each::sor_cycle(scalar_data& p_center, scalar_data const& p_left, 
 
     auto range = boost::irange(0, static_cast<int>(p_center.size()));
 
+  /*  for (uint i = 0; i < size_x; i++)
+        for (uint j = 0; j < size_y; j++)
+            if (in_range(1, i_max, 1, j_max, global_i + i, global_j + j))
+                    {
+                        scalar_cell& next_p = p_center.get_cell_ref(i, j);
+                        scalar_cell const current_rhs = rhs_center.get_cell(i, j);
+                        scalar_cell const left = get_left_neighbor(p_center, p_left, i, j);
+                        scalar_cell const right = get_right_neighbor(p_center, p_right, i, j);
+                        scalar_cell const bottom = get_bottom_neighbor(p_center, p_bottom, i, j);
+                        scalar_cell const top = get_top_neighbor(p_center, p_top, i, j);
+
+                        next_p.value = part1 * next_p.value
+                                    + part2 * ( (right.value + left.value) / dx_sq + (top.value + bottom.value) / dy_sq - current_rhs.value);
+                    }*/
+
     hpx::parallel::for_each(hpx::parallel::par, boost::begin(range),
         boost::end(range),
         [&](uint cnt)

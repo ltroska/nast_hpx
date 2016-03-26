@@ -6,6 +6,7 @@
 
 #include "io/config.hpp"
 #include "computation/parameters.hpp"
+#include "computation/strategy.hpp"
 #include "grid/types.hpp"
 #include "util/helpers.hpp"
 
@@ -75,6 +76,7 @@ struct HPX_COMPONENT_EXPORT stepper_server
         RealType compute_new_dt(std::pair<RealType, RealType>) const;
 
         io::config c;
+        computation::strategy* strategy;
         computation::parameters params;
 
         uint num_localities, num_localities_x, num_localities_y;

@@ -6,6 +6,8 @@
 
 #include "stepper_server.hpp"
 
+#include "computation/with_for_each.cpp"
+
 #include "io/vtk_writer.hpp"
 
 typedef stepper::server::stepper_server stepper_component;
@@ -27,6 +29,11 @@ stepper_server::stepper_server(uint nl)
 void stepper_server::setup(io::config cfg)
 {
     c = cfg;
+
+            std::cout << "forcing to 1x1 partitions" << std::endl;
+        c.i_res = c.i_max + 2;
+        c.j_res = c.j_max + 2;
+
     initialize_parameters();
     initialize_grids();
     initialize_communication();
@@ -38,7 +45,10 @@ void stepper_server::setup(io::config cfg)
              << params.num_cells_per_partition_x << "x" <<  params.num_cells_per_partition_y << " cells each, " << "dx=" << params.dx << " dy=" << params.dx
              << hpx::endl << hpx::flush;
 
-   // write_vtk(0);
+    if (c.output_skip_size != 0)
+        write_vtk(0);
+
+    strategy = new computation::with_for_each();
 
     if (hpx::get_locality_id() == 0)
         do_work();
@@ -124,17 +134,111 @@ void stepper_server::initialize_communication()
 
 void stepper_server::do_work()
 {
+    std::pair<RealType, RealType> max_uv(2, 0);
+    RealType t = 0;
+    RealType dt = c.dt;
 
-        uint step = 0;
-        RealType dt = 0;
+    for(uint step = 1; t + dt < c.t_end; step++)
+    {
+        if (c.output_skip_size != 0 && (step  % c.output_skip_size == 0))
+        {
+            if (hpx::get_locality_id() == 0)
+                std::cout << "t " << t << " | dt " << dt;
+        }
+
         hpx::future<std::vector<std::pair<RealType, RealType> > > local_max_uvs = hpx::lcos::broadcast<do_timestep_action> (localities, step, dt);
 
+        local_max_uvs.get();
+
+        t += dt;
+
+        dt = c.tau * std::min(c.re/2. * 1./(1./(params.dx * params.dx) + 1./(params.dy * params.dy)),
+                                        std::min(params.dx/max_uv.first, params.dy/max_uv.second));
+    }
 }
 
 std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt)
 {
+    hpx::util::high_resolution_timer t;
 
-    return std::pair<RealType, RealType>(0, 0);
+    uint k = 1;
+    uint l = 1;
+
+    uint global_i = index_grid[get_index(k, l)].first;
+    uint global_j = index_grid[get_index(k, l)].second;
+
+    vector_data uv_center = uv_grid[get_index(k, l)].get_data(CENTER).get();
+
+    strategy->set_velocity_on_boundary(uv_center, global_i, global_j, params.i_max, params.j_max);
+
+    vector_data fg_center = fg_grid[get_index(k, l)].get_data(CENTER).get();
+
+    vector_data uv_left = uv_grid[get_index(k-1, l)].get_data(LEFT).get();
+    vector_data uv_right = uv_grid[get_index(k+1, l)].get_data(RIGHT).get();
+    vector_data uv_bottom = uv_grid[get_index(k, l-1)].get_data(BOTTOM).get();
+    vector_data uv_top = uv_grid[get_index(k, l+1)].get_data(TOP).get();
+    vector_data uv_bottomright = uv_grid[get_index(k+1, l-1)].get_data(BOTTOM_RIGHT).get();
+    vector_data uv_topleft = uv_grid[get_index(k-1, l+1)].get_data(TOP_LEFT).get();
+
+    strategy->compute_fg(fg_center, uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_bottomright, uv_topleft,
+                            global_i, global_j, params.i_max, params.j_max, params.re,
+                            params.dx, params.dy, dt, params.alpha);
+
+    fg_grid[get_index(k, l)] = vector_partition(hpx::find_here(), fg_center);
+
+    scalar_data rhs_center = rhs_grid[get_index(k, l)].get_data(CENTER).get();
+    vector_data fg_left = fg_grid[get_index(k-1, l)].get_data(LEFT).get();
+    vector_data fg_bottom = fg_grid[get_index(k, l-1)].get_data(BOTTOM).get();
+
+    strategy->compute_rhs(rhs_center, fg_center, fg_left, fg_bottom, global_i, global_j, params.i_max,
+                            params.j_max, params.dx, params.dy, dt);
+
+    rhs_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), rhs_center);
+
+    scalar_data p_center = p_grid[get_index(k, l)].get_data(CENTER).get();
+    scalar_data p_left = p_grid[get_index(k-1, l)].get_data(LEFT).get();
+    scalar_data p_right = p_grid[get_index(k+1, l)].get_data(RIGHT).get();
+    scalar_data p_bottom = p_grid[get_index(k, l-1)].get_data(BOTTOM).get();
+    scalar_data p_top = p_grid[get_index(k, l+1)].get_data(TOP).get();
+
+    hpx::util::high_resolution_timer t2;
+
+    uint iter = 0;
+    RealType res = 0;
+    do
+    {
+        strategy->set_pressure_on_boundary(p_center, global_i, global_j, params.i_max, params.j_max);
+
+        strategy->sor_cycle(p_center, p_left, p_right, p_bottom, p_top, rhs_center, global_i, global_j,
+                                params.i_max, params.j_max, params.omega, params.dx, params.dy);
+
+        res = strategy->compute_residual(p_center, p_left, p_right, p_bottom, p_top,
+                                                    rhs_center, global_i, global_j, params.i_max,
+                                                    params.j_max, params.dx, params.dy);
+
+        iter++;
+    } while(iter < c.iter_max && res > c.eps_sq);
+
+    std::cout << "sor " << t2.elapsed();
+
+    p_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), p_center);
+
+    strategy->update_velocities(uv_center, p_center, p_right, p_top, fg_center, global_i, global_j,
+                                    params.i_max, params.j_max, params.dx, params.dy, dt);
+
+    uv_grid[get_index(k, l)] = vector_partition(hpx::find_here(), uv_center);
+
+    if (c.output_skip_size != 0 && ((step + 1) % c.output_skip_size == 0))
+    {
+        write_vtk(step / c.output_skip_size);
+
+        if (hpx::get_locality_id() == 0)
+            std::cout << "iterations: " << iter << " | residual " << res << std::endl;
+    }
+
+    std::cout << " | total " << t.elapsed() << std::endl;
+
+    return std::pair<RealType, RealType>(2, 0);
 }
 
 void stepper_server::do_sor_cycle()

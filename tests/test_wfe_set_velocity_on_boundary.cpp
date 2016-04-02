@@ -1,9 +1,9 @@
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
 
-#include "grid/partition.hpp"
+#include "grid/types.hpp"
+#include "util/helpers.hpp"
 #include "computation/with_for_each.hpp"
-#include "util/cell.hpp"
 #include "test_helpers.hpp"
 
 void check_set_velocity_on_boundary(vector_grid_type const& orig_grid, vector_grid_type const& grid, index_grid_type const& index,
@@ -121,8 +121,20 @@ void do_set_velocity_on_boundary_test(uint i_max, uint j_max, uint locality_id, 
 
         maker.copy_grid(grid, orig_grid);
 
-        computation::with_for_each strat(index, params);
-        strat.set_velocity_on_boundary(grid);
+        computation::with_for_each strat;
+
+        for (uint k = 0; k < params.num_partitions_x ; k++)
+        {
+            for (uint l = 0; l < params.num_partitions_y ; l++)
+            {
+                vector_data base = grid[l * params.num_partitions_x + k].get_data(CENTER).get();
+                strat.set_velocity_on_boundary(base, index[l * params.num_partitions_x + k].first,
+                                        index[l * params.num_partitions_x + k].second, params.i_max, params.j_max);
+
+                grid[l * params.num_partitions_x + k] = vector_partition(hpx::find_here(), base);
+
+            }
+        }
 
         std::string msg = "\nfailed with settings " + std::to_string(i_max) + " " + std::to_string(j_max) + " " + std::to_string(locality_id) + " "
                             + std::to_string(localities_x) + " " + std::to_string(localities_y) + " " + std::to_string(i_res) + " " + std::to_string(j_res) + " ";

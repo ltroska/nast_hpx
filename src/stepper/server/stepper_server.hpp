@@ -7,7 +7,8 @@
 #include "io/config.hpp"
 #include "computation/parameters.hpp"
 #include "computation/strategy.hpp"
-#include "grid/partition.hpp"
+#include "grid/types.hpp"
+#include "util/helpers.hpp"
 
 #include <hpx/error.hpp>
 
@@ -31,6 +32,9 @@ struct HPX_COMPONENT_EXPORT stepper_server
         std::pair<RealType, RealType> do_timestep(uint step, RealType dt);
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_timestep, do_timestep_action);
 
+        void do_sor_cycle();
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_sor_cycle, do_sor_cycle_action);
+
         void set_keep_running(uint iter, bool kr);
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_keep_running, set_keep_running_action);
 
@@ -46,9 +50,11 @@ struct HPX_COMPONENT_EXPORT stepper_server
     protected:
         template<typename T>
         void print_grid(std::vector<grid::partition<T> > const& grid, const std::string message = "") const;
-        void write_vtk(uint step) const;
+        void write_vtk(uint step);
 
         uint get_index(uint k, uint l) const;
+
+        void sor();
 
         void send_p_to_neighbor(uint t, scalar_partition p, direction dir);
         scalar_partition receive_p_from_neighbor(uint t, direction dir);
@@ -70,15 +76,19 @@ struct HPX_COMPONENT_EXPORT stepper_server
         RealType compute_new_dt(std::pair<RealType, RealType>) const;
 
         io::config c;
-        computation::parameters params;
         computation::strategy* strategy;
+        computation::parameters params;
 
         uint num_localities, num_localities_x, num_localities_y;
         std::vector<hpx::naming::id_type> localities;
 
         index_grid_type index_grid;
         vector_grid_type uv_grid, fg_grid;
-        scalar_grid_type p_grid, rhs_grid;
+        scalar_grid_type p_grid, rhs_grid, temperature_grid, stream_grid, vorticity_grid;
+        flag_grid_type flag_grid;
+
+        RealType t, next_write;
+        uint out_iter;
 
         bool has_neighbor[NUM_DIRECTIONS];
         hpx::shared_future<hpx::id_type> neighbor_steppers_[NUM_DIRECTIONS];

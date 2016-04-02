@@ -1,10 +1,10 @@
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
 
-#include "grid/partition.hpp"
+#include "grid/types.hpp"
 #include "computation/with_for_each.hpp"
 #include "computation/stencils.hpp"
-#include "util/cell.hpp"
+#include "util/helpers.hpp"
 #include "test_helpers.hpp"
 
 void check_compute_fg(vector_grid_type const& fg_grid, vector_grid_type const& uv_grid, index_grid_type index, computation::parameters p, RealType dt, std::string msg)
@@ -143,8 +143,30 @@ void do_compute_fg_test(uint i_max, uint j_max, uint locality_id, uint localitie
         maker.make_vector_grid(fg_grid, 0);
         maker.make_random_grid(uv_grid);
 
-        computation::with_for_each strat(index, params);
-        strat.compute_fg(fg_grid, uv_grid, dt);
+        computation::with_for_each strat;
+
+        for (uint k = 1; k < params.num_partitions_x -1 ; k++)
+        {
+            for (uint l = 1; l < params.num_partitions_y -1; l++)
+            {
+                vector_data base = fg_grid[l * params.num_partitions_x + k].get_data(CENTER).get();
+                vector_data uv_center = uv_grid[l * params.num_partitions_x + k].get_data(CENTER).get();
+                vector_data uv_left = uv_grid[l * params.num_partitions_x + k -1].get_data(LEFT).get();
+                vector_data uv_right = uv_grid[l * params.num_partitions_x + k +1].get_data(RIGHT).get();
+                vector_data uv_bottom = uv_grid[(l-1) * params.num_partitions_x + k].get_data(BOTTOM).get();
+                vector_data uv_top = uv_grid[(l+1) * params.num_partitions_x + k].get_data(TOP).get();
+                vector_data uv_bottomright = uv_grid[(l-1) * params.num_partitions_x + k+1].get_data(BOTTOM_RIGHT).get();
+                vector_data uv_topleft = uv_grid[(l+1) * params.num_partitions_x + k-1].get_data(TOP_LEFT).get();
+
+                strat.compute_fg(base, uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_bottomright,
+                                    uv_topleft, index[l * params.num_partitions_x + k].first,
+                                    index[l * params.num_partitions_x + k].second, params.i_max, params.j_max,
+                                    params.re, params.dx, params.dy, dt, params.alpha);
+
+                fg_grid[l * params.num_partitions_x + k] = vector_partition(hpx::find_here(), base);
+
+            }
+        }
 
         std::string msg = "\nfailed with settings " + std::to_string(i_max) + " " + std::to_string(j_max) + " " + std::to_string(locality_id) + " "
                             + std::to_string(localities_x) + " " + std::to_string(localities_y) + " " + std::to_string(i_res) + " " + std::to_string(j_res) + " ";

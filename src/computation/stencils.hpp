@@ -1,7 +1,7 @@
 #ifndef COMPUTATION_STENCILS_HPP
 #define COMPUTATION_STENCILS_HPP
 
-#include "util/types.hpp"
+#include "util/typedefs.hpp"
 #include <cmath>
 #include <cstdlib>
 

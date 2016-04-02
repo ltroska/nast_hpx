@@ -1,16 +1,22 @@
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
-#include <hpx/lcos/gather.hpp>
 
-#include "io/manager.hpp"
+#include "io/io.hpp"
 #include "stepper/stepper.hpp"
 
 int hpx_main(int argc, char* argv[])
 {
-    io::config config = io::manager::read_config_from_file("../input.xml");
+    if (argc != 2)
+    {
+        std::cerr << "Usage: ./main <input.xml>" << std::endl;
+        exit(0);
+    }
+
+    io::config config = io::read_config_from_file(argv[1]);
 
     stepper::stepper step;
     step.setup(config).wait();
+
 
     return hpx::finalize();
 }

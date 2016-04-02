@@ -2,10 +2,10 @@
 #define GRID_PARTITION_DATA_HPP
 
 #include <hpx/runtime/serialization/serialize.hpp>
-//#include <boost/shared_array.hpp>
 
-#include "util/types.hpp"
-#include "util/helpers.hpp"
+#include "cell.hpp"
+#include "direction.hpp"
+
 
 namespace grid {
 
@@ -13,6 +13,14 @@ namespace grid {
 template<typename T = RealType>
 struct partition_data
 {
+private:
+    struct array_deleter {
+        void operator()(T const* p)
+        {
+            delete [] p;
+        }
+    };
+
 public:
     typedef hpx::serialization::serialize_buffer<T> buffer_type;
 
@@ -23,14 +31,14 @@ public:
     {}
 
     partition_data(uint size_x, uint size_y)
-    : data_(new T[size_x*size_y], size_x * size_y, buffer_type::take, array_deleter<T>()),
+    : data_(new T[size_x*size_y], size_x * size_y, buffer_type::take, array_deleter()),
       size_x_(size_x),
       size_y_(size_y),
       size_(size_x * size_y)
     {}
 
     partition_data(uint size_x, uint size_y, RealType initial_value)
-    : data_(new T[size_x*size_y], size_x * size_y, buffer_type::take, array_deleter<T>()),
+    : data_(new T[size_x*size_y], size_x * size_y, buffer_type::take, array_deleter()),
       size_x_(size_x),
       size_y_(size_y),
       size_(size_x * size_y)
@@ -88,7 +96,7 @@ public:
 
             case LEFT:
             {
-                data_ = buffer_type(new T [base.size_y()], base.size_y(), buffer_type::take, array_deleter<T>());
+                data_ = buffer_type(new T [base.size_y()], base.size_y(), buffer_type::take, array_deleter());
                 for(int i = 0; i < base.size_y(); ++i) {
                     data_[i] = base.get_cell(base.size_x()-1,i);
                 }
@@ -101,7 +109,7 @@ public:
 
             case RIGHT:
             {
-                data_ = buffer_type(new T [base.size_y()], base.size_y(), buffer_type::take, array_deleter<T>());
+                data_ = buffer_type(new T [base.size_y()], base.size_y(), buffer_type::take, array_deleter());
                 for(int i = 0; i < base.size_y(); ++i) {
                     data_[i] = base.get_cell(0,i);
                 }

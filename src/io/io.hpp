@@ -2,6 +2,10 @@
 #ifndef IO_IO_HPP
 #define IO_IO_HPP
 
+#include <bitset>
+#include <sstream>
+#include <fstream>
+
 #include "pugixml/pugixml.hpp"
 
 #include "config.hpp"
@@ -153,6 +157,231 @@ namespace io {
         else
         {
             config.wfe = 1;
+        }
+
+        if(config_node.child("vtk") != NULL)
+        {
+            config.vtk = (config_node.child("vtk").first_attribute().as_int() == 1);
+        }
+        else
+        {
+            config.vtk = 0;
+        }
+
+        if(config_node.child("GX") != NULL)
+        {
+            config.gx = config_node.child("GX").first_attribute().as_double();
+        }
+        else
+        {
+            config.gx = 0;
+        }
+
+        if(config_node.child("GY") != NULL)
+        {
+            config.gy = config_node.child("GY").first_attribute().as_double();
+        }
+        else
+        {
+            config.gy = 0;
+        }
+
+        if(config_node.child("UO") != NULL)
+        {
+            config.u_bnd.top = config_node.child("UO").first_attribute().as_double();
+        }
+        else
+        {
+            config.u_bnd.top = 0;
+        }
+
+        if(config_node.child("UB") != NULL)
+        {
+            config.u_bnd.bottom = config_node.child("UB").first_attribute().as_double();
+        }
+        else
+        {
+            config.u_bnd.bottom = 0;
+        }
+
+        if(config_node.child("UL") != NULL)
+        {
+            config.u_bnd.left = config_node.child("UL").first_attribute().as_double();
+        }
+        else
+        {
+            config.u_bnd.left = 0;
+        }
+
+        if(config_node.child("UR") != NULL)
+        {
+            config.u_bnd.right = config_node.child("UR").first_attribute().as_double();
+        }
+        else
+        {
+            config.u_bnd.right = 0;
+        }
+
+        if(config_node.child("VO") != NULL)
+        {
+            config.v_bnd.top = config_node.child("VO").first_attribute().as_double();
+        }
+        else
+        {
+            config.v_bnd.top = 0;
+        }
+
+        if(config_node.child("VB") != NULL)
+        {
+            config.v_bnd.bottom = config_node.child("VB").first_attribute().as_double();
+        }
+        else
+        {
+            config.v_bnd.bottom = 0;
+        }
+
+        if(config_node.child("VL") != NULL)
+        {
+            config.v_bnd.left = config_node.child("VL").first_attribute().as_double();
+        }
+        else
+        {
+            config.v_bnd.left = 0;
+        }
+
+        if(config_node.child("VR") != NULL)
+        {
+            config.v_bnd.right = config_node.child("VR").first_attribute().as_double();
+        }
+        else
+        {
+            config.v_bnd.right = 0;
+        }
+
+        if(config_node.child("TO") != NULL)
+        {
+            config.temp_bnd.top = config_node.child("TO").first_attribute().as_double();
+        }
+        else
+        {
+            config.temp_bnd.top = 0;
+        }
+
+        if(config_node.child("TB") != NULL)
+        {
+            config.temp_bnd.bottom = config_node.child("TB").first_attribute().as_double();
+        }
+        else
+        {
+            config.temp_bnd.bottom = 0;
+        }
+
+        if(config_node.child("TL") != NULL)
+        {
+            config.temp_bnd.left = config_node.child("TL").first_attribute().as_double();
+        }
+        else
+        {
+            config.temp_bnd.left = 0;
+        }
+
+        if(config_node.child("TR") != NULL)
+        {
+            config.temp_bnd.right = config_node.child("TR").first_attribute().as_double();
+        }
+        else
+        {
+            config.temp_bnd.right = 0;
+        }
+
+        if(config_node.child("WL") != NULL)
+        {
+            config.data_type.left = config_node.child("WL").first_attribute().as_double();
+        }
+        else
+        {
+            config.data_type.left = 1;
+        }
+
+        if(config_node.child("WR") != NULL)
+        {
+            config.data_type.right = config_node.child("WR").first_attribute().as_double();
+        }
+        else
+        {
+            config.data_type.right = 1;
+        }
+
+        if(config_node.child("WB") != NULL)
+        {
+            config.data_type.bottom = config_node.child("WB").first_attribute().as_double();
+        }
+        else
+        {
+            config.data_type.bottom = 1;
+        }
+
+        if(config_node.child("WT") != NULL)
+        {
+            config.data_type.top = config_node.child("WT").first_attribute().as_double();
+        }
+        else
+        {
+            config.data_type.top = 1;
+        }
+
+        if(config_node.child("deltaVec") != NULL)
+        {
+            config.delta_vec = config_node.child("deltaVec").first_attribute().as_double();
+        }
+        else
+        {
+            config.delta_vec = 0;
+        }
+
+        if(config_node.child("gridFile") != NULL)
+        {
+            config.with_flag_grid = true;
+
+            std::ifstream file(config_node.child("gridFile").first_attribute().as_string());
+
+            uint i_max = 0;
+            uint j_max = 0;
+
+
+            while (true)
+            {
+                std::string line;
+                std::getline(file, line);
+
+                if (!file.good())
+                    break;
+                i_max = 0;
+
+                std::stringstream iss(line);
+
+                while (true)
+                {
+                    std::string cell_val;
+                    std::getline(iss, cell_val, ',');
+
+                    config.flag_grid.push_back(std::bitset<5>(std::stoi(cell_val)));
+                    i_max++;
+
+                    if (!iss.good())
+                        break;
+                }
+
+                j_max++;
+            }
+
+            config.i_max = i_max - 2;
+            config.j_max = j_max - 2;
+
+        }
+        else
+        {
+            config.with_flag_grid = false;
         }
 
         return config;

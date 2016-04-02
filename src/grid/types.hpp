@@ -2,6 +2,7 @@
 #define GRID_TYPES_HPP
 
 #include <vector>
+#include <bitset>
 
 #include "cell.hpp"
 #include "partition_data.hpp"
@@ -16,5 +17,6 @@ typedef grid::partition<vector_cell> vector_partition;
 typedef std::vector<scalar_partition> scalar_grid_type;
 typedef std::vector<vector_partition> vector_grid_type;
 typedef std::vector<std::pair<uint, uint> > index_grid_type;
+typedef std::vector<std::vector<std::bitset<5> > > flag_grid_type;
 
 #endif

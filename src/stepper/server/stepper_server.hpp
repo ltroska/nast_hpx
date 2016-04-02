@@ -50,7 +50,7 @@ struct HPX_COMPONENT_EXPORT stepper_server
     protected:
         template<typename T>
         void print_grid(std::vector<grid::partition<T> > const& grid, const std::string message = "") const;
-        void write_vtk(uint step) const;
+        void write_vtk(uint step);
 
         uint get_index(uint k, uint l) const;
 
@@ -84,7 +84,11 @@ struct HPX_COMPONENT_EXPORT stepper_server
 
         index_grid_type index_grid;
         vector_grid_type uv_grid, fg_grid;
-        scalar_grid_type p_grid, rhs_grid;
+        scalar_grid_type p_grid, rhs_grid, temperature_grid, stream_grid, vorticity_grid;
+        flag_grid_type flag_grid;
+
+        RealType t, next_write;
+        uint out_iter;
 
         bool has_neighbor[NUM_DIRECTIONS];
         hpx::shared_future<hpx::id_type> neighbor_steppers_[NUM_DIRECTIONS];

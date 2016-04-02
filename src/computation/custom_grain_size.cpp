@@ -6,7 +6,7 @@
 namespace computation {
 namespace custom_grain_size_detail {
 
-vector_partition set_velocity_on_boundary(hpx::naming::id_type const where, hpx::shared_future<vector_data> center_fut,
+vector_partition set_boundary(hpx::naming::id_type const where, hpx::shared_future<vector_data> center_fut,
                                                     uint global_i, uint global_j, uint i_max, uint j_max)
 {
     /*
@@ -87,7 +87,7 @@ vector_partition set_velocity_on_boundary(hpx::naming::id_type const where, hpx:
     return vector_partition(where, center);
 }
 
-HPX_DEFINE_PLAIN_ACTION(set_velocity_on_boundary);
+HPX_DEFINE_PLAIN_ACTION(set_boundary);
 
 vector_partition compute_fg(hpx::naming::id_type const where, hpx::shared_future<vector_data> center_fut,
                                         hpx::shared_future<vector_data> left_fut, hpx::shared_future<vector_data> right_fut,
@@ -576,7 +576,7 @@ std::pair<RealType, RealType> compute_max_uv(hpx::shared_future<vector_data> uv_
 
 HPX_DEFINE_PLAIN_ACTION(compute_max_uv);
 
-vector_partition dispatch_set_velocity_on_boundary(vector_partition const& center, uint global_i, uint global_j, uint i_max, uint j_max)
+vector_partition dispatch_set_boundary(vector_partition const& center, uint global_i, uint global_j, uint i_max, uint j_max)
 {
     hpx::shared_future<vector_data> center_data = center.get_data(CENTER);
 
@@ -584,7 +584,7 @@ vector_partition dispatch_set_velocity_on_boundary(vector_partition const& cente
 
     return hpx::dataflow(
             hpx::launch::async,
-            set_velocity_on_boundary_action(),
+            set_boundary_action(),
             hpx::find_here(),
             where,
             center_data,
@@ -768,7 +768,7 @@ hpx::future<std::pair<RealType, RealType> > dispatch_compute_max_uv(vector_parti
 } //custom_grain_size_detail
 } //computation
 
-HPX_PLAIN_ACTION(computation::custom_grain_size_detail::dispatch_set_velocity_on_boundary, cgs_dispatch_set_velocity_on_boundary_action);
+HPX_PLAIN_ACTION(computation::custom_grain_size_detail::dispatch_set_boundary, cgs_dispatch_set_boundary_action);
 HPX_PLAIN_ACTION(computation::custom_grain_size_detail::dispatch_compute_fg, cgs_dispatch_compute_fg_action);
 HPX_PLAIN_ACTION(computation::custom_grain_size_detail::dispatch_compute_rhs, cgs_dispatch_compute_rhs_action);
 HPX_PLAIN_ACTION(computation::custom_grain_size_detail::dispatch_set_pressure_on_boundary, cgs_dispatch_set_pressure_on_boundary_action);
@@ -779,7 +779,7 @@ HPX_PLAIN_ACTION(computation::custom_grain_size_detail::dispatch_compute_max_uv,
 
 namespace computation {
 
-void custom_grain_size::set_velocity_on_boundary(vector_grid_type& uv_grid)
+void custom_grain_size::set_boundary(vector_grid_type& uv_grid)
 {
 
     for (uint l = 1; l < p.num_partitions_y - 1; l++)
@@ -795,7 +795,7 @@ void custom_grain_size::set_velocity_on_boundary(vector_grid_type& uv_grid)
             next =
                 hpx::dataflow(
                     hpx::launch::async,
-                    cgs_dispatch_set_velocity_on_boundary_action(),
+                    cgs_dispatch_set_boundary_action(),
                     hpx::find_here(),
                     next,
                     index[get_index(k, l)].first,

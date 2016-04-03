@@ -19,8 +19,9 @@
 	<outputSkipSize value="0"/>
 	<deltaVec value="2"/>
 	<vtk value="1"/>
-	<UO value="1"/>
-	<WR value="1"/>
+	<WR value="3"/>
+	<WL value="4"/>
+	<UL value="1"/>
 	<subIterations value="1"/>
 	<withForEach value="0"/>
 	<gridFile value="../wirbel_geometrie.csv"/>

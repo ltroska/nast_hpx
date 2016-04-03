@@ -24,5 +24,5 @@
 	<UL value="1"/>
 	<subIterations value="1"/>
 	<withForEach value="0"/>
-	<gridFile value="../wirbel_geometrie.csv"/>
+	<gridFile value="../settings/wirbel_geometrie.csv"/>
 </SimulationConfig>

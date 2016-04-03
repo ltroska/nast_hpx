@@ -10,8 +10,9 @@
 namespace computation {
 
 void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_left, vector_data const& uv_right, vector_data const& uv_bottom, vector_data const& uv_top,
-                                    scalar_data& temperature, std::vector<std::bitset<5> > const& flag_data, boundary_data const& data_type, boundary_data const& u_bnd,
-                                    boundary_data const& v_bnd, boundary_data const& temp_bnd, uint global_i, uint global_j, uint i_max, uint j_max)
+                                    scalar_data& temperature, std::vector<std::bitset<5> > const& flag_data, boundary_data const& data_type,
+                                    boundary_data const& temp_data_type, boundary_data const& u_bnd, boundary_data const& v_bnd, boundary_data const& temp_bnd,
+                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy)
 {
     /*
     *@TODO: maybe create new vector_data here
@@ -177,6 +178,27 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
                         curr_cell.first = u_bnd.left;
                         curr_cell.second = v_bnd.left;
                     }
+
+                    if (temp_data_type.left != -1)
+                    {
+                        //Dirichlet
+                        if (temp_data_type.left == 1)
+                        {
+                            scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                            scalar_cell const right_cell = temperature.get_cell(i+1, j);
+
+                            curr_cell.value = 2*temp_bnd.left*((j - 0.5)*dy) - right_cell.value;
+                        }
+
+                        //Neumann
+                        else if (temp_data_type.left == 2)
+                        {
+                            scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                            scalar_cell const right_cell = temperature.get_cell(i+1, j);
+
+                            curr_cell.value = right_cell.value + dx*temp_bnd.left*((j-0.5)*dy);
+                        }
+                    }
                 }
                 //right
                 if (in_range(i_max + 1, i_max + 1, 1, j_max, global_i + i, global_j + j))
@@ -217,7 +239,29 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
                         left_cell.first = u_bnd.right;
                         curr_cell.second = v_bnd.right;
                     }
+
+                    if (temp_data_type.right != -1)
+                    {
+                        //Dirichlet
+                        if (temp_data_type.right == 1)
+                        {
+                            scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                            scalar_cell const left_cell = temperature.get_cell(i-1, j);
+
+                            curr_cell.value = 2*temp_bnd.right * ((j - 0.5)*dy) - left_cell.value;
+                        }
+
+                        //Neumann
+                        else if (temp_data_type.right == 2)
+                        {
+                            scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                            scalar_cell const left_cell = temperature.get_cell(i-1, j);
+
+                            curr_cell.value = left_cell.value + dx*temp_bnd.right*((j-0.5)*dy);
+                        }
+                    }
                 }
+
                 //bottom
                 if (in_range(1, i_max, 0, 0, global_i + i, global_j + j))
                 {
@@ -255,7 +299,29 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
                         curr_cell.first = u_bnd.bottom;
                         curr_cell.second = v_bnd.bottom;
                     }
+
+                    if (temp_data_type.bottom != -1)
+                    {
+                        //Dirichlet
+                        if (temp_data_type.bottom == 1)
+                        {
+                            scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                            scalar_cell const top_cell = temperature.get_cell(i, j+1);
+
+                            curr_cell.value = 2*temp_bnd.bottom * ((i - 0.5)*dx) - top_cell.value;
+                        }
+
+                        //Neumann
+                        else if (temp_data_type.bottom == 2)
+                        {
+                            scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                            scalar_cell const top_cell = temperature.get_cell(i, j+1);
+
+                            curr_cell.value = top_cell.value + dy*temp_bnd.bottom*((i-0.5)*dx);
+                        }
+                    }
                 }
+
                 //top
                 if (in_range(1, i_max, j_max + 1, j_max + 1, global_i + i, global_j + j))
                 {
@@ -295,12 +361,33 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
                         curr_cell.first = u_bnd.top;
                         bottom_cell.second = v_bnd.top;
                     }
+
+                    if (temp_data_type.top != -1)
+                    {
+                        //Dirichlet
+                        if (temp_data_type.top == 1)
+                        {
+                            scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                            scalar_cell const bottom_cell = temperature.get_cell(i, j-1);
+
+                            curr_cell.value = 2*temp_bnd.top * ((i - 0.5)*dx) - bottom_cell.value;
+                        }
+
+                        //Neumann
+                        else if (temp_data_type.top == 2)
+                        {
+                            scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                            scalar_cell const bottom_cell = temperature.get_cell(i, j-1);
+
+                            curr_cell.value = bottom_cell.value + dy*temp_bnd.top*((i-0.5)*dx);
+                        }
+                    }
                 }
             }
         }
     );
 
-  /*  if (is_right && is_top)
+    if (is_right && is_top)
     {
         if (data_type.top == 1)
             uv_center.get_cell_ref(size_x - 2, size_y - 1).first = 2*u_bnd.top - topright_cell.first;
@@ -313,17 +400,20 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
 
         if (data_type.right == 2 || data_type.right == 3)
             uv_center.get_cell_ref(size_x - 1, size_y - 2).second = topright_cell.second;
-    }*/
+    }
 
 }
 
 void with_for_each::compute_fg(vector_data& fg, vector_data const& uv_center,
-                    vector_data const& uv_left, vector_data const& uv_right,
-                    vector_data const& uv_bottom, vector_data const& uv_top,
-                    vector_data const& uv_bottomright, vector_data const& uv_topleft,
-                    std::vector<std::bitset<5> > const& flag_data,
-                    uint global_i, uint global_j, uint i_max, uint j_max, RealType re,
-                    RealType dx, RealType dy, RealType dt, RealType alpha)
+                        vector_data const& uv_left, vector_data const& uv_right,
+                        vector_data const& uv_bottom, vector_data const& uv_top,
+                        vector_data const& uv_bottomright, vector_data const& uv_topleft,
+                        scalar_data const& temp_center, scalar_data const& temp_right,
+                        scalar_data const& temp_top,
+                        std::vector<std::bitset<5> > const& flag_data,
+                        uint global_i, uint global_j, uint i_max, uint j_max, RealType re,
+                        RealType gx, RealType gy, RealType beta,
+                        RealType dx, RealType dy, RealType dt, RealType alpha)
 {
 
     uint size_x = uv_center.size_x();
@@ -376,6 +466,10 @@ void with_for_each::compute_fg(vector_data& fg, vector_data const& uv_center,
                 vector_cell const bottomright = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, BOTTOM_RIGHT);
                 vector_cell const topleft = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, TOP_LEFT);
 
+                scalar_cell const t_center = temp_center.get_cell(i, j);
+                scalar_cell const t_right = get_right_neighbor(temp_center, temp_right, i, j);
+                scalar_cell const t_top = get_top_neighbor(temp_center, temp_top, i, j);
+
                 if (!cell_type.test(3))
                 {
                     fg_cell.first = center.first;
@@ -389,7 +483,10 @@ void with_for_each::compute_fg(vector_data& fg, vector_data const& uv_center,
                                     - first_derivative_of_square_x(right.first, center.first, left.first, dx, alpha)
                                     - first_derivative_of_product_y(right.second, center.second, bottom.second, bottomright.second,
                                                                     bottom.first, center.first, top.first, dy, alpha)
-                                    );
+
+                                    + gx
+                                    )
+                                    - beta * dt / 2. * (t_center.value + t_right.value) * gx;
                 }
 
                 if (!cell_type.test(0))
@@ -405,10 +502,62 @@ void with_for_each::compute_fg(vector_data& fg, vector_data const& uv_center,
                                     - first_derivative_of_product_x(left.first, center.first, top.first, topleft.first,
                                                                     left.second, center.second, right.second, dx, alpha)
                                     - first_derivative_of_square_y(top.second, center.second, bottom.second, dy, alpha)
-                                    );
+
+                                    + gy
+                                    )
+                                    - beta * dt / 2. * (t_center.value + t_top.value) * gy;
                 }
             }
 
+        }
+    );
+}
+
+void with_for_each::compute_temp(scalar_data& temp_center, scalar_data const& temp_left, scalar_data const& temp_right,
+                                    scalar_data const& temp_bottom, scalar_data const& temp_top,
+                                    vector_data const& uv_center, vector_data const& uv_left,
+                                    vector_data const& uv_bottom,
+                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType re, RealType pr,
+                                    RealType dx, RealType dy, RealType dt, RealType alpha)
+{
+    uint size_x = uv_center.size_x();
+    uint size_y = uv_center.size_y();
+
+    bool is_left = (global_i == 0);
+    bool is_right = (global_i + size_x > i_max);
+
+    bool is_bottom = (global_j == 0);
+    bool is_top = (global_j + size_y > j_max);
+
+    auto range = boost::irange(0, static_cast<int>(size_x * size_y));
+
+    hpx::parallel::for_each(hpx::parallel::par, boost::begin(range), boost::end(range),
+        [&](uint cnt)
+        {
+            uint const i = cnt%size_x;
+            uint const j = cnt/size_x;
+
+            scalar_cell& temp_cell = temp_center.get_cell_ref(i, j);
+            scalar_cell const temp_left_cell = get_left_neighbor(temp_center, temp_left, i, j);
+            scalar_cell const temp_right_cell = get_right_neighbor(temp_center, temp_right, i, j);
+            scalar_cell const temp_bottom_cell = get_bottom_neighbor(temp_center, temp_bottom, i, j);
+            scalar_cell const temp_top_cell = get_top_neighbor(temp_center, temp_top, i, j);
+
+            vector_cell const uv_center_cell = uv_center.get_cell(i, j);
+            vector_cell const uv_left_cell = get_left_neighbor(uv_center, uv_left, i, j);
+            vector_cell const uv_bottom_cell = get_bottom_neighbor(uv_center, uv_bottom, i, j);
+
+            if (in_range(1, i_max, 1, j_max, global_i + i, global_j + j))
+            {
+                temp_cell.value = dt * (1./re*1./pr * (second_derivative_fwd_bkwd_x(temp_right_cell.value, temp_cell.value, temp_left_cell.value, dx)
+                                                        + second_derivative_fwd_bkwd_y(temp_top_cell.value, temp_cell.value, temp_bottom_cell.value, dy)
+                                                        )
+                                       // + (i == 1 ? 1 : 0)
+                                        - first_derivative_u_temp_x(uv_center_cell.first, uv_left_cell.first, temp_cell.value, temp_right_cell.value, temp_left_cell.value, dx, alpha)
+                                        - first_derivative_v_temp_y(uv_center_cell.second, uv_bottom_cell.second, temp_cell.value, temp_top_cell.value, temp_bottom_cell.value, dy, alpha)
+                                        )
+                                        + temp_cell.value;
+            }
         }
     );
 }
@@ -700,9 +849,13 @@ void with_for_each::update_velocities(vector_data& uv_center, scalar_data const&
     );
 }
 
-void with_for_each::compute_stream_and_vorticity(scalar_data& stream_center, scalar_data& vorticity_center, scalar_data const& stream_bottom,
+void with_for_each::compute_stream_vorticity_heat(scalar_data& stream_center, scalar_data& vorticity_center, scalar_data& heat_center,
+                                                    scalar_data const& stream_bottom, scalar_data const& heat_bottom,
                                                     vector_data const& uv_center, vector_data const& uv_right, vector_data const& uv_top,
-                                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy)
+                                                    scalar_data const& temp_center, scalar_data const& temp_right,
+                                                    std::vector<std::bitset<5> > const& flag_data,
+                                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType re, RealType pr,
+                                                    RealType dx, RealType dy)
 {
     uint size_x = stream_center.size_x();
     uint size_y = stream_center.size_y();
@@ -722,18 +875,43 @@ void with_for_each::compute_stream_and_vorticity(scalar_data& stream_center, sca
     for (uint j = 0; j < size_y; j++)
         for (uint i = 0; i < size_x; i++)
         {
+            std::bitset<5> cell_type = flag_data[j*size_x + i];
+
+
             if (in_range(0, i_max, 1, j_max, global_i + i, global_j + j))
             {
-                stream_center.get_cell_ref(i, j).value = get_bottom_neighbor(stream_center, stream_bottom, i, j).value + uv_center.get_cell(i, j).first*dy;
+                if (cell_type.test(4))
+                {
+                    stream_center.get_cell_ref(i, j).value = get_bottom_neighbor(stream_center, stream_bottom, i, j).value + uv_center.get_cell(i, j).first*dy;
+                    heat_center.get_cell_ref(i, j).value = get_bottom_neighbor(heat_center, heat_bottom, i, j).value
+                                                            + dy * (re * pr * uv_center.get_cell(i, j).first
+                                                                        * (get_right_neighbor(temp_center, temp_right, i, j).value + temp_center.get_cell(i, j).value) / 2.
+                                                                        - (get_right_neighbor(temp_center, temp_right, i, j).value - temp_center.get_cell(i, j).value) / dx
+                                                                    );
+                }
+                else
+                {
+                     stream_center.get_cell_ref(i, j).value = get_bottom_neighbor(stream_center, stream_bottom, i, j).value;
+                     heat_center.get_cell_ref(i, j).value = get_bottom_neighbor(heat_center, heat_bottom, i, j).value;
+                }
             }
 
             if (in_range(1, i_max - 1, 1, j_max - 1, global_i + i, global_j + j))
             {
-                vector_cell const curr_cell = uv_center.get_cell(i, j);
-                vorticity_center.get_cell_ref(i, j).value = (get_top_neighbor(uv_center, uv_top, i, j).first - curr_cell.first)/dy
-                                                            - (get_right_neighbor(uv_center, uv_right, i, j).second - curr_cell.second)/dx;
+                if (cell_type.test(4))
+                {
+                    vector_cell const curr_cell = uv_center.get_cell(i, j);
+                    vorticity_center.get_cell_ref(i, j).value = (get_top_neighbor(uv_center, uv_top, i, j).first - curr_cell.first)/dy
+                                                                - (get_right_neighbor(uv_center, uv_right, i, j).second - curr_cell.second)/dx;
+                }
+                else
+                {
+                    vorticity_center.get_cell_ref(i, j).value = 0;
+                }
             }
         }
+
+
 }
 
 }//computation

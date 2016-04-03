@@ -53,6 +53,8 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
                     std::vector<std::vector<grid::partition_data<vector_cell> > > const& uv_grid,
                     std::vector<std::vector<grid::partition_data<scalar_cell> > > const& stream_grid,
                     std::vector<std::vector<grid::partition_data<scalar_cell> > > const& vorticity_grid,
+                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& heat_grid,
+                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& temp_grid,
                     RealType dx, RealType dy, uint step, uint i_max, uint j_max,
                         uint partitions_x, uint partitions_y, uint cells_x, uint cells_y, boost::shared_ptr<hpx::lcos::local::promise<int> > p)
 {
@@ -87,9 +89,11 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
             << "<PPointData>" << std::endl
             << "<DataArray type=\"Float32\" Name=\"vorticity\" />" << std::endl
             << "<DataArray type=\"Float32\" Name=\"strom\" />" << std::endl
+            << "<DataArray type=\"Float32\" Name=\"heat\" />" << std::endl
             << "</PPointData>" << std::endl
             << "<PCellData>" << std::endl
             << "<DataArray type=\"Float32\" Name=\"pressure\" />" << std::endl
+            << "<DataArray type=\"Float32\" Name=\"temperature\" />" << std::endl
             << "<DataArray type=\"Float32\" Name=\"velocity\" NumberOfComponents=\"2\" />" << std::endl
             << "</PCellData>" << std::endl
             << "<PCoordinates>" << std::endl
@@ -169,6 +173,12 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
     std::stringstream strom_stream;
     strom_stream << std::setprecision(std::numeric_limits<RealType>::digits10);
 
+    std::stringstream heat_stream;
+    heat_stream << std::setprecision(std::numeric_limits<RealType>::digits10);
+
+    std::stringstream temp_stream;
+    temp_stream << std::setprecision(std::numeric_limits<RealType>::digits10);
+
     uint k, l, i, j;
 
     k = 0;
@@ -182,37 +192,48 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
     vorticity_stream << "0\n";
     strom_stream << "0\n";
     strom_stream << "0\n";
+    heat_stream << "0\n";
+    heat_stream << "0\n";
     p_stream << "0\n";
+    temp_stream << "0\n";
     uv_stream << "0 0\n";
 
     for (uint i = 0; i < cells_x * partitions_x; i++)
     {
         p_stream << "0\n";
+        temp_stream << "0\n";
         uv_stream << "0 0\n";
         vorticity_stream << "0\n";
         strom_stream << "0\n";
+        heat_stream << "0\n";
     }
 
     p_stream << "0\n";
+    temp_stream << "0\n";
     uv_stream << "0 0\n";
 
     vorticity_stream << "0\n";
     strom_stream << "0\n";
+    heat_stream << "0\n";
 
 
     vorticity_stream << "0\n";
     vorticity_stream << "0\n";
     strom_stream << "0\n";
     strom_stream << "0\n";
+    heat_stream << "0\n";
+    heat_stream << "0\n";
 
     for (uint i = 0; i < cells_x * partitions_x; i++)
     {
         vorticity_stream << "0\n";
         strom_stream << "0\n";
+        heat_stream << "0\n";
     }
 
     vorticity_stream << "0\n";
     strom_stream << "0\n";
+    heat_stream << "0\n";
 
 
 
@@ -221,20 +242,24 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
         for (int row = 0; row < cells_y; row++)
         {
             p_stream << "0\n";
+            temp_stream << "0\n";
             uv_stream << "0 0\n";
             vorticity_stream << "0\n";
             vorticity_stream << "0\n";
             strom_stream << "0\n";
             strom_stream << "0\n";
+            heat_stream << "0\n";
+            heat_stream << "0\n";
 
             for (uint i = 0; i < partitions_x; i++)
             {
                 for (int col = 0; col < cells_x; col++)
                 {
+                    p_stream << p_grid[i][j].get_cell(col, row).value << "\n";
+                    temp_stream << temp_grid[i][j].get_cell(col, row).value << "\n";
+
                     if (!( (left && i == 0 && col == 0) || (bottom && j == 0 && row == 0) ))
                     {
-                        p_stream << p_grid[i][j].get_cell(col, row).value << "\n";
-
                         RealType u;
                         RealType v;
 
@@ -249,12 +274,13 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
                             v = (uv_grid[i][j - 1].get_cell(col, row).second + uv_grid[i][j].get_cell(col, cells_y - 1).second) / 2.;
 
                         uv_stream << u << " " << v << "\n";
+
                     }
                     else
                     {
                         uv_stream << "0 0\n";
-                        p_stream << "0\n";
                     }
+
 
                     if (!( (left && i == 0 && col == 0) || (right && i == partitions_x - 1 && (col == cells_x - 1 || col == cells_x - 2) )
                             || (bottom && j == 0 && row == 0) || (top && j == partitions_y -1 && (row == cells_y - 1 || row == cells_y - 2) )
@@ -271,18 +297,22 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
                     if (!( (right && i == partitions_x - 1 && col == cells_x - 1) || (top && j == partitions_y - 1 && row == cells_y - 1) ) )
                     {
                         strom_stream << stream_grid[i][j].get_cell(col, row).value << "\n";
+                        heat_stream << heat_grid[i][j].get_cell(col, row).value << "\n";
                     }
                     else
                     {
                         strom_stream << "0\n";
+                        heat_stream << "0\n";
                     }
                 }
             }
 
             p_stream << "0\n";
+            temp_stream << "0\n";
             uv_stream << "0 0\n";
             vorticity_stream << "0\n";
             strom_stream << "0\n";
+            heat_stream << "0\n";
         }
 
     }
@@ -291,28 +321,37 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
     vorticity_stream << "0\n";
     strom_stream << "0\n";
     strom_stream << "0\n";
+    heat_stream << "0\n";
+    heat_stream << "0\n";
     p_stream << "0\n";
+    temp_stream << "0\n";
     uv_stream << "0 0\n";
 
     for (uint i = 0; i < cells_x * partitions_x; i++)
     {
         p_stream << "0\n";
+        temp_stream << "0\n";
         uv_stream << "0 0\n";
         vorticity_stream << "0\n";
         strom_stream << "0\n";
+        heat_stream << "0\n";
     }
 
     p_stream << "0\n";
+    temp_stream << "0\n";
     uv_stream << "0 0\n";
 
     vorticity_stream << "0\n";
     strom_stream << "0\n";
+    heat_stream << "0\n";
 
 
     std::string pdatastring = p_stream.str();
     std::string uvdatastring = uv_stream.str();
     std::string vorticitystring = vorticity_stream.str();
     std::string stromstring = strom_stream.str();
+    std::string heatstring = heat_stream.str();
+    std::string tempstring = temp_stream.str();
 
     os  << std::setprecision(std::numeric_limits<RealType>::digits10) << "<?xml version=\"1.0\"?>" << std::endl
         << "<VTKFile type=\"RectilinearGrid\" version=\"0.1\" byte_order=\"LittleEndian\">" << std::endl
@@ -327,10 +366,16 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
         << "<DataArray type=\"Float32\" Name=\"strom\">" << std::endl
         << stromstring << std::endl
         << "</DataArray>" << std::endl
+        << "<DataArray type=\"Float32\" Name=\"heat\">" << std::endl
+        << heatstring << std::endl
+        << "</DataArray>" << std::endl
         << "</PointData>" << std::endl
         << "<CellData>" << std::endl
         << "<DataArray type=\"Float32\" Name=\"pressure\">" << std::endl
         << pdatastring << std::endl
+        << "</DataArray>" << std::endl
+        << "<DataArray type=\"Float32\" Name=\"temperature\">" << std::endl
+        << tempstring << std::endl
         << "</DataArray>" << std::endl
         << "<DataArray type=\"Float32\" Name=\"velocity\" NumberOfComponents=\"2\">" << std::endl
         << uvdatastring << std::endl
@@ -361,6 +406,8 @@ hpx::lcos::future<int> write_vtk_worker(std::vector<std::vector<grid::partition_
                     std::vector<std::vector<grid::partition_data<vector_cell> > > const& uv_grid,
                     std::vector<std::vector<grid::partition_data<scalar_cell> > > const& stream_grid,
                     std::vector<std::vector<grid::partition_data<scalar_cell> > > const& vorticity_grid,
+                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& heat_grid,
+                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& temp_grid,
                     RealType dx, RealType dy, uint step, uint i_max, uint j_max,
                         uint partitions_x, uint partitions_y, uint cells_x, uint cells_y)
 {
@@ -371,7 +418,7 @@ hpx::lcos::future<int> write_vtk_worker(std::vector<std::vector<grid::partition_
     hpx::threads::executors::io_pool_executor scheduler;
 
     // ... and schedule the handler to run on one of its OS-threads.
-    scheduler.add(hpx::util::bind(&do_write_vtk, p_grid, uv_grid, stream_grid, vorticity_grid, dx, dy, step, i_max, j_max, partitions_x, partitions_y, cells_x, cells_y, p));
+    scheduler.add(hpx::util::bind(&do_write_vtk, p_grid, uv_grid, stream_grid, vorticity_grid, heat_grid, temp_grid, dx, dy, step, i_max, j_max, partitions_x, partitions_y, cells_x, cells_y, p));
 
     return p->get_future();
 }
@@ -380,10 +427,12 @@ int write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > cons
                     std::vector<std::vector<grid::partition_data<vector_cell> > > const& uv_grid,
                     std::vector<std::vector<grid::partition_data<scalar_cell> > > const& stream_grid,
                     std::vector<std::vector<grid::partition_data<scalar_cell> > > const& vorticity_grid,
+                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& heat_grid,
+                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& temp_grid,
                     RealType dx, RealType dy, uint step, uint i_max, uint j_max,
                         uint partitions_x, uint partitions_y, uint cells_x, uint cells_y)
 {
-    hpx::lcos::future<int> f = write_vtk_worker(p_grid, uv_grid, stream_grid, vorticity_grid, dx, dy, step, i_max, j_max, partitions_x, partitions_y, cells_x, cells_y);
+    hpx::lcos::future<int> f = write_vtk_worker(p_grid, uv_grid, stream_grid, vorticity_grid, heat_grid, temp_grid, dx, dy, step, i_max, j_max, partitions_x, partitions_y, cells_x, cells_y);
     return f.get();
 }
 

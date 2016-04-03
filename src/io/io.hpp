@@ -94,6 +94,11 @@ namespace io {
             config.re = config_node.child("Re").first_attribute().as_double();
         }
 
+        if(config_node.child("Pr") != NULL)
+        {
+            config.pr = config_node.child("Pr").first_attribute().as_double();
+        }
+
         if(config_node.child("omega") != NULL)
         {
             config.omega = config_node.child("omega").first_attribute().as_double();
@@ -113,6 +118,11 @@ namespace io {
         if(config_node.child("alpha") != NULL)
         {
             config.alpha = config_node.child("alpha").first_attribute().as_double();
+        }
+
+        if(config_node.child("beta") != NULL)
+        {
+            config.beta = config_node.child("beta").first_attribute().as_double();
         }
 
         if(config_node.child("iterMax") != NULL)
@@ -292,6 +302,51 @@ namespace io {
         else
         {
             config.temp_bnd.right = 0;
+        }
+
+        if(config_node.child("TI") != NULL)
+        {
+            config.ti = config_node.child("TI").first_attribute().as_double();
+        }
+        else
+        {
+            config.ti = 0;
+        }
+
+        if(config_node.child("WTL") != NULL)
+        {
+            config.temp_data_type.left = config_node.child("WTL").first_attribute().as_double();
+        }
+        else
+        {
+            config.temp_data_type.left = -1;
+        }
+
+        if(config_node.child("WTR") != NULL)
+        {
+            config.temp_data_type.right = config_node.child("WTR").first_attribute().as_double();
+        }
+        else
+        {
+            config.temp_data_type.right = -1;
+        }
+
+        if(config_node.child("WTB") != NULL)
+        {
+            config.temp_data_type.bottom = config_node.child("WTB").first_attribute().as_double();
+        }
+        else
+        {
+            config.temp_data_type.bottom = -1;
+        }
+
+        if(config_node.child("WTT") != NULL)
+        {
+            config.temp_data_type.top = config_node.child("WTT").first_attribute().as_double();
+        }
+        else
+        {
+            config.temp_data_type.top = -1;
         }
 
         if(config_node.child("WL") != NULL)

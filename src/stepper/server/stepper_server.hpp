@@ -84,7 +84,7 @@ struct HPX_COMPONENT_EXPORT stepper_server
 
         index_grid_type index_grid;
         vector_grid_type uv_grid, fg_grid;
-        scalar_grid_type p_grid, rhs_grid, temperature_grid, stream_grid, vorticity_grid;
+        scalar_grid_type p_grid, rhs_grid, temperature_grid, stream_grid, vorticity_grid, heat_grid;
         flag_grid_type flag_grid;
 
         RealType t, next_write;

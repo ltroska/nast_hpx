@@ -18,11 +18,13 @@ struct config
         RealType x_length;
         RealType y_length;
         RealType re;
+        RealType pr;
         RealType omega;
         RealType tau;
         RealType eps;
         RealType eps_sq;
         RealType alpha;
+        RealType beta;
         RealType t_end;
         RealType dt;
         RealType delta_vec;
@@ -39,7 +41,10 @@ struct config
         boundary_data u_bnd;
         boundary_data v_bnd;
         boundary_data data_type;
+
         boundary_data temp_bnd;
+        boundary_data temp_data_type;
+        RealType ti;
 
         bool with_flag_grid;
         std::vector<std::bitset<5> > flag_grid;
@@ -54,12 +59,13 @@ struct config
         {
             os << "config: {iMax = " << config.i_max << ", jMax = "<< config.j_max
                 << ", iRes = " << config.i_res << ", jRes = " << config.j_res << ", xLength = " << config.x_length
-                << ", yLength = " << config.y_length << ", Re = " << config.re << ", omega = " << config.omega
+                << ", yLength = " << config.y_length << ", Re = " << config.re << ", Pr = " << config.pr << ", omega = " << config.omega
                 << ", tau = " << config.tau << " eps = " << config.eps << ", alpha = " << config.alpha
                 << ", outputSkipSize = " << config.output_skip_size << ", deltaVec = " << config.delta_vec << ", iterMax = " << config.iter_max
-                << ", subIterations = " << config.sub_iterations << ", GX = " << config.gx << ", GY = " << config.gy
+                << ", subIterations = " << config.sub_iterations << ", GX = " << config.gx << ", GY = " << config.gy << ", beta = " << config.beta
                 << ", dt = " << config.dt << ", wfe = " << config.wfe << ", vtk = " << config.vtk << ", u_bnd " << config.u_bnd << ", v_bnd " << config.v_bnd
-                << ", temp_bnd " << config.temp_bnd << " bnd_data_type " << config.data_type << "}";
+                << " bnd_data_type " << config.data_type << ", temp_bnd " << config.temp_bnd << ", temp_data_type " << config.temp_data_type
+                << ", TI = " << config.ti << "}";
             return os;
         }
 };

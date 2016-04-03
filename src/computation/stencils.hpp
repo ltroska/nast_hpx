@@ -63,6 +63,18 @@ inline RealType first_derivative_of_product_y(RealType v_right, RealType v_middl
             + alpha / dy * (std::abs(v_middle + v_right) * (u_middle - u_top) / 4. - std::abs(v_bottom + v_bottomright) * (u_bottom - u_middle) / 4.);
 }
 
+inline RealType first_derivative_u_temp_x(RealType u_center, RealType u_left, RealType t_center, RealType t_right, RealType t_left, RealType dx, RealType alpha = 0.9)
+{
+    return 1./dx * (u_center * (t_center + t_right) / 2. - u_left * (t_left + t_center) / 2.)
+            + alpha / dx * (std::abs(u_center)*(t_center - t_right) / 2. - std::abs(u_left) * (t_left - t_center) / 2.);
+}
+
+inline RealType first_derivative_v_temp_y(RealType v_center, RealType v_bottom, RealType t_center, RealType t_top, RealType t_bottom, RealType dy, RealType alpha = 0.9)
+{
+    return 1./dy * (v_center * (t_center + t_top)/ 2. - v_bottom * (t_bottom + t_center)/2.)
+            + alpha / dy * (std::abs(v_center)*(t_center - t_top)/2. - std::abs(v_bottom)*(t_bottom - t_center)/2.);
+}
+
 
 }//namespace computation
 #endif

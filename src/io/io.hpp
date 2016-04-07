@@ -439,6 +439,48 @@ namespace io {
             config.with_flag_grid = false;
         }
 
+        if(config_node.child("initialUVFile") != NULL)
+        {
+            config.with_initial_uv_grid = true;
+
+            std::ifstream file(config_node.child("initialUVFile").first_attribute().as_string());
+
+            while (true)
+            {
+                std::string line;
+                std::getline(file, line);
+
+                if (!file.good())
+                    break;
+
+                std::stringstream iss(line);
+
+                while (true)
+                {
+                    std::string cell_val;
+                    std::getline(iss, cell_val, ',');
+
+                    std::stringstream issc(cell_val);
+
+                    std::string u;
+                    std::string v;
+                    std::getline(issc, u, '/');
+                    std::getline(issc, v, '/');
+
+                    config.initial_uv_grid.push_back(std::pair<RealType, RealType>(std::stod(u), std::stod(v)));
+
+                    if (!iss.good())
+                        break;
+                }
+            }
+
+
+        }
+        else
+        {
+            config.with_initial_uv_grid = false;
+        }
+
         return config;
     }
 

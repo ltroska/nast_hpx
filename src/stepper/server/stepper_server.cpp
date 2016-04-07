@@ -111,7 +111,6 @@ void stepper_server::initialize_grids()
                     (hpx::get_locality_id() / num_localities_x) * (params.num_partitions_y - 2) * params.num_cells_per_partition_y + (l - 1) * params.num_cells_per_partition_y
                     );
 
-            uv_grid[get_index(k, l)] = vector_partition(hpx::find_here(), params.num_cells_per_partition_x, params.num_cells_per_partition_y);
             fg_grid[get_index(k, l)] = vector_partition(hpx::find_here(), params.num_cells_per_partition_x, params.num_cells_per_partition_y);
             p_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), params.num_cells_per_partition_x, params.num_cells_per_partition_y);
             rhs_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), params.num_cells_per_partition_x, params.num_cells_per_partition_y);
@@ -131,6 +130,28 @@ void stepper_server::initialize_grids()
                 }
 
             flag_grid[get_index(k, l)] = std::move(local_flags);
+
+            if (c.with_initial_uv_grid)
+            {
+                vector_data curr_data(params.num_cells_per_partition_x, params.num_cells_per_partition_y);
+
+                for (uint j = 0; j < params.num_cells_per_partition_y; j++)
+                    for (uint i = 0; i < params.num_cells_per_partition_x; i++)
+                    {
+                        vector_cell& curr_cell = curr_data.get_cell_ref(i, j);
+                        curr_cell.first = c.initial_uv_grid[(params.num_cells_per_partition_y - 1 - index_grid[get_index(k, l)].second - j)*params.num_cells_per_partition_x
+                                        + (index_grid[get_index(k, l)].first + i)].first;
+                        curr_cell.second = c.initial_uv_grid[(params.num_cells_per_partition_y - 1 - index_grid[get_index(k, l)].second - j)*params.num_cells_per_partition_x
+                                        + (index_grid[get_index(k, l)].first + i)].second;
+
+                    }
+
+                uv_grid[get_index(k, l)] = vector_partition(hpx::find_here(), curr_data);
+            }
+            else
+            {
+                uv_grid[get_index(k, l)] = vector_partition(hpx::find_here(), params.num_cells_per_partition_x, params.num_cells_per_partition_y);
+            }
         }
 
     scalar_dummy = scalar_partition(hpx::find_here(), 1, 1);
@@ -175,7 +196,7 @@ void stepper_server::do_work()
         if (c.temp_data_type.left != -1)
             tmp = std::min(tmp, (c.re*c.pr)/2. * 1./(1./std::pow(params.dx, 2) + 1./std::pow(params.dy, 2)));
 
-        dt = c.tau * tmp;
+        dt = 4.928500E-02;//c.tau * tmp;
     }
 }
 

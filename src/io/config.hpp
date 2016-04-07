@@ -49,6 +49,9 @@ struct config
         bool with_flag_grid;
         std::vector<std::bitset<5> > flag_grid;
 
+        bool with_initial_uv_grid;
+        std::vector<std::pair<RealType, RealType> > initial_uv_grid;
+
         template <typename Archive>
         void serialize(Archive& ar, const unsigned int version)
         {

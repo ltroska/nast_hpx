@@ -187,7 +187,7 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
                             scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
                             scalar_cell const right_cell = temperature.get_cell(i+1, j);
 
-                            curr_cell.value = 2*temp_bnd.left*((j - 0.5)*dy) - right_cell.value;
+                            curr_cell.value = 2*temp_bnd.left;//*((j - 0.5)*dy) - right_cell.value;
                         }
 
                         //Neumann
@@ -248,7 +248,7 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
                             scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
                             scalar_cell const left_cell = temperature.get_cell(i-1, j);
 
-                            curr_cell.value = 2*temp_bnd.right * ((j - 0.5)*dy) - left_cell.value;
+                            curr_cell.value = 2*temp_bnd.right;// * ((j - 0.5)*dy) - left_cell.value;
                         }
 
                         //Neumann
@@ -308,7 +308,7 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
                             scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
                             scalar_cell const top_cell = temperature.get_cell(i, j+1);
 
-                            curr_cell.value = 2*temp_bnd.bottom * ((i - 0.5)*dx) - top_cell.value;
+                            curr_cell.value = 2*temp_bnd.bottom;// * ((i - 0.5)*dx) - top_cell.value;
                         }
 
                         //Neumann
@@ -370,7 +370,7 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
                             scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
                             scalar_cell const bottom_cell = temperature.get_cell(i, j-1);
 
-                            curr_cell.value = 2*temp_bnd.top * ((i - 0.5)*dx) - bottom_cell.value;
+                            curr_cell.value = 2*temp_bnd.top;// * ((i - 0.5)*dx) - bottom_cell.value;
                         }
 
                         //Neumann

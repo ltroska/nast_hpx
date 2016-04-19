@@ -17,7 +17,7 @@
 	<GX value="0"/>
 	<GY value="0"/>
 	<outputSkipSize value="0"/>
-	<deltaVec value="2"/>
+	<deltaVec value="1"/>
 	<vtk value="1"/>
 	<WR value="3"/>
 	<WL value="4"/>

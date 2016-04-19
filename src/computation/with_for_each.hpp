@@ -56,6 +56,8 @@ class with_for_each : public strategy {
                                         scalar_data const& p_top, vector_data const& fg_center, std::vector<std::bitset<5> > const& flag_data,
                                         uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy, RealType dt);
 
+        virtual std::pair<RealType, RealType> max_velocity(vector_data& uv_center);
+
         virtual void compute_stream_vorticity_heat(scalar_data& stream_center, scalar_data& vorticity_center, scalar_data& heat_center,
                                                     scalar_data const& stream_bottom, scalar_data const& heat_bottom,
                                                     vector_data const& uv_center, vector_data const& uv_right, vector_data const& uv_top,

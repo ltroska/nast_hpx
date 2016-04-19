@@ -70,6 +70,13 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
         res_y = res_x;
     }
 
+
+    uint actual_partitions_x = partitions_x;
+    uint actual_partitions_y = partitions_y;
+
+    partitions_x -= 2;
+    partitions_y -= 2;
+
     //master file
     if (hpx::get_locality_id() == 0)
     {
@@ -85,7 +92,7 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
 
         os  << "<?xml version=\"1.0\"?>" << std::endl
             << "<VTKFile type=\"PRectilinearGrid\" version=\"0.1\" byte_order=\"LittleEndian\">" << std::endl
-            << "<PRectilinearGrid WholeExtent=\"0 " << i_max + 2 << " 0 " << j_max + 2 << " 0 0\" GhostLevel=\"1\">" << std::endl
+            << "<PRectilinearGrid WholeExtent=\"1 " << i_max + 1 << " 1 " << j_max + 1 << " 0 0\" GhostLevel=\"1\">" << std::endl
             << "<PPointData>" << std::endl
             << "<DataArray type=\"Float32\" Name=\"vorticity\" />" << std::endl
             << "<DataArray type=\"Float32\" Name=\"strom\" />" << std::endl
@@ -104,10 +111,10 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
 
         for (uint loc = 0; loc < hpx::find_all_localities().size(); loc++)
         {
-            os  << "<Piece Extent=\"" << static_cast<int>(cells_x*partitions_x*(loc%res_x)) - 1
-                << " " << cells_x*partitions_x*((loc%res_x)+1) + 1
-                << " " << static_cast<int>(cells_y*partitions_y*(loc/res_x)) - 1
-                << " " << cells_y*partitions_y*((loc/res_x)+1) + 1
+            os  << "<Piece Extent=\"" << static_cast<int>(cells_x*partitions_x*(loc%res_x))
+                << " " << cells_x*partitions_x*((loc%res_x)+1)
+                << " " << static_cast<int>(cells_y*partitions_y*(loc/res_x))
+                << " " << cells_y*partitions_y*((loc/res_x)+1)
                 << " 0 0\" Source=\"field_" << step << "_locality_" << loc << ".vtr\"></Piece>" << std::endl;
         }
 
@@ -149,13 +156,13 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
     std::string coordinate_y;
     std::string coordinate_z = "0\n";
 
-    for (int x = start_x - 1; x <= end_x; x++)
-        coordinate_x += std::to_string(dx*(start_x + 1 + x)) + " ";
+    for (int x = - 1; x <= end_x - start_x; x++)
+        coordinate_x += std::to_string(dx*(start_x + x)) + " ";
 
     coordinate_x += "\n";
 
-    for (int y = start_y - 1; y <= end_y; y++)
-        coordinate_y += std::to_string(dy*(start_y + 1 + y)) + " ";
+    for (int y = - 1; y <= end_y - start_y; y++)
+        coordinate_y += std::to_string(dy*(start_y + y)) + " ";
 
     coordinate_y += "\n";
 
@@ -237,7 +244,7 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
 
 
 
-    for (uint j = 0; j < partitions_y; j++)
+    for (uint j = 1; j < actual_partitions_y - 1; j++)
     {
         for (int row = 0; row < cells_y; row++)
         {
@@ -251,14 +258,14 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
             heat_stream << "0\n";
             heat_stream << "0\n";
 
-            for (uint i = 0; i < partitions_x; i++)
+            for (uint i = 1; i < actual_partitions_x - 1; i++)
             {
                 for (int col = 0; col < cells_x; col++)
                 {
                     p_stream << p_grid[i][j].get_cell(col, row).value << "\n";
                     temp_stream << temp_grid[i][j].get_cell(col, row).value << "\n";
 
-                    if (!( (left && i == 0 && col == 0) || (bottom && j == 0 && row == 0) ))
+                    if (!( (left && i == 1 && col == 0) || (bottom && j == 1 && row == 0) ))
                     {
                         RealType u;
                         RealType v;
@@ -266,12 +273,12 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
                         if (col != 0)
                             u = (uv_grid[i][j].get_cell(col, row).first + uv_grid[i][j].get_cell(col - 1, row).first) / 2.;
                         else
-                            u = (uv_grid[i - 1][j].get_cell(col, row).first + uv_grid[i][j].get_cell(cells_x - 1, row).first) / 2.;
+                            u = (uv_grid[i - 1][j].get_cell(cells_x - 1, row).first + uv_grid[i][j].get_cell(0, row).first) / 2.;
 
                         if (row != 0)
                             v = (uv_grid[i][j].get_cell(col, row).second + uv_grid[i][j].get_cell(col, row - 1).second) / 2.;
                         else
-                            v = (uv_grid[i][j - 1].get_cell(col, row).second + uv_grid[i][j].get_cell(col, cells_y - 1).second) / 2.;
+                            v = (uv_grid[i][j - 1].get_cell(col, cells_y - 1).second + uv_grid[i][j].get_cell(col, 0).second) / 2.;
 
                         uv_stream << u << " " << v << "\n";
 
@@ -282,8 +289,8 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
                     }
 
 
-                    if (!( (left && i == 0 && col == 0) || (right && i == partitions_x - 1 && (col == cells_x - 1 || col == cells_x - 2) )
-                            || (bottom && j == 0 && row == 0) || (top && j == partitions_y -1 && (row == cells_y - 1 || row == cells_y - 2) )
+                    if (!( (left && i == 1 && col == 0) || (right && i == actual_partitions_x - 2 && (col == cells_x - 1 || col == cells_x - 2) )
+                            || (bottom && j == 1 && row == 0) || (top && j == actual_partitions_y - 2 && (row == cells_y - 1 || row == cells_y - 2) )
                          )
                         )
                     {
@@ -294,7 +301,7 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
                         vorticity_stream << "0\n";
                     }
 
-                    if (!( (right && i == partitions_x - 1 && col == cells_x - 1) || (top && j == partitions_y - 1 && row == cells_y - 1) ) )
+                    if (!( (right && i == actual_partitions_x - 2 && col == cells_x - 1) || (top && j == actual_partitions_y - 2 && row == cells_y - 1) ) )
                     {
                         strom_stream << stream_grid[i][j].get_cell(col, row).value << "\n";
                         heat_stream << heat_grid[i][j].get_cell(col, row).value << "\n";

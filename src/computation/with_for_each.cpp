@@ -2,6 +2,8 @@
 
 #include <hpx/parallel/algorithm.hpp>
 #include <hpx/parallel/algorithms/transform_reduce.hpp>
+#include <hpx/parallel/algorithms/reduce.hpp>
+#include <hpx/parallel/algorithms/minmax.hpp>
 #include <hpx/parallel/executors/static_chunk_size.hpp>
 
 #include "util/helpers.hpp"
@@ -174,9 +176,10 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
                     if (data_type.left == 4)
                     {
                         vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
+                        vector_cell const right_cell = get_right_neighbor(uv_center, uv_right, i, j);
 
                         curr_cell.first = u_bnd.left;
-                        curr_cell.second = v_bnd.left;
+                        curr_cell.second = 2*v_bnd.left - right_cell.second;
                     }
 
                     if (temp_data_type.left != -1)
@@ -187,7 +190,7 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
                             scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
                             scalar_cell const right_cell = temperature.get_cell(i+1, j);
 
-                            curr_cell.value = 2*temp_bnd.left;//*((j - 0.5)*dy) - right_cell.value;
+                            curr_cell.value = 2*temp_bnd.left - right_cell.value;//*((j - 0.5)*dy) - right_cell.value;
                         }
 
                         //Neumann
@@ -237,7 +240,7 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
                         vector_cell& left_cell = uv_center.get_cell_ref(i - 1, j);
 
                         left_cell.first = u_bnd.right;
-                        curr_cell.second = v_bnd.right;
+                        curr_cell.second = 2*v_bnd.right - left_cell.second;
                     }
 
                     if (temp_data_type.right != -1)
@@ -248,7 +251,7 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
                             scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
                             scalar_cell const left_cell = temperature.get_cell(i-1, j);
 
-                            curr_cell.value = 2*temp_bnd.right;// * ((j - 0.5)*dy) - left_cell.value;
+                            curr_cell.value = 2*temp_bnd.right - left_cell.value;// * ((j - 0.5)*dy) - left_cell.value;
                         }
 
                         //Neumann
@@ -295,8 +298,9 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
                     if (data_type.bottom == 4)
                     {
                         vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
+                        vector_cell const top_cell = get_top_neighbor(uv_center, uv_top, i, j);
 
-                        curr_cell.first = u_bnd.bottom;
+                        curr_cell.first = 2*u_bnd.bottom - top_cell.first;
                         curr_cell.second = v_bnd.bottom;
                     }
 
@@ -308,7 +312,7 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
                             scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
                             scalar_cell const top_cell = temperature.get_cell(i, j+1);
 
-                            curr_cell.value = 2*temp_bnd.bottom;// * ((i - 0.5)*dx) - top_cell.value;
+                            curr_cell.value = 2*temp_bnd.bottom - top_cell.value;// * ((i - 0.5)*dx) - top_cell.value;
                         }
 
                         //Neumann
@@ -358,7 +362,7 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
                         vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
                         vector_cell& bottom_cell = uv_center.get_cell_ref(i, j - 1);
 
-                        curr_cell.first = u_bnd.top;
+                        curr_cell.first = 2*u_bnd.top - bottom_cell.first;
                         bottom_cell.second = v_bnd.top;
                     }
 
@@ -370,7 +374,7 @@ void with_for_each::set_boundary(vector_data& uv_center, vector_data const& uv_l
                             scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
                             scalar_cell const bottom_cell = temperature.get_cell(i, j-1);
 
-                            curr_cell.value = 2*temp_bnd.top;// * ((i - 0.5)*dx) - bottom_cell.value;
+                            curr_cell.value = 2*temp_bnd.top - bottom_cell.value;// * ((i - 0.5)*dx) - bottom_cell.value;
                         }
 
                         //Neumann
@@ -683,8 +687,8 @@ void with_for_each::sor_cycle(scalar_data& p_center, scalar_data const& p_left, 
 
     auto range = boost::irange(0, static_cast<int>(p_center.size()));
 
+    for (uint j = 0; j < size_y; j++)
     for (uint i = 0; i < size_x; i++)
-        for (uint j = 0; j < size_y; j++)
         {
             std::bitset<5> cell_type = flag_data[j*size_x + i];
 
@@ -849,6 +853,31 @@ void with_for_each::update_velocities(vector_data& uv_center, scalar_data const&
     );
 }
 
+std::pair<RealType, RealType> with_for_each::max_velocity(vector_data& uv_center)
+{
+    uint size_x = uv_center.size_x();
+    uint size_y = uv_center.size_y();
+
+    auto range = boost::irange(0, static_cast<int>(size_x * size_y));
+
+    vector_cell max_first = *hpx::parallel::max_element(hpx::parallel::par, uv_center.begin(), uv_center.end(),
+        [](vector_cell a, vector_cell b) -> bool
+        {
+            return std::abs(a.first) < std::abs(b.first);
+        }
+    );
+
+    vector_cell max_second = *hpx::parallel::max_element(hpx::parallel::par, uv_center.begin(), uv_center.end(),
+        [](vector_cell a, vector_cell b) -> bool
+        {
+            return std::abs(a.second) < std::abs(b.second);
+        }
+    );
+
+    return std::pair<RealType, RealType>(std::abs(max_first.first), std::abs(max_second.second));
+
+}
+
 void with_for_each::compute_stream_vorticity_heat(scalar_data& stream_center, scalar_data& vorticity_center, scalar_data& heat_center,
                                                     scalar_data const& stream_bottom, scalar_data const& heat_bottom,
                                                     vector_data const& uv_center, vector_data const& uv_right, vector_data const& uv_top,
@@ -880,7 +909,7 @@ void with_for_each::compute_stream_vorticity_heat(scalar_data& stream_center, sc
 
             if (in_range(0, i_max, 1, j_max, global_i + i, global_j + j))
             {
-                if (cell_type.test(4))
+                if (cell_type.test(4) || global_i + i == 0)
                 {
                     stream_center.get_cell_ref(i, j).value = get_bottom_neighbor(stream_center, stream_bottom, i, j).value + uv_center.get_cell(i, j).first*dy;
                     heat_center.get_cell_ref(i, j).value = get_bottom_neighbor(heat_center, heat_bottom, i, j).value

@@ -14,7 +14,7 @@
 	<alpha value="0.9"/>
 	<iterMax value="500"/>
 	<dt value="0.03"/>
-	<tEnd value="1000"/>
+	<tEnd value="500"/>
 	<GX value="0"/>
 	<GY value="-9.706e-2"/>
 	<TI value="0"/>

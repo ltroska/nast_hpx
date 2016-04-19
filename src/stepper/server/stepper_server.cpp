@@ -18,7 +18,7 @@ HPX_REGISTER_COMPONENT_MODULE();
 HPX_REGISTER_COMPONENT(stepper_server_type, stepper_component);
 HPX_REGISTER_ACTION(stepper::server::stepper_server::setup_action, stepper_server_setup_action);
 
-//HPX_REGISTER_GATHER(RealType, stepper_server_space_gatherer);
+HPX_REGISTER_GATHER(RealType, stepper_server_space_gatherer);
 
 namespace stepper { namespace server {
 
@@ -27,35 +27,6 @@ stepper_server::stepper_server(uint nl)
 {}
 
 void stepper_server::setup(io::config cfg)
-{
-    c = cfg;
-
-    std::cout << "forcing to 1x1 partitions" << std::endl;
-    c.i_res = c.i_max + 2;
-    c.j_res = c.j_max + 2;
-
-    initialize_parameters();
-    initialize_grids();
-    initialize_communication();
-
-    if (hpx::get_locality_id() == 0)
-        std::cout << cfg << std::endl;
-
-   // hpx::cout << "stepper on " << hpx::get_locality_id() << " with " <<  params.num_partitions_x-2 << "x"<< params.num_partitions_y-2 << " partitions, "
-   //          << params.num_cells_per_partition_x << "x" <<  params.num_cells_per_partition_y << " cells each, " << "dx=" << params.dx << " dy=" << params.dx
-    //         << hpx::endl << hpx::flush;
-
-    strategy = new computation::with_for_each();
-
-    if ((c.output_skip_size != 0 && c.vtk) || (c.delta_vec != 0))
-        write_vtk(0);
-
-
-    if (hpx::get_locality_id() == 0)
-        do_work();
-}
-
-void stepper_server::initialize_parameters()
 {
     if (num_localities == 2)
     {
@@ -68,6 +39,35 @@ void stepper_server::initialize_parameters()
         num_localities_y = num_localities_x;
     }
 
+    c = cfg;
+
+    hpx::cout << "forcing to 1x1 partitions" << hpx::flush;
+    c.i_res = (c.i_max + 2)/num_localities_x;
+    c.j_res = c.j_max + 2;
+
+    initialize_parameters();
+    initialize_grids();
+    initialize_communication();
+
+    std::cout << cfg << std::endl;
+
+    hpx::cout << "stepper on " << hpx::get_locality_id() << " with " <<  params.num_partitions_x-2 << "x"<< params.num_partitions_y-2 << " partitions, "
+             << params.num_cells_per_partition_x << "x" <<  params.num_cells_per_partition_y << " cells each, " << "dx=" << params.dx << " dy=" << params.dx
+             << hpx::endl << hpx::flush;
+
+    strategy = new computation::with_for_each();
+
+    communicate_uv_grid(0);
+
+    if ((c.output_skip_size != 0 || c.delta_vec != 0) && c.vtk)
+        write_vtk(0);
+
+    if (hpx::get_locality_id() == 0)
+        do_work();
+}
+
+void stepper_server::initialize_parameters()
+{
     params.num_cells_per_partition_x = c.i_res;
     params.num_cells_per_partition_y = c.j_res;
 
@@ -101,6 +101,9 @@ void stepper_server::initialize_grids()
     heat_grid.resize(params.num_partitions_x * params.num_partitions_y);
     flag_grid.resize(params.num_partitions_x * params.num_partitions_y);
 
+    scalar_dummy = scalar_partition(hpx::find_here(), 1, 1);
+    vector_dummy = vector_partition(hpx::find_here(), 1, 1);
+
     for (uint l = 0; l < params.num_partitions_y; l++)
         for (uint k = 0; k < params.num_partitions_x; k++)
         {
@@ -125,37 +128,42 @@ void stepper_server::initialize_grids()
                 for (uint i = 0; i < params.num_cells_per_partition_x; i++)
                 {
                     local_flags[j*params.num_cells_per_partition_x + i] =
-                        c.flag_grid[(params.num_cells_per_partition_y - 1 - index_grid[get_index(k, l)].second - j)*params.num_cells_per_partition_x
-                                    + (index_grid[get_index(k, l)].first + i)];
+                        c.flag_grid[(params.j_max + 2 - 1 - index_grid[get_index(k, l)].second - j)*(params.i_max + 2)
+                                            + (index_grid[get_index(k, l)].first + i)];
                 }
 
             flag_grid[get_index(k, l)] = std::move(local_flags);
 
-            if (c.with_initial_uv_grid)
+            if (k > 0 && k < params.num_partitions_x - 1 && l > 0 && l < params.num_partitions_y - 1)
             {
-                vector_data curr_data(params.num_cells_per_partition_x, params.num_cells_per_partition_y);
+                if (c.with_initial_uv_grid)
+                {
+                    vector_data curr_data(params.num_cells_per_partition_x, params.num_cells_per_partition_y);
 
-                for (uint j = 0; j < params.num_cells_per_partition_y; j++)
-                    for (uint i = 0; i < params.num_cells_per_partition_x; i++)
-                    {
-                        vector_cell& curr_cell = curr_data.get_cell_ref(i, j);
-                        curr_cell.first = c.initial_uv_grid[(params.num_cells_per_partition_y - 1 - index_grid[get_index(k, l)].second - j)*params.num_cells_per_partition_x
-                                        + (index_grid[get_index(k, l)].first + i)].first;
-                        curr_cell.second = c.initial_uv_grid[(params.num_cells_per_partition_y - 1 - index_grid[get_index(k, l)].second - j)*params.num_cells_per_partition_x
-                                        + (index_grid[get_index(k, l)].first + i)].second;
+                    for (uint j = 0; j < params.num_cells_per_partition_y; j++)
+                        for (uint i = 0; i < params.num_cells_per_partition_x; i++)
+                        {
+                            vector_cell& curr_cell = curr_data.get_cell_ref(i, j);
+                            curr_cell.first = c.initial_uv_grid[(params.j_max + 2 - 1 - index_grid[get_index(k, l)].second - j)*(params.i_max + 2)
+                                            + (index_grid[get_index(k, l)].first + i)].first;
+                            curr_cell.second = c.initial_uv_grid[(params.j_max + 2 - 1 - index_grid[get_index(k, l)].second - j)*(params.i_max + 2)
+                                            + (index_grid[get_index(k, l)].first + i)].second;
 
-                    }
+                        }
 
-                uv_grid[get_index(k, l)] = vector_partition(hpx::find_here(), curr_data);
+                    uv_grid[get_index(k, l)] = vector_partition(hpx::find_here(), curr_data);
+                }
+                else
+                {
+                    uv_grid[get_index(k, l)] = vector_partition(hpx::find_here(), params.num_cells_per_partition_x, params.num_cells_per_partition_y);
+                }
             }
             else
             {
-                uv_grid[get_index(k, l)] = vector_partition(hpx::find_here(), params.num_cells_per_partition_x, params.num_cells_per_partition_y);
+                uv_grid[get_index(k, l)] = vector_dummy;
             }
-        }
 
-    scalar_dummy = scalar_partition(hpx::find_here(), 1, 1);
-    vector_dummy = vector_partition(hpx::find_here(), 1, 1);
+        }
 }
 
 void stepper_server::initialize_communication()
@@ -181,14 +189,30 @@ void stepper_server::initialize_communication()
 
 void stepper_server::do_work()
 {
-    std::pair<RealType, RealType> max_uv(2, 0);
+    std::pair<RealType, RealType> max_uv(0, 0);
     RealType dt = c.dt;
 
     for(uint step = 1; t + dt < c.t_end; step++)
     {
         hpx::future<std::vector<std::pair<RealType, RealType> > > local_max_uvs = hpx::lcos::broadcast<do_timestep_action> (localities, step, dt);
 
-        local_max_uvs.get();
+        hpx::future<std::pair<RealType, RealType> > max_uv_fut =
+                                local_max_uvs.then([](hpx::future<std::vector<std::pair<RealType, RealType> > > fut) -> std::pair<RealType, RealType>
+                                                    {
+                                                        auto local_max_uvs = fut.get();
+
+                                                        std::pair<RealType, RealType> res(0, 0);
+
+                                                        for (auto max_uv : local_max_uvs)
+                                                        {
+                                                            res.first = (max_uv.first > res.first ? max_uv.first : res.first);
+                                                            res.second = (max_uv.second > res.second ? max_uv.second : res.second);
+                                                        }
+
+                                                        return res;
+                                                    });
+
+        max_uv = max_uv_fut.get();
 
         RealType tmp = std::min(c.re/2. * 1./(1./std::pow(params.dx, 2) + 1./std::pow(params.dy, 2)),
                                         std::min(params.dx/max_uv.first, params.dy/max_uv.second));
@@ -196,7 +220,7 @@ void stepper_server::do_work()
         if (c.temp_data_type.left != -1)
             tmp = std::min(tmp, (c.re*c.pr)/2. * 1./(1./std::pow(params.dx, 2) + 1./std::pow(params.dy, 2)));
 
-        dt = 4.928500E-02;//c.tau * tmp;
+        dt = c.tau * tmp;
     }
 }
 
@@ -222,6 +246,8 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
 
     uv_grid[get_index(k, l)] = vector_partition(hpx::find_here(), uv_center);
     temperature_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), temp_center);
+
+   // communicate_uv_grid(step);
 
     // COMPUTE TEMPERATURE
     scalar_data temp_left = temperature_grid[get_index(k-1, l)].get_data(LEFT).get();
@@ -259,6 +285,8 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
 
     fg_grid[get_index(k, l)] = vector_partition(hpx::find_here(), fg_center);
 
+   // communicate_fg_grid(step);
+
     //COMPUTE RHS
     scalar_data rhs_center = rhs_grid[get_index(k, l)].get_data(CENTER).get();
     vector_data fg_left = fg_grid[get_index(k-1, l)].get_data(LEFT).get();
@@ -280,6 +308,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
     do
     {
         strategy->set_pressure_on_boundary(p_center, p_left, p_right, p_bottom, p_top, flag_grid[get_index(k, l)], global_i, global_j, params.i_max, params.j_max);
+       // communicate_p_grid(step*c.iter_max + iter);
 
         strategy->sor_cycle(p_center, p_left, p_right, p_bottom, p_top, rhs_center, flag_grid[get_index(k, l)], global_i, global_j,
                                 params.i_max, params.j_max, params.omega, params.dx, params.dy);
@@ -287,10 +316,40 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
         res = strategy->compute_residual(p_center, p_left, p_right, p_bottom, p_top, rhs_center,
                                             flag_grid[get_index(k, l)], global_i, global_j, params.i_max,
                                             params.j_max, params.dx, params.dy);
+        hpx::future<RealType> residual_fut = hpx::make_ready_future(res);
 
         iter++;
-    } while(iter < c.iter_max && res > c.eps_sq);
 
+        if (hpx::get_locality_id() == 0)
+        {
+            hpx::future<std::vector<RealType> > local_residuals =
+                hpx::lcos::gather_here(gather_basename, std::move(residual_fut), num_localities, step*c.iter_max + iter);
+
+            hpx::future<RealType> residual =
+                local_residuals.then(
+                    [](hpx::future<std::vector<RealType>> local_residuals) -> RealType
+                    {
+                        RealType result = 0;
+                        std::vector<RealType> local_res = local_residuals.get();
+
+                        for (RealType res : local_res)
+                            result += res;
+
+                        return result;
+                    });
+
+            res = residual.get();
+
+
+
+            hpx::lcos::broadcast_apply<set_keep_running_action> (localities, step*c.iter_max + iter, (iter < c.iter_max && res > c.eps_sq));
+        }
+        else
+        {
+            hpx::lcos::gather_there(gather_basename, std::move(residual_fut), step*c.iter_max + iter).wait();
+        }
+
+    } while(keep_running.receive(step*c.iter_max + iter).get());
 
     p_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), p_center);
 
@@ -315,7 +374,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
         out_iter++;
     }
 
-    return std::pair<RealType, RealType>(2, 0);
+    return strategy->max_velocity(uv_center);
 }
 
 void stepper_server::do_sor_cycle()
@@ -552,90 +611,94 @@ void stepper_server::write_vtk(uint step)
 
     std::vector<std::vector<scalar_data> > p_data;
 
-    p_data.resize(params.num_partitions_x - 2);
+    p_data.resize(params.num_partitions_x);
 
-    for (uint k = 1; k < params.num_partitions_x - 1; k++)
+    for (uint k = 0; k < params.num_partitions_x; k++)
     {
-        p_data[k-1].resize(params.num_partitions_y - 2);
-        for (uint l = 1; l < params.num_partitions_y - 1; l++)
+        p_data[k].resize(params.num_partitions_y);
+        for (uint l = 0; l < params.num_partitions_y; l++)
         {
             scalar_data base = p_grid[get_index(k, l)].get_data(CENTER).get();
-            p_data[k-1][l-1] = scalar_data(base);
+            p_data[k][l] = scalar_data(base);
         }
     }
 
     std::vector<std::vector<vector_data> > uv_data;
 
-    uv_data.resize(params.num_partitions_x - 2);
+    uv_data.resize(params.num_partitions_x);
 
-    for (uint k = 1; k < params.num_partitions_x - 1; k++)
+    for (uint k = 0; k < params.num_partitions_x; k++)
     {
-        uv_data[k-1].resize(params.num_partitions_y - 2);
-        for (uint l = 1; l < params.num_partitions_y - 1; l++)
+        uv_data[k].resize(params.num_partitions_y);
+        for (uint l = 0; l < params.num_partitions_y; l++)
         {
             vector_data base = uv_grid[get_index(k, l)].get_data(CENTER).get();
-            uv_data[k-1][l-1] = vector_data(base);
+            uv_data[k][l] = vector_data(base);
         }
     }
 
     std::vector<std::vector<scalar_data> > stream_data;
 
-    stream_data.resize(params.num_partitions_x - 2);
+    stream_data.resize(params.num_partitions_x );
 
-    for (uint k = 1; k < params.num_partitions_x - 1; k++)
+    for (uint k = 0; k < params.num_partitions_x ; k++)
     {
-        stream_data[k-1].resize(params.num_partitions_y - 2);
-        for (uint l = 1; l < params.num_partitions_y - 1; l++)
+        stream_data[k].resize(params.num_partitions_y);
+        for (uint l = 0; l < params.num_partitions_y; l++)
         {
             scalar_data base = stream_grid[get_index(k, l)].get_data(CENTER).get();
-            stream_data[k-1][l-1] = scalar_data(base);
+            stream_data[k][l] = scalar_data(base);
         }
     }
 
     std::vector<std::vector<scalar_data> > vorticity_data;
 
-    vorticity_data.resize(params.num_partitions_x - 2);
+    vorticity_data.resize(params.num_partitions_x);
 
-    for (uint k = 1; k < params.num_partitions_x - 1; k++)
+    for (uint k = 0; k < params.num_partitions_x; k++)
     {
-        vorticity_data[k-1].resize(params.num_partitions_y - 2);
-        for (uint l = 1; l < params.num_partitions_y - 1; l++)
+        vorticity_data[k].resize(params.num_partitions_y);
+        for (uint l = 0; l < params.num_partitions_y; l++)
         {
             scalar_data base = vorticity_grid[get_index(k, l)].get_data(CENTER).get();
-            vorticity_data[k-1][l-1] = scalar_data(base);
+            vorticity_data[k][l] = scalar_data(base);
         }
     }
 
     std::vector<std::vector<scalar_data> > heat_data;
 
-    heat_data.resize(params.num_partitions_x - 2);
+    heat_data.resize(params.num_partitions_x);
 
-    for (uint k = 1; k < params.num_partitions_x - 1; k++)
+    for (uint k = 0; k < params.num_partitions_x; k++)
     {
-        heat_data[k-1].resize(params.num_partitions_y - 2);
-        for (uint l = 1; l < params.num_partitions_y - 1; l++)
+        heat_data[k].resize(params.num_partitions_y);
+        for (uint l = 0; l < params.num_partitions_y; l++)
         {
             scalar_data base = heat_grid[get_index(k, l)].get_data(CENTER).get();
-            heat_data[k-1][l-1] = scalar_data(base);
+            heat_data[k][l] = scalar_data(base);
         }
     }
 
     std::vector<std::vector<scalar_data> > temp_data;
 
-    temp_data.resize(params.num_partitions_x - 2);
+    temp_data.resize(params.num_partitions_x);
 
-    for (uint k = 1; k < params.num_partitions_x - 1; k++)
+    for (uint k = 0; k < params.num_partitions_x; k++)
     {
-        temp_data[k-1].resize(params.num_partitions_y - 2);
-        for (uint l = 1; l < params.num_partitions_y - 1; l++)
+        temp_data[k].resize(params.num_partitions_y);
+        for (uint l = 0; l < params.num_partitions_y; l++)
         {
             scalar_data base = temperature_grid[get_index(k, l)].get_data(CENTER).get();
-            temp_data[k-1][l-1] = scalar_data(base);
+            temp_data[k][l] = scalar_data(base);
         }
     }
 
-    hpx::async(write_vtk_action(), hpx::find_here(), p_data, uv_data, stream_data, vorticity_data, heat_data, temp_data, params.dx, params.dy, step, params.i_max, params.j_max, params.num_partitions_x - 2,
-                                        params.num_partitions_y - 2, params.num_cells_per_partition_x, params.num_cells_per_partition_y);
+  //  hpx::async(write_vtk_action(), hpx::find_here(), p_data, uv_data, stream_data, vorticity_data, heat_data, temp_data, params.dx, params.dy, step, params.i_max, params.j_max, params.num_partitions_x - 2,
+ //                                       params.num_partitions_y - 2, params.num_cells_per_partition_x, params.num_cells_per_partition_y);
+    boost::shared_ptr<hpx::lcos::local::promise<int> > p = boost::make_shared<hpx::lcos::local::promise<int> >();
+
+    io::do_write_vtk(p_data, uv_data, stream_data, vorticity_data, heat_data, temp_data, params.dx, params.dy, step, params.i_max, params.j_max, params.num_partitions_x,
+                                        params.num_partitions_y, params.num_cells_per_partition_x, params.num_cells_per_partition_y, p);
 
 }
 

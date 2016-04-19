@@ -14,6 +14,7 @@ int hpx_main(int argc, char* argv[])
 
     io::config config = io::read_config_from_file(argv[1]);
 
+    //std::cout << "lalala on " << hpx::get_locality_id();
     stepper::stepper step;
     step.setup(config).wait();
 

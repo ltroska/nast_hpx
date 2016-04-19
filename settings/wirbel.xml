@@ -13,11 +13,11 @@
 	<alpha value="0.9"/>
 	<iterMax value="500"/>
 	<dt value="0.03"/>
-	<tEnd value="100"/>
+	<tEnd value="20"/>
 	<GX value="0"/>
 	<GY value="0"/>
 	<outputSkipSize value="0"/>
-	<deltaVec value="2"/>
+	<deltaVec value=".2"/>
 	<vtk value="1"/>
 	<WR value="3"/>
 	<WL value="4"/>

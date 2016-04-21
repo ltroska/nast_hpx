@@ -17,6 +17,7 @@ struct config
         uint j_res;
         RealType x_length;
         RealType y_length;
+
         RealType re;
         RealType pr;
         RealType omega;
@@ -25,18 +26,19 @@ struct config
         RealType eps_sq;
         RealType alpha;
         RealType beta;
-        RealType t_end;
-        RealType dt;
-        RealType delta_vec;
+        RealType gx;
+        RealType gy;
+
         bool vtk;
         uint output_skip_size;
+        RealType delta_vec;
+
+        RealType t_end;
+        RealType dt;
         uint sub_iterations;
         uint iter_max;
 
         uint wfe;
-
-        RealType gx;
-        RealType gy;
 
         boundary_data u_bnd;
         boundary_data v_bnd;
@@ -62,15 +64,37 @@ struct config
 
         friend std::ostream& operator<<(std::ostream& os, config const& config)
         {
-            os << "config: {iMax = " << config.i_max << ", jMax = "<< config.j_max
-                << ", iRes = " << config.i_res << ", jRes = " << config.j_res << ", xLength = " << config.x_length
-                << ", yLength = " << config.y_length << ", Re = " << config.re << ", Pr = " << config.pr << ", omega = " << config.omega
-                << ", tau = " << config.tau << " eps = " << config.eps << ", alpha = " << config.alpha
-                << ", outputSkipSize = " << config.output_skip_size << ", deltaVec = " << config.delta_vec << ", iterMax = " << config.iter_max
-                << ", subIterations = " << config.sub_iterations << ", GX = " << config.gx << ", GY = " << config.gy << ", beta = " << config.beta
-                << ", dt = " << config.dt << ", wfe = " << config.wfe << ", vtk = " << config.vtk << ", u_bnd " << config.u_bnd << ", v_bnd " << config.v_bnd
-                << " bnd_data_type " << config.data_type << ", temp_bnd " << config.temp_bnd << ", temp_data_type " << config.temp_data_type
-                << ", TI = " << config.ti << "}";
+            os  << "config:"
+                << "\n{"
+                << "\n\tiMax = " << config.i_max
+                << "\n\tjMax = " << config.j_max
+                << "\n\tiRes = " << config.i_res
+                << "\n\tjRes = " << config.j_res
+                << "\n\txLength = " << config.x_length
+                << "\n\tyLength = " << config.y_length
+                << "\n\tRe = " << config.re
+                << "\n\tPr = " << config.pr
+                << "\n\tomega = " << config.omega
+                << "\n\ttau = " << config.tau
+                << "\n\teps = " << config.eps
+                << "\n\talpha = " << config.alpha
+                << "\n\toutputSkipSize = " << config.output_skip_size
+                << "\n\tdeltaVec = " << config.delta_vec
+                << "\n\titerMax = " << config.iter_max
+                << "\n\tsubIterations = " << config.sub_iterations
+                << "\n\tGX = " << config.gx
+                << "\n\tGY = " << config.gy
+                << "\n\tbeta = " << config.beta
+                << "\n\tdt = " << config.dt
+                << "\n\twfe = " << config.wfe
+                << "\n\tvtk = " << config.vtk
+                << "\n\tu_bnd " << config.u_bnd
+                << "\n\tv_bnd " << config.v_bnd
+                << " bnd_data_type " << config.data_type
+                << "\n\ttemp_bnd " << config.temp_bnd
+                << "\n\ttemp_data_type " << config.temp_data_type
+                << "\n\tTI = " << config.ti
+                << "\n}";
             return os;
         }
 };

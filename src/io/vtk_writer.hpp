@@ -55,6 +55,7 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
                     std::vector<std::vector<grid::partition_data<scalar_cell> > > const& vorticity_grid,
                     std::vector<std::vector<grid::partition_data<scalar_cell> > > const& heat_grid,
                     std::vector<std::vector<grid::partition_data<scalar_cell> > > const& temp_grid,
+                    std::vector<std::vector<std::bitset<5> > > const& flag_grid,
                     RealType dx, RealType dy, uint step, uint i_max, uint j_max,
                         uint partitions_x, uint partitions_y, uint cells_x, uint cells_y, boost::shared_ptr<hpx::lcos::local::promise<int> > p)
 {
@@ -267,20 +268,27 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
 
                     if (!( (left && i == 1 && col == 0) || (bottom && j == 1 && row == 0) ))
                     {
-                        RealType u;
-                        RealType v;
+                        std::bitset<5> cell_type = flag_grid[j*actual_partitions_x + i][row * cells_x + col];
 
-                        if (col != 0)
-                            u = (uv_grid[i][j].get_cell(col, row).first + uv_grid[i][j].get_cell(col - 1, row).first) / 2.;
+                        if (!cell_type.test(4))
+                            uv_stream << "0 0\n";
                         else
-                            u = (uv_grid[i - 1][j].get_cell(cells_x - 1, row).first + uv_grid[i][j].get_cell(0, row).first) / 2.;
+                        {
+                            RealType u;
+                            RealType v;
 
-                        if (row != 0)
-                            v = (uv_grid[i][j].get_cell(col, row).second + uv_grid[i][j].get_cell(col, row - 1).second) / 2.;
-                        else
-                            v = (uv_grid[i][j - 1].get_cell(col, cells_y - 1).second + uv_grid[i][j].get_cell(col, 0).second) / 2.;
+                            if (col != 0)
+                                u = (uv_grid[i][j].get_cell(col, row).first + uv_grid[i][j].get_cell(col - 1, row).first) / 2.;
+                            else
+                                u = (uv_grid[i - 1][j].get_cell(cells_x - 1, row).first + uv_grid[i][j].get_cell(0, row).first) / 2.;
 
-                        uv_stream << u << " " << v << "\n";
+                            if (row != 0)
+                                v = (uv_grid[i][j].get_cell(col, row).second + uv_grid[i][j].get_cell(col, row - 1).second) / 2.;
+                            else
+                                v = (uv_grid[i][j - 1].get_cell(col, cells_y - 1).second + uv_grid[i][j].get_cell(col, 0).second) / 2.;
+
+                            uv_stream << u << " " << v << "\n";
+                        }
 
                     }
                     else
@@ -415,6 +423,7 @@ hpx::lcos::future<int> write_vtk_worker(std::vector<std::vector<grid::partition_
                     std::vector<std::vector<grid::partition_data<scalar_cell> > > const& vorticity_grid,
                     std::vector<std::vector<grid::partition_data<scalar_cell> > > const& heat_grid,
                     std::vector<std::vector<grid::partition_data<scalar_cell> > > const& temp_grid,
+                    std::vector<std::vector<std::bitset<5> > > const& flag_grid,
                     RealType dx, RealType dy, uint step, uint i_max, uint j_max,
                         uint partitions_x, uint partitions_y, uint cells_x, uint cells_y)
 {
@@ -425,7 +434,7 @@ hpx::lcos::future<int> write_vtk_worker(std::vector<std::vector<grid::partition_
     hpx::threads::executors::io_pool_executor scheduler;
 
     // ... and schedule the handler to run on one of its OS-threads.
-    scheduler.add(hpx::util::bind(&do_write_vtk, p_grid, uv_grid, stream_grid, vorticity_grid, heat_grid, temp_grid, dx, dy, step, i_max, j_max, partitions_x, partitions_y, cells_x, cells_y, p));
+    scheduler.add(hpx::util::bind(&do_write_vtk, p_grid, uv_grid, stream_grid, vorticity_grid, heat_grid, temp_grid, flag_grid, dx, dy, step, i_max, j_max, partitions_x, partitions_y, cells_x, cells_y, p));
 
     return p->get_future();
 }
@@ -436,10 +445,11 @@ int write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > cons
                     std::vector<std::vector<grid::partition_data<scalar_cell> > > const& vorticity_grid,
                     std::vector<std::vector<grid::partition_data<scalar_cell> > > const& heat_grid,
                     std::vector<std::vector<grid::partition_data<scalar_cell> > > const& temp_grid,
+                    std::vector<std::vector<std::bitset<5> > > const& flag_grid,
                     RealType dx, RealType dy, uint step, uint i_max, uint j_max,
                         uint partitions_x, uint partitions_y, uint cells_x, uint cells_y)
 {
-    hpx::lcos::future<int> f = write_vtk_worker(p_grid, uv_grid, stream_grid, vorticity_grid, heat_grid, temp_grid, dx, dy, step, i_max, j_max, partitions_x, partitions_y, cells_x, cells_y);
+    hpx::lcos::future<int> f = write_vtk_worker(p_grid, uv_grid, stream_grid, vorticity_grid, heat_grid, temp_grid, flag_grid, dx, dy, step, i_max, j_max, partitions_x, partitions_y, cells_x, cells_y);
     return f.get();
 }
 

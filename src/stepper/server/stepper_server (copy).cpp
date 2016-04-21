@@ -237,96 +237,221 @@ void stepper_server::do_work()
 
 std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt)
 {
-    uint k = 1;
-    uint l = 1;
+    // SET BOUNDARY
+    for (uint l = 0; l < params.num_partitions_y; l++)
+        for (uint k = 0; k < params.num_partitions_x; k++)
+        {
+            if (k != 0 && k != params.num_partitions_x - 1 && l != 0 && l != params.num_partitions_y - 1)
+            {
+                uint global_i = index_grid[get_index(k, l)].first;
+                uint global_j = index_grid[get_index(k, l)].second;
 
-    uint global_i = index_grid[get_index(k, l)].first;
-    uint global_j = index_grid[get_index(k, l)].second;
+                vector_data uv_center = uv_grid[get_index(k, l)].get_data(CENTER).get();
+                vector_data uv_left = uv_grid[get_index(k-1, l)].get_data(LEFT).get();
+                vector_data uv_right = uv_grid[get_index(k+1, l)].get_data(RIGHT).get();
+                vector_data uv_bottom = uv_grid[get_index(k, l-1)].get_data(BOTTOM).get();
+                vector_data uv_top = uv_grid[get_index(k, l+1)].get_data(TOP).get();
+                scalar_data temp_center = temperature_grid[get_index(k, l)].get_data(CENTER).get();
 
-    vector_data uv_center = uv_grid[get_index(k, l)].get_data(CENTER).get();
-    vector_data uv_left = uv_grid[get_index(k-1, l)].get_data(LEFT).get();
-    vector_data uv_right = uv_grid[get_index(k+1, l)].get_data(RIGHT).get();
-    vector_data uv_bottom = uv_grid[get_index(k, l-1)].get_data(BOTTOM).get();
-    vector_data uv_top = uv_grid[get_index(k, l+1)].get_data(TOP).get();
-    scalar_data temp_center = temperature_grid[get_index(k, l)].get_data(CENTER).get();
+                strategy->set_boundary(uv_center, uv_left, uv_right, uv_bottom, uv_top, temp_center, flag_grid[get_index(k, l)], c.data_type, c.temp_data_type,
+                                        c.u_bnd, c.v_bnd, c.temp_bnd, global_i, global_j, params.i_max, params.j_max, params.dx, params.dy);
 
-    strategy->set_boundary(uv_center, uv_left, uv_right, uv_bottom, uv_top, temp_center, flag_grid[get_index(k, l)], c.data_type, c.temp_data_type,
-                            c.u_bnd, c.v_bnd, c.temp_bnd, global_i, global_j, params.i_max, params.j_max, params.dx, params.dy);
 
+
+                uv_temp_grid[get_index(k, l)] = vector_partition(hpx::find_here(), uv_center);
+                temperature_temp_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), temp_center);
+
+            }
+            else
+            {
+                uv_temp_grid[get_index(k, l)] = std::move(uv_grid[get_index(k, l)]);
+                temperature_temp_grid[get_index(k, l)] = std::move(temperature_grid[get_index(k, l)]);
+            }
+        }
+
+     //   uv_grid = std::move(uv_temp_grid);
+
+    for (uint l = 0; l < params.num_partitions_y; l++)
+        for (uint k = 0; k < params.num_partitions_x; k++)
+        {
+            uv_grid[get_index(k, l)] = std::move(uv_temp_grid[get_index(k, l)]);
+            temperature_grid[get_index(k, l)] = std::move(temperature_temp_grid[get_index(k, l)]);
+        }
 
    // communicate_uv_grid(step);
 
     // COMPUTE TEMPERATURE
+     for (uint l = 0; l < params.num_partitions_y; l++)
+        for (uint k = 0; k < params.num_partitions_x; k++)
+        {
+            if (k != 0 && k != params.num_partitions_x - 1 && l != 0 && l != params.num_partitions_y - 1)
+            {
+                uint global_i = index_grid[get_index(k, l)].first;
+                uint global_j = index_grid[get_index(k, l)].second;
 
-    scalar_data temp_left = temperature_grid[get_index(k-1, l)].get_data(LEFT).get();
-    scalar_data temp_right = temperature_grid[get_index(k+1, l)].get_data(RIGHT).get();
-    scalar_data temp_bottom = temperature_grid[get_index(k, l-1)].get_data(BOTTOM).get();
-    scalar_data temp_top = temperature_grid[get_index(k, l+1)].get_data(TOP).get();
+                scalar_data temp_center = temperature_grid[get_index(k, l)].get_data(CENTER).get();
+                scalar_data temp_left = temperature_grid[get_index(k-1, l)].get_data(LEFT).get();
+                scalar_data temp_right = temperature_grid[get_index(k+1, l)].get_data(RIGHT).get();
+                scalar_data temp_bottom = temperature_grid[get_index(k, l-1)].get_data(BOTTOM).get();
+                scalar_data temp_top = temperature_grid[get_index(k, l+1)].get_data(TOP).get();
 
-    uv_left = uv_grid[get_index(k-1, l)].get_data(LEFT).get();
-    uv_bottom = uv_grid[get_index(k, l-1)].get_data(BOTTOM).get();
+                vector_data uv_center = uv_grid[get_index(k, l)].get_data(CENTER).get();
+                vector_data uv_left = uv_grid[get_index(k-1, l)].get_data(LEFT).get();
+                vector_data uv_bottom = uv_grid[get_index(k, l-1)].get_data(BOTTOM).get();
 
-    strategy->compute_temp(temp_center, temp_left, temp_right, temp_bottom, temp_top, uv_center, uv_left, uv_bottom, flag_grid[get_index(k, l)], global_i, global_j, params.i_max,
-                            params.j_max, params.re, c.pr, params.dx, params.dy, dt, c.alpha);
+                strategy->compute_temp(temp_center, temp_left, temp_right, temp_bottom, temp_top, uv_center, uv_left, uv_bottom, flag_grid[get_index(k, l)], global_i, global_j, params.i_max,
+                                        params.j_max, params.re, c.pr, params.dx, params.dy, dt, c.alpha);
 
-    temperature_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), temp_center);
+                temperature_temp_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), temp_center);
+            }
+            else
+            {
+                temperature_temp_grid[get_index(k, l)] = std::move(temperature_grid[get_index(k, l)]);
+            }
+        }
 
+    for (uint l = 0; l < params.num_partitions_y; l++)
+        for (uint k = 0; k < params.num_partitions_x; k++)
+        {
+            temperature_grid[get_index(k, l)] = std::move(temperature_temp_grid[get_index(k, l)]);
+        }
 
     //COMPUTE FG
-    vector_data fg_center = fg_grid[get_index(k, l)].get_data(CENTER).get();
+    for (uint l = 0; l < params.num_partitions_y; l++)
+        for (uint k = 0; k < params.num_partitions_x; k++)
+        {
+            if (k != 0 && k != params.num_partitions_x - 1 && l != 0 && l != params.num_partitions_y - 1)
+            {
+                uint global_i = index_grid[get_index(k, l)].first;
+                uint global_j = index_grid[get_index(k, l)].second;
 
-    uv_left = uv_grid[get_index(k-1, l)].get_data(LEFT).get();
-    uv_right = uv_grid[get_index(k+1, l)].get_data(RIGHT).get();
-    uv_bottom = uv_grid[get_index(k, l-1)].get_data(BOTTOM).get();
-    uv_top = uv_grid[get_index(k, l+1)].get_data(TOP).get();
-    vector_data uv_bottomright = uv_grid[get_index(k+1, l-1)].get_data(BOTTOM_RIGHT).get();
-    vector_data uv_topleft = uv_grid[get_index(k-1, l+1)].get_data(TOP_LEFT).get();
+                vector_data fg_center = fg_grid[get_index(k, l)].get_data(CENTER).get();
 
-    temp_right = temperature_grid[get_index(k+1, l)].get_data(RIGHT).get();
-    temp_top = temperature_grid[get_index(k, l+1)].get_data(TOP).get();
+                vector_data uv_center = uv_grid[get_index(k, l)].get_data(CENTER).get();
+                vector_data uv_left = uv_grid[get_index(k-1, l)].get_data(LEFT).get();
+                vector_data uv_right = uv_grid[get_index(k+1, l)].get_data(RIGHT).get();
+                vector_data uv_bottom = uv_grid[get_index(k, l-1)].get_data(BOTTOM).get();
+                vector_data uv_top = uv_grid[get_index(k, l+1)].get_data(TOP).get();
+                vector_data uv_bottomright = uv_grid[get_index(k+1, l-1)].get_data(BOTTOM_RIGHT).get();
+                vector_data uv_topleft = uv_grid[get_index(k-1, l+1)].get_data(TOP_LEFT).get();
 
-    strategy->compute_fg(fg_center, uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_bottomright, uv_topleft,
-                            temp_center, temp_right, temp_top,
-                            flag_grid[get_index(k, l)],
-                            global_i, global_j, params.i_max, params.j_max, params.re, c.gx, c.gy, c.beta,
-                            params.dx, params.dy, dt, params.alpha);
+                scalar_data temp_center = temperature_grid[get_index(k, l)].get_data(CENTER).get();
+                scalar_data temp_right = temperature_grid[get_index(k+1, l)].get_data(RIGHT).get();
+                scalar_data temp_top = temperature_grid[get_index(k, l+1)].get_data(TOP).get();
 
-    fg_grid[get_index(k, l)] = vector_partition(hpx::find_here(), fg_center);
+                strategy->compute_fg(fg_center, uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_bottomright, uv_topleft,
+                                        temp_center, temp_right, temp_top,
+                                        flag_grid[get_index(k, l)],
+                                        global_i, global_j, params.i_max, params.j_max, params.re, c.gx, c.gy, c.beta,
+                                        params.dx, params.dy, dt, params.alpha);
+
+                fg_temp_grid[get_index(k, l)] = vector_partition(hpx::find_here(), fg_center);
+            }
+            else
+            {
+                fg_temp_grid[get_index(k, l)] = std::move(fg_grid[get_index(k, l)]);
+            }
+        }
+
+    for (uint l = 0; l < params.num_partitions_y; l++)
+        for (uint k = 0; k < params.num_partitions_x; k++)
+        {
+            fg_grid[get_index(k, l)] = std::move(fg_temp_grid[get_index(k, l)]);
+        }
 
    // communicate_fg_grid(step);
 
     //COMPUTE RHS
-    scalar_data rhs_center = rhs_grid[get_index(k, l)].get_data(CENTER).get();
+    for (uint l = 1; l < params.num_partitions_y - 1; l++)
+        for (uint k = 1; k < params.num_partitions_x - 1; k++)
+        {
+            uint global_i = index_grid[get_index(k, l)].first;
+            uint global_j = index_grid[get_index(k, l)].second;
 
-    vector_data fg_left = fg_grid[get_index(k-1, l)].get_data(LEFT).get();
-    vector_data fg_bottom = fg_grid[get_index(k, l-1)].get_data(BOTTOM).get();
+            scalar_data rhs_center = rhs_grid[get_index(k, l)].get_data(CENTER).get();
 
-    strategy->compute_rhs(rhs_center, fg_center, fg_left, fg_bottom, flag_grid[get_index(k, l)], global_i, global_j, params.i_max,
-                            params.j_max, params.dx, params.dy, dt);
+            vector_data fg_center = fg_grid[get_index(k, l)].get_data(CENTER).get();
+            vector_data fg_left = fg_grid[get_index(k-1, l)].get_data(LEFT).get();
+            vector_data fg_bottom = fg_grid[get_index(k, l-1)].get_data(BOTTOM).get();
 
-    rhs_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), rhs_center);
+            strategy->compute_rhs(rhs_center, fg_center, fg_left, fg_bottom, flag_grid[get_index(k, l)], global_i, global_j, params.i_max,
+                                    params.j_max, params.dx, params.dy, dt);
 
-    scalar_data p_center = p_grid[get_index(k, l)].get_data(CENTER).get();
-    scalar_data p_left = p_grid[get_index(k-1, l)].get_data(LEFT).get();
-    scalar_data p_right = p_grid[get_index(k+1, l)].get_data(RIGHT).get();
-    scalar_data p_bottom = p_grid[get_index(k, l-1)].get_data(BOTTOM).get();
-    scalar_data p_top = p_grid[get_index(k, l+1)].get_data(TOP).get();
+            rhs_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), rhs_center);
+        }
 
     uint iter = 0;
     RealType res = 0;
+
     do
     {
-        strategy->set_pressure_on_boundary(p_center, p_left, p_right, p_bottom, p_top, flag_grid[get_index(k, l)], global_i, global_j, params.i_max, params.j_max);
+        for (uint l = 0; l < params.num_partitions_y; l++)
+            for (uint k = 0; k < params.num_partitions_x; k++)
+            {
+                if (k != 0 && k != params.num_partitions_x - 1 && l != 0 && l != params.num_partitions_y - 1)
+                {
+                    uint global_i = index_grid[get_index(k, l)].first;
+                    uint global_j = index_grid[get_index(k, l)].second;
+
+                    scalar_data p_center = p_grid[get_index(k, l)].get_data(CENTER).get();
+                    scalar_data p_left = p_grid[get_index(k-1, l)].get_data(LEFT).get();
+                    scalar_data p_right = p_grid[get_index(k+1, l)].get_data(RIGHT).get();
+                    scalar_data p_bottom = p_grid[get_index(k, l-1)].get_data(BOTTOM).get();
+                    scalar_data p_top = p_grid[get_index(k, l+1)].get_data(TOP).get();
+
+                    strategy->set_pressure_on_boundary(p_center, p_left, p_right, p_bottom, p_top, flag_grid[get_index(k, l)], global_i, global_j, params.i_max, params.j_max);
+                    p_temp_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), p_center);
+                }
+                else
+                {
+                    p_temp_grid[get_index(k, l)] = std::move(p_grid[get_index(k, l)]);
+                }
+            }
+
+        for (uint l = 0; l < params.num_partitions_y; l++)
+            for (uint k = 0; k < params.num_partitions_x; k++)
+            {
+                p_grid[get_index(k, l)] = std::move(p_temp_grid[get_index(k, l)]);
+            }
 
         // communicate_p_grid(step*c.iter_max + iter);
 
+        for (uint l = 0; l < params.num_partitions_y; l++)
+            for (uint k = 0; k < params.num_partitions_x; k++)
+            {
+                if (k != 0 && k != params.num_partitions_x - 1 && l != 0 && l != params.num_partitions_y - 1)
+                {
+                    uint global_i = index_grid[get_index(k, l)].first;
+                    uint global_j = index_grid[get_index(k, l)].second;
 
-        strategy->sor_cycle(p_center, p_left, p_right, p_bottom, p_top, rhs_center, flag_grid[get_index(k, l)], global_i, global_j,
-                                params.i_max, params.j_max, params.omega, params.dx, params.dy);
+                    scalar_data p_center = p_grid[get_index(k, l)].get_data(CENTER).get();
+                    scalar_data p_left = p_temp_grid[get_index(k-1, l)].get_data(LEFT).get();
+                    scalar_data p_right = p_grid[get_index(k+1, l)].get_data(RIGHT).get();
+                    scalar_data p_bottom = p_temp_grid[get_index(k, l-1)].get_data(BOTTOM).get();
+                    scalar_data p_top = p_grid[get_index(k, l+1)].get_data(TOP).get();
 
-        res += strategy->compute_residual(p_center, p_left, p_right, p_bottom, p_top, rhs_center,
-                    flag_grid[get_index(k, l)], global_i, global_j, params.i_max,
-                    params.j_max, params.dx, params.dy);
+                    scalar_data rhs_center = rhs_grid[get_index(k, l)].get_data(CENTER).get();
+
+                    strategy->sor_cycle(p_center, p_left, p_right, p_bottom, p_top, rhs_center, flag_grid[get_index(k, l)], global_i, global_j,
+                                            params.i_max, params.j_max, params.omega, params.dx, params.dy);
+
+                    res += strategy->compute_residual(p_center, p_left, p_right, p_bottom, p_top, rhs_center,
+                                flag_grid[get_index(k, l)], global_i, global_j, params.i_max,
+                                params.j_max, params.dx, params.dy);
+
+                    p_temp_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), p_center);
+                }
+                else
+                {
+                    p_temp_grid[get_index(k, l)] = std::move(p_grid[get_index(k, l)]);
+                }
+            }
+
+        for (uint l = 0; l < params.num_partitions_y; l++)
+            for (uint k = 0; k < params.num_partitions_x; k++)
+            {
+                p_grid[get_index(k, l)] = std::move(p_temp_grid[get_index(k, l)]);
+            }
 
         hpx::future<RealType> residual_fut = hpx::make_ready_future(res);
 
@@ -362,15 +487,38 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
 
     } while(keep_running.receive(step*c.iter_max + iter).get());
 
-    p_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), p_center);
+    for (uint l = 0; l < params.num_partitions_y; l++)
+        for (uint k = 0; k < params.num_partitions_x; k++)
+        {
+            if (k != 0 && k != params.num_partitions_x - 1 && l != 0 && l != params.num_partitions_y - 1)
+            {
+                uint global_i = index_grid[get_index(k, l)].first;
+                uint global_j = index_grid[get_index(k, l)].second;
 
-    p_right = p_grid[get_index(k+1, l)].get_data(RIGHT).get();
-    p_top = p_grid[get_index(k, l+1)].get_data(TOP).get();
+                vector_data uv_center = uv_grid[get_index(k, l)].get_data(CENTER).get();
 
-    strategy->update_velocities(uv_center, p_center, p_right, p_top, fg_center, flag_grid[get_index(k, l)], global_i, global_j,
-                                    params.i_max, params.j_max, params.dx, params.dy, dt);
+                vector_data fg_center = fg_grid[get_index(k, l)].get_data(CENTER).get();
 
-    uv_grid[get_index(k, l)] = vector_partition(hpx::find_here(), uv_center);
+                scalar_data p_center = p_grid[get_index(k, l)].get_data(CENTER).get();
+                scalar_data p_right = p_grid[get_index(k+1, l)].get_data(RIGHT).get();
+                scalar_data p_top = p_grid[get_index(k, l+1)].get_data(TOP).get();
+
+                strategy->update_velocities(uv_center, p_center, p_right, p_top, fg_center, flag_grid[get_index(k, l)], global_i, global_j,
+                                                params.i_max, params.j_max, params.dx, params.dy, dt);
+
+                uv_temp_grid[get_index(k, l)] = vector_partition(hpx::find_here(), uv_center);
+            }
+            else
+            {
+                uv_temp_grid[get_index(k, l)] = std::move(uv_grid[get_index(k, l)]);
+            }
+        }
+
+    for (uint l = 0; l < params.num_partitions_y; l++)
+        for (uint k = 0; k < params.num_partitions_x; k++)
+        {
+            uv_grid[get_index(k, l)] = std::move(uv_temp_grid[get_index(k, l)]);
+        }
 
     t += dt;
 
@@ -390,10 +538,16 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
 
     std::pair<RealType, RealType> max_uv(0, 0);
 
-    auto local_max_uv = strategy->max_velocity(uv_center);
+    for (uint l = 0; l < params.num_partitions_y; l++)
+        for (uint k = 0; k < params.num_partitions_x; k++)
+        {
+            vector_data uv_center = uv_grid[get_index(k, l)].get_data(CENTER).get();
 
-    max_uv.first = (local_max_uv.first > max_uv.first ? local_max_uv.first : max_uv.first);
-    max_uv.second = (local_max_uv.second > max_uv.second ? local_max_uv.second : max_uv.second);
+            auto local_max_uv = strategy->max_velocity(uv_center);
+
+            max_uv.first = (local_max_uv.first > max_uv.first ? local_max_uv.first : max_uv.first);
+            max_uv.second = (local_max_uv.second > max_uv.second ? local_max_uv.second : max_uv.second);
+        }
 
     return max_uv;
 }

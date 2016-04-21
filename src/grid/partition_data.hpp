@@ -147,6 +147,7 @@ public:
                 break;
             }
 
+            case CENTER:
             default:
                 data_ = buffer_type(base.data_.data(), base.size(), buffer_type::reference);
                 size_x_ = base.size_x();

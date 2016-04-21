@@ -520,7 +520,7 @@ void with_for_each::compute_fg(vector_data& fg, vector_data const& uv_center,
 void with_for_each::compute_temp(scalar_data& temp_center, scalar_data const& temp_left, scalar_data const& temp_right,
                                     scalar_data const& temp_bottom, scalar_data const& temp_top,
                                     vector_data const& uv_center, vector_data const& uv_left,
-                                    vector_data const& uv_bottom,
+                                    vector_data const& uv_bottom, std::vector<std::bitset<5> > const& flag_data,
                                     uint global_i, uint global_j, uint i_max, uint j_max, RealType re, RealType pr,
                                     RealType dx, RealType dy, RealType dt, RealType alpha)
 {
@@ -687,7 +687,7 @@ void with_for_each::sor_cycle(scalar_data& p_center, scalar_data const& p_left, 
 
     auto range = boost::irange(0, static_cast<int>(p_center.size()));
 
-    for (uint j = 0; j < size_y; j++)
+   /* for (uint j = 0; j < size_y; j++)
     for (uint i = 0; i < size_x; i++)
         {
             std::bitset<5> cell_type = flag_data[j*size_x + i];
@@ -704,16 +704,18 @@ void with_for_each::sor_cycle(scalar_data& p_center, scalar_data const& p_left, 
                 next_p.value = part1 * next_p.value
                             + part2 * ( (right.value + left.value) / dx_sq + (top.value + bottom.value) / dy_sq - current_rhs.value);
             }
-        }
+        }*/
 
-  /*  hpx::parallel::for_each(hpx::parallel::par, boost::begin(range),
+    hpx::parallel::for_each(hpx::parallel::par, boost::begin(range),
         boost::end(range),
         [&](uint cnt)
         {
             uint const i = cnt%size_x;
             uint const j = cnt/size_x;
 
-            if (in_range(1, i_max, 1, j_max, global_i + i, global_j + j) && (global_i + i + global_j + j)% 2 == 1)
+            std::bitset<5> cell_type = flag_data[cnt];
+
+            if (cell_type.test(4) )//&& (global_i + i + global_j + j)% 2 == 1)
             {
                 scalar_cell& next_p = p_center.get_cell_ref(i, j);
                 scalar_cell const current_rhs = rhs_center.get_cell(i, j);
@@ -728,14 +730,16 @@ void with_for_each::sor_cycle(scalar_data& p_center, scalar_data const& p_left, 
         }
     );
 
-    hpx::parallel::for_each(hpx::parallel::par, boost::begin(range),
+   /* hpx::parallel::for_each(hpx::parallel::par, boost::begin(range),
         boost::end(range),
         [&](uint cnt)
         {
             uint const i = cnt%size_x;
             uint const j = cnt/size_x;
 
-            if (in_range(1, i_max, 1, j_max, global_i + i, global_j + j) && (global_i + i + global_j + j)% 2 == 0)
+            std::bitset<5> cell_type = flag_data[cnt];
+
+            if (cell_type.test(4) && (global_i + i + global_j + j)% 2 == 0)
             {
                 scalar_cell& next_p = p_center.get_cell_ref(i, j);
                 scalar_cell const current_rhs = rhs_center.get_cell(i, j);
@@ -785,10 +789,10 @@ RealType with_for_each::compute_residual(scalar_data const& p_center, scalar_dat
             {
                 scalar_cell const center = p_center.get_cell(i, j);
                 scalar_cell const rhs = rhs_center.get_cell(i, j);
-                scalar_cell const left = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, LEFT);
-                scalar_cell const right = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, RIGHT);
-                scalar_cell const bottom = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, BOTTOM);
-                scalar_cell const top = get_neighbor_cell(p_center, p_left, p_right, p_bottom, p_top, p_top, p_top, p_top, p_top, i, j, TOP);
+                scalar_cell const left = get_left_neighbor(p_center, p_left, i, j);
+                scalar_cell const right = get_right_neighbor(p_center, p_right, i, j);
+                scalar_cell const bottom = get_bottom_neighbor(p_center, p_bottom, i, j);
+                scalar_cell const top = get_top_neighbor(p_center, p_top, i, j);
 
                 RealType tmp = (right.value - 2*center.value + left.value)*over_dx_sq + (top.value - 2*center.value + bottom.value)*over_dy_sq - rhs.value;
 
@@ -801,12 +805,7 @@ RealType with_for_each::compute_residual(scalar_data const& p_center, scalar_dat
         [](RealType a, RealType b) -> RealType {return a+b;}
     );
 
-    return local_residual.then(
-                                [i_max, j_max](hpx::future<RealType> a) -> RealType
-                                    {
-                                        return a.get()/(i_max*j_max);
-                                    }
-                                ).get();
+    return local_residual.get();
 }
 
 void with_for_each::update_velocities(vector_data& uv_center, scalar_data const& p_center, scalar_data const& p_right,

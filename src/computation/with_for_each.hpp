@@ -27,7 +27,7 @@ class with_for_each : public strategy {
         virtual void compute_temp(scalar_data& temp_center, scalar_data const& temp_left, scalar_data const& temp_right,
                                     scalar_data const& temp_bottom, scalar_data const& temp_top,
                                     vector_data const& uv_center, vector_data const& uv_left,
-                                    vector_data const& uv_bottom,
+                                    vector_data const& uv_bottom, std::vector<std::bitset<5> > const& flag_data,
                                     uint global_i, uint global_j, uint i_max, uint j_max, RealType re, RealType pr,
                                     RealType dx, RealType dy, RealType dt, RealType alpha);
 

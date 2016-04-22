@@ -13,17 +13,16 @@
 	<alpha value="0.9"/>
 	<iterMax value="2000"/>
 	<dt value="0.0001"/>
-	<tEnd value="1000"/>
+	<tEnd value="2"/>
 	<GX value="0"/>
 	<GY value="0"/>
-	<outputSkipSize value="0"/>
-	<deltaVec value="0.1"/>
+	<outputSkipSize value="1"/>
+	<deltaVec value="0"/>
 	<vtk value="1"/>
-	<WL value="4"/>
-	<UL value="1"/>
 	<WB value="3"/>
-	<WT value="3"/>
+	<WT value="4"/>
+	<VO value="-1"/>
 	<subIterations value="1"/>
 	<withForEach value="0"/>
-	<gridFile value="../settings/junction_geometrie.csv"/>
+	<gridFile value="../settings/junction2_geometrie.csv"/>
 </SimulationConfig>

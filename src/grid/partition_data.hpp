@@ -14,6 +14,8 @@ template<typename T = RealType>
 struct partition_data
 {
 private:
+    typedef hpx::serialization::serialize_buffer<T> buffer_type;
+
     struct array_deleter {
         void operator()(T const* p)
         {
@@ -21,8 +23,18 @@ private:
         }
     };
 
+    struct hold_reference
+    {
+        hold_reference(buffer_type const& data)
+          : data_(data)
+        {}
+
+        void operator()(T*) {}     // no deletion necessary
+
+        buffer_type data_;
+    };
+
 public:
-    typedef hpx::serialization::serialize_buffer<T> buffer_type;
 
     partition_data()
     : size_x_(0),
@@ -45,14 +57,7 @@ public:
     {
         for(uint i = 0; i < size_; ++i)
             data_[i] = T(initial_value);
-    }
 
-    partition_data(partition_data const& base)
-    {
-        data_ = buffer_type(base.data_.data(), base.size(), buffer_type::copy);
-        size_x_ = base.size_x();
-        size_y_ = base.size_y();
-        size_ = base.size();
     }
 
     partition_data(partition_data const& base, direction type)
@@ -149,7 +154,7 @@ public:
 
             case CENTER:
             default:
-                data_ = buffer_type(base.data_.data(), base.size(), buffer_type::reference);
+                data_ = buffer_type(base.data_.data(), base.size(), buffer_type::reference, hold_reference(base.data_));
                 size_x_ = base.size_x();
                 size_y_ = base.size_y();
                 size_ = base.size();
@@ -177,6 +182,19 @@ private:
     void serialize(Archive& ar, const unsigned int version)
     {
         ar & data_ & size_x_ & size_y_ & size_;
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, partition_data<T> const& data)
+    {
+        for (uint j = data.size_y() - 1; j < data.size_y(); j--)
+        {
+            for (uint i = 0; i < data.size_x(); i++)
+                os << data.get_cell(i, j) << " ";
+
+            os << "\n";
+        }
+
+        return os;
     }
 
     //for accessing an element conveniently

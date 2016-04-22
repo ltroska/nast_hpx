@@ -83,8 +83,9 @@ struct HPX_COMPONENT_EXPORT stepper_server
         std::vector<hpx::naming::id_type> localities;
 
         index_grid_type index_grid;
-        vector_grid_type uv_grid, uv_temp_grid, fg_grid, fg_temp_grid;
-        scalar_grid_type p_grid, p_temp_grid, rhs_grid, temperature_grid, temperature_temp_grid, stream_grid, vorticity_grid, heat_grid;
+        vector_grid_type uv_grid, fg_grid;
+        vector_grid_type uv_temp_grid;
+        scalar_grid_type p_grid, rhs_grid, temperature_grid, stream_grid, vorticity_grid, heat_grid;
         flag_grid_type flag_grid;
 
         RealType t, next_write;

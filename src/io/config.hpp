@@ -90,7 +90,7 @@ struct config
                 << "\n\tvtk = " << config.vtk
                 << "\n\tu_bnd " << config.u_bnd
                 << "\n\tv_bnd " << config.v_bnd
-                << " bnd_data_type " << config.data_type
+                << "\n\tbnd_data_type " << config.data_type
                 << "\n\ttemp_bnd " << config.temp_bnd
                 << "\n\ttemp_data_type " << config.temp_data_type
                 << "\n\tTI = " << config.ti

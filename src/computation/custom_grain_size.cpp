@@ -5,8 +5,8 @@
 
 namespace computation {
 
-void custom_grain_size::set_boundary(vector_data& uv_center, vector_data const& uv_left, vector_data const& uv_right, vector_data const& uv_bottom, vector_data const& uv_top,
-                                    scalar_data& temperature, std::vector<std::bitset<5> > const& flag_data, boundary_data const& data_type,
+void custom_grain_size::set_boundary(vector_data uv_center, vector_data const& uv_left, vector_data const& uv_right, vector_data const& uv_bottom, vector_data const& uv_top,
+                                    scalar_data temperature, std::vector<std::bitset<5> > const& flag_data, boundary_data const& data_type,
                                     boundary_data const& temp_data_type, boundary_data const& u_bnd, boundary_data const& v_bnd, boundary_data const& temp_bnd,
                                     uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy)
 {

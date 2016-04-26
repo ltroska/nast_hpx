@@ -1,8 +1,9 @@
-#pragma once
 #ifndef IO_CONFIG_HPP
 #define IO_CONFIG_HPP
 
+#include <iostream>
 #include <bitset>
+#include <vector>
 
 #include "util/typedefs.hpp"
 #include "util/boundary_data.hpp"
@@ -97,6 +98,9 @@ struct config
                 << "\n}";
             return os;
         }
+        
+        static config read_config_from_file(const char *path);
+
 };
 
 } //namespace

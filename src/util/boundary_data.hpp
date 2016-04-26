@@ -2,6 +2,8 @@
 #ifndef BOUNDARY_DATA_HPP_
 #define BOUNDARY_DATA_HPP_
 
+#include <iostream>
+
 struct boundary_data
 {
     boundary_data() : left(0), right(0), bottom(0), top(0) {}

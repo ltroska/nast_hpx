@@ -57,7 +57,7 @@ inline bool in_range(uint start_i, uint end_i, uint start_j, uint end_j, uint i,
 }
 
 template<typename T>
-const T get_left_neighbor(grid::partition_data<T> const& center, grid::partition_data<T> const& left, uint i, uint j)
+T get_left_neighbor(grid::partition_data<T> const& center, grid::partition_data<T> const& left, uint i, uint j)
 {
     if (i > 0)
         return center.get_cell(i-1, j);
@@ -66,7 +66,7 @@ const T get_left_neighbor(grid::partition_data<T> const& center, grid::partition
 }
 
 template<typename T>
-const T get_right_neighbor(grid::partition_data<T> const& center, grid::partition_data<T> const& right, uint i, uint j)
+T get_right_neighbor(grid::partition_data<T> const& center, grid::partition_data<T> const& right, uint i, uint j)
 {
     if (i+1 < center.size_x())
         return center.get_cell(i+1, j);
@@ -75,7 +75,7 @@ const T get_right_neighbor(grid::partition_data<T> const& center, grid::partitio
 }
 
 template<typename T>
-const T get_bottom_neighbor(grid::partition_data<T> const& center, grid::partition_data<T> const& bottom, uint i, uint j)
+T get_bottom_neighbor(grid::partition_data<T> const& center, grid::partition_data<T> const& bottom, uint i, uint j)
 {
     if (j > 0)
         return center.get_cell(i, j-1);
@@ -84,12 +84,44 @@ const T get_bottom_neighbor(grid::partition_data<T> const& center, grid::partiti
 }
 
 template<typename T>
-const T get_top_neighbor(grid::partition_data<T> const& center, grid::partition_data<T> const& top, uint i, uint j)
+T get_top_neighbor(grid::partition_data<T> const& center, grid::partition_data<T> const& top, uint i, uint j)
 {
     if (j+1 < center.size_y())
         return center.get_cell(i, j+1);
     else
         return top.get_cell(i, 0);
+}
+
+template<typename T>
+T get_bottomright_neighbor(grid::partition_data<T> const& center, 
+        grid::partition_data<T> const& bottom,
+        grid::partition_data<T> const& right,
+        grid::partition_data<T> const& bottomright, uint i, uint j)
+{
+    if (i+1 < center.size_x() && j > 0)
+        return center.get_cell(i+1, j-1);
+    else if (i+1 < center.size_x())
+        return bottom.get_cell(i+1, 0);
+    else if (j > 0)
+        return right.get_cell(j-1, 0);
+    else
+        return bottomright.get_cell(0, 0);
+}
+
+template<typename T>
+T get_topleft_neighbor(grid::partition_data<T> const& center,
+        grid::partition_data<T> const& top,
+        grid::partition_data<T> const& left,
+        grid::partition_data<T> const& topleft, uint i, uint j)
+{
+    if (i > 0 && j+1 < center.size_y())
+        return center.get_cell(i-1, j+1);
+    else if (i > 0)
+        return top.get_cell(i-1, 0);
+    else if (j+1 < center.size_y())
+        return left.get_cell(j+1, 0);
+    else
+        return topleft.get_cell(0, 0);
 }
 
 template<typename T>

@@ -6,7 +6,13 @@
 
 #include "io/config.hpp"
 #include "computation/parameters.hpp"
-#include "computation/strategy.hpp"
+
+#ifdef CUSTOM_GRAIN_SIZE
+#include "computation/custom_grain_size.hpp"
+#else
+#include "computation/with_for_each.hpp"
+#endif
+
 #include "grid/types.hpp"
 #include "util/helpers.hpp"
 
@@ -24,7 +30,7 @@ struct HPX_COMPONENT_EXPORT stepper_server
         stepper_server() {}
         stepper_server(uint num_localities);
 
-        void setup(io::config cfg);
+        void setup(io::config&& cfg);
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, setup, setup_action);
 
         void do_work();
@@ -76,16 +82,26 @@ struct HPX_COMPONENT_EXPORT stepper_server
         RealType compute_new_dt(std::pair<RealType, RealType>) const;
 
         io::config c;
-        computation::strategy* strategy;
-        computation::parameters params;
+        
+        struct {
+            uint i_max, j_max, num_partitions_x, num_partitions_y, num_cells_per_partition_x, num_cells_per_partition_y;
+            RealType re, pr, omega, alpha, beta, dx, dy;
+        } params;
+        
+#ifdef CUSTOM_GRAIN_SIZE
+        typedef computation::custom_grain_size strategy;
+#endif
 
         uint num_localities, num_localities_x, num_localities_y;
         std::vector<hpx::naming::id_type> localities;
 
         index_grid_type index_grid;
         vector_grid_type uv_grid, fg_grid;
-        vector_grid_type uv_temp_grid;
+        vector_grid_type uv_temp_grid, fg_temp_grid;
+
         scalar_grid_type p_grid, rhs_grid, temperature_grid, stream_grid, vorticity_grid, heat_grid;
+        scalar_grid_type p_temp_grid, temperature_temp_grid;
+
         flag_grid_type flag_grid;
 
         RealType t, next_write;

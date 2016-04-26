@@ -157,27 +157,6 @@ void custom_grain_size::set_boundary(vector_data uv_center, vector_data const& u
                         curr_cell.first = u_bnd.left;
                         curr_cell.second = 2*v_bnd.left - right_cell.second;
                     }
-
-                    if (temp_data_type.left != -1)
-                    {
-                        //Dirichlet
-                        if (temp_data_type.left == 1)
-                        {
-                            scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                            scalar_cell const right_cell = temperature.get_cell(i+1, j);
-
-                            curr_cell.value = 2*temp_bnd.left - right_cell.value;//*((j - 0.5)*dy) - right_cell.value;
-                        }
-
-                        //Neumann
-                        else if (temp_data_type.left == 2)
-                        {
-                            scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                            scalar_cell const right_cell = temperature.get_cell(i+1, j);
-
-                            curr_cell.value = right_cell.value + dx*temp_bnd.left*((j-0.5)*dy);
-                        }
-                    }
                 }
                 //right
                 if (in_range(i_max + 1, i_max + 1, 1, j_max, global_i + i, global_j + j))
@@ -218,27 +197,6 @@ void custom_grain_size::set_boundary(vector_data uv_center, vector_data const& u
                         left_cell.first = u_bnd.right;
                         curr_cell.second = 2*v_bnd.right - left_cell.second;
                     }
-
-                    if (temp_data_type.right != -1)
-                    {
-                        //Dirichlet
-                        if (temp_data_type.right == 1)
-                        {
-                            scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                            scalar_cell const left_cell = temperature.get_cell(i-1, j);
-
-                            curr_cell.value = 2*temp_bnd.right - left_cell.value;// * ((j - 0.5)*dy) - left_cell.value;
-                        }
-
-                        //Neumann
-                        else if (temp_data_type.right == 2)
-                        {
-                            scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                            scalar_cell const left_cell = temperature.get_cell(i-1, j);
-
-                            curr_cell.value = left_cell.value + dx*temp_bnd.right*((j-0.5)*dy);
-                        }
-                    }
                 }
 
                 //bottom
@@ -278,27 +236,6 @@ void custom_grain_size::set_boundary(vector_data uv_center, vector_data const& u
 
                         curr_cell.first = 2*u_bnd.bottom - top_cell.first;
                         curr_cell.second = v_bnd.bottom;
-                    }
-
-                    if (temp_data_type.bottom != -1)
-                    {
-                        //Dirichlet
-                        if (temp_data_type.bottom == 1)
-                        {
-                            scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                            scalar_cell const top_cell = temperature.get_cell(i, j+1);
-
-                            curr_cell.value = 2*temp_bnd.bottom - top_cell.value;// * ((i - 0.5)*dx) - top_cell.value;
-                        }
-
-                        //Neumann
-                        else if (temp_data_type.bottom == 2)
-                        {
-                            scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                            scalar_cell const top_cell = temperature.get_cell(i, j+1);
-
-                            curr_cell.value = top_cell.value + dy*temp_bnd.bottom*((i-0.5)*dx);
-                        }
                     }
                 }
 
@@ -341,29 +278,249 @@ void custom_grain_size::set_boundary(vector_data uv_center, vector_data const& u
                         curr_cell.first = 2*u_bnd.top - bottom_cell.first;
                         bottom_cell.second = v_bnd.top;
                     }
+                }
+            }
+        }
+}
 
-                    if (temp_data_type.top != -1)
+void custom_grain_size::set_boundary_temp(scalar_data temperature, std::vector<std::bitset<5> > const& flag_data,
+                                    boundary_data const& temp_data_type, boundary_data const& temp_bnd,
+                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy)
+{
+
+/*
+    *@TODO: maybe create new vector_data here
+    */
+    uint size_x = temperature.size_x();
+    uint size_y = temperature.size_y();
+
+    for (uint j = 0; j < size_y; j++)
+        for (uint i = 0; i < size_x; i++)
+        {
+            std::bitset<5> cell_type = flag_data[j*size_x + i];
+
+            //boundary
+            //left
+            if (in_range(0, 0, 1, j_max, global_i + i, global_j + j))
+            {
+                if (temp_data_type.left != -1)
+                {
+                    //Dirichlet
+                    if (temp_data_type.left == 1)
                     {
-                        //Dirichlet
-                        if (temp_data_type.top == 1)
-                        {
-                            scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                            scalar_cell const bottom_cell = temperature.get_cell(i, j-1);
+                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                        scalar_cell const right_cell = temperature.get_cell(i+1, j);
 
-                            curr_cell.value = 2*temp_bnd.top - bottom_cell.value;// * ((i - 0.5)*dx) - bottom_cell.value;
-                        }
+                        curr_cell.value = 2*temp_bnd.left - right_cell.value;//*((j - 0.5)*dy) - right_cell.value;
+                    }
 
-                        //Neumann
-                        else if (temp_data_type.top == 2)
-                        {
-                            scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                            scalar_cell const bottom_cell = temperature.get_cell(i, j-1);
+                    //Neumann
+                    else if (temp_data_type.left == 2)
+                    {
+                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                        scalar_cell const right_cell = temperature.get_cell(i+1, j);
 
-                            curr_cell.value = bottom_cell.value + dy*temp_bnd.top*((i-0.5)*dx);
-                        }
+                        curr_cell.value = right_cell.value + dx*temp_bnd.left*((j-0.5)*dy);
                     }
                 }
             }
+
+            //right
+            if (in_range(i_max + 1, i_max + 1, 1, j_max, global_i + i, global_j + j))
+            {
+                if (temp_data_type.right != -1)
+                {
+                    //Dirichlet
+                    if (temp_data_type.right == 1)
+                    {
+                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                        scalar_cell const left_cell = temperature.get_cell(i-1, j);
+
+                        curr_cell.value = 2*temp_bnd.right - left_cell.value;// * ((j - 0.5)*dy) - left_cell.value;
+                    }
+
+                    //Neumann
+                    else if (temp_data_type.right == 2)
+                    {
+                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                        scalar_cell const left_cell = temperature.get_cell(i-1, j);
+
+                        curr_cell.value = left_cell.value + dx*temp_bnd.right*((j-0.5)*dy);
+                    }
+                }
+            }
+
+            //bottom
+            if (in_range(1, i_max, 0, 0, global_i + i, global_j + j))
+            {
+                if (temp_data_type.bottom != -1)
+                {
+                    //Dirichlet
+                    if (temp_data_type.bottom == 1)
+                    {
+                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                        scalar_cell const top_cell = temperature.get_cell(i, j+1);
+
+                        curr_cell.value = 2*temp_bnd.bottom - top_cell.value;// * ((i - 0.5)*dx) - top_cell.value;
+                    }
+
+                    //Neumann
+                    else if (temp_data_type.bottom == 2)
+                    {
+                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                        scalar_cell const top_cell = temperature.get_cell(i, j+1);
+
+                        curr_cell.value = top_cell.value + dy*temp_bnd.bottom*((i-0.5)*dx);
+                    }
+                }
+            }
+
+            //top
+            if (in_range(1, i_max, j_max + 1, j_max + 1, global_i + i, global_j + j))
+            {
+                if (temp_data_type.top != -1)
+                {
+                    //Dirichlet
+                    if (temp_data_type.top == 1)
+                    {
+                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                        scalar_cell const bottom_cell = temperature.get_cell(i, j-1);
+
+                        curr_cell.value = 2*temp_bnd.top - bottom_cell.value;// * ((i - 0.5)*dx) - bottom_cell.value;
+                    }
+
+                    //Neumann
+                    else if (temp_data_type.top == 2)
+                    {
+                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                        scalar_cell const bottom_cell = temperature.get_cell(i, j-1);
+
+                        curr_cell.value = bottom_cell.value + dy*temp_bnd.top*((i-0.5)*dx);
+                    }
+                }
+            }
+
+        }
+}
+
+
+void custom_grain_size::set_boundary_temp(scalar_data temperature, scalar_data const& temperature_old, std::vector<std::bitset<5> > const& flag_data,
+                                    boundary_data const& temp_data_type, boundary_data const& temp_bnd,
+                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy)
+{
+
+/*
+    *@TODO: maybe create new vector_data here
+    */
+    uint size_x = temperature.size_x();
+    uint size_y = temperature.size_y();
+
+    for (uint j = 0; j < size_y; j++)
+        for (uint i = 0; i < size_x; i++)
+        {
+            std::bitset<5> cell_type = flag_data[j*size_x + i];
+
+            //boundary
+            //left
+            if (in_range(0, 0, 1, j_max, global_i + i, global_j + j))
+            {
+                if (temp_data_type.left != -1)
+                {
+                    //Dirichlet
+                    if (temp_data_type.left == 1)
+                    {
+                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                        scalar_cell const right_cell = temperature_old.get_cell(i+1, j);
+
+                        curr_cell.value = 2*temp_bnd.left - right_cell.value;//*((j - 0.5)*dy) - right_cell.value;
+                    }
+
+                    //Neumann
+                    else if (temp_data_type.left == 2)
+                    {
+                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                        scalar_cell const right_cell = temperature_old.get_cell(i+1, j);
+
+                        curr_cell.value = right_cell.value + dx*temp_bnd.left*((j-0.5)*dy);
+                    }
+                }
+            }
+
+            //right
+            if (in_range(i_max + 1, i_max + 1, 1, j_max, global_i + i, global_j + j))
+            {
+                if (temp_data_type.right != -1)
+                {
+                    //Dirichlet
+                    if (temp_data_type.right == 1)
+                    {
+                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                        scalar_cell const left_cell = temperature_old.get_cell(i-1, j);
+
+                        curr_cell.value = 2*temp_bnd.right - left_cell.value;// * ((j - 0.5)*dy) - left_cell.value;
+                    }
+
+                    //Neumann
+                    else if (temp_data_type.right == 2)
+                    {
+                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                        scalar_cell const left_cell = temperature_old.get_cell(i-1, j);
+
+                        curr_cell.value = left_cell.value + dx*temp_bnd.right*((j-0.5)*dy);
+                    }
+                }
+            }
+
+            //bottom
+            if (in_range(1, i_max, 0, 0, global_i + i, global_j + j))
+            {
+                if (temp_data_type.bottom != -1)
+                {
+                    //Dirichlet
+                    if (temp_data_type.bottom == 1)
+                    {
+                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                        scalar_cell const top_cell = temperature_old.get_cell(i, j+1);
+
+                        curr_cell.value = 2*temp_bnd.bottom - top_cell.value;// * ((i - 0.5)*dx) - top_cell.value;
+                    }
+
+                    //Neumann
+                    else if (temp_data_type.bottom == 2)
+                    {
+                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                        scalar_cell const top_cell = temperature_old.get_cell(i, j+1);
+
+                        curr_cell.value = top_cell.value + dy*temp_bnd.bottom*((i-0.5)*dx);
+                    }
+                }
+            }
+
+            //top
+            if (in_range(1, i_max, j_max + 1, j_max + 1, global_i + i, global_j + j))
+            {
+                if (temp_data_type.top != -1)
+                {
+                    //Dirichlet
+                    if (temp_data_type.top == 1)
+                    {
+                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                        scalar_cell const bottom_cell = temperature_old.get_cell(i, j-1);
+
+                        curr_cell.value = 2*temp_bnd.top - bottom_cell.value;// * ((i - 0.5)*dx) - bottom_cell.value;
+                    }
+
+                    //Neumann
+                    else if (temp_data_type.top == 2)
+                    {
+                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
+                        scalar_cell const bottom_cell = temperature_old.get_cell(i, j-1);
+
+                        curr_cell.value = bottom_cell.value + dy*temp_bnd.top*((i-0.5)*dx);
+                    }
+                }
+            }
+
         }
 }
 
@@ -471,8 +628,10 @@ void custom_grain_size::compute_temp(scalar_data& temp_center, scalar_data const
                                     uint global_i, uint global_j, uint i_max, uint j_max, RealType re, RealType pr,
                                     RealType dx, RealType dy, RealType dt, RealType alpha)
 {
-    uint size_x = uv_center.size_x();
-    uint size_y = uv_center.size_y();
+    uint size_x = temp_center.size_x();
+    uint size_y = temp_center.size_y();
+
+
 
     for (uint j = 0; j < size_y; j++)
         for (uint i = 0; i < size_x; i++)
@@ -503,6 +662,50 @@ void custom_grain_size::compute_temp(scalar_data& temp_center, scalar_data const
         }
 }
 
+void custom_grain_size::compute_temp(scalar_data& temp_center, scalar_data const& temp_center_old, scalar_data const& temp_left, scalar_data const& temp_right,
+                                    scalar_data const& temp_bottom, scalar_data const& temp_top,
+                                    vector_data const& uv_center, vector_data const& uv_left,
+                                    vector_data const& uv_bottom, std::vector<std::bitset<5> > const& flag_data,
+                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType re, RealType pr,
+                                    RealType dx, RealType dy, RealType dt, RealType alpha)
+{
+    uint size_x = temp_center.size_x();
+    uint size_y = temp_center.size_y();
+
+    for (uint j = 0; j < size_y; j++)
+        for (uint i = 0; i < size_x; i++)
+        {
+            scalar_cell& temp_cell = temp_center.get_cell_ref(i, j);
+            scalar_cell const temp_center_cell = temp_center_old.get_cell(i, j);
+            scalar_cell const temp_left_cell = get_left_neighbor(temp_center_old, temp_left, i, j);
+            scalar_cell const temp_right_cell = get_right_neighbor(temp_center_old, temp_right, i, j);
+            scalar_cell const temp_bottom_cell = get_bottom_neighbor(temp_center_old, temp_bottom, i, j);
+            scalar_cell const temp_top_cell = get_top_neighbor(temp_center_old, temp_top, i, j);
+
+            vector_cell const uv_center_cell = uv_center.get_cell(i, j);
+            vector_cell const uv_left_cell = get_left_neighbor(uv_center, uv_left, i, j);
+            vector_cell const uv_bottom_cell = get_bottom_neighbor(uv_center, uv_bottom, i, j);
+
+            std::bitset<5> cell_type = flag_data[j*size_x + i];
+
+            if (cell_type.test(4))
+            {
+                temp_cell.value = dt * (1./re*1./pr * (second_derivative_fwd_bkwd_x(temp_right_cell.value, temp_center_cell.value, temp_left_cell.value, dx)
+                                                        + second_derivative_fwd_bkwd_y(temp_top_cell.value, temp_center_cell.value, temp_bottom_cell.value, dy)
+                                                        )
+                                       // + (i == 1 ? 1 : 0)
+                                        - first_derivative_u_temp_x(uv_center_cell.first, uv_left_cell.first, temp_center_cell.value, temp_right_cell.value, temp_left_cell.value, dx, alpha)
+                                        - first_derivative_v_temp_y(uv_center_cell.second, uv_bottom_cell.second, temp_center_cell.value, temp_top_cell.value, temp_bottom_cell.value, dy, alpha)
+                                        )
+                                        + temp_center_cell.value;
+            }
+            else
+            {
+                temp_cell.value = temp_center_cell.value;
+            }
+        }
+}
+
 void custom_grain_size::compute_rhs(scalar_data& rhs, vector_data const& fg_center, vector_data const& fg_left,
                                     vector_data const& fg_bottom, std::vector<std::bitset<5> > const& flag_data, uint global_i, uint global_j, uint i_max, uint j_max,
                                     RealType dx, RealType dy, RealType dt)
@@ -518,8 +721,8 @@ void custom_grain_size::compute_rhs(scalar_data& rhs, vector_data const& fg_cent
             if (cell_type.test(4))
             {
                 vector_cell const center = fg_center.get_cell(i, j);
-                vector_cell const left = get_neighbor_cell(fg_center, fg_left, fg_left, fg_bottom, fg_bottom, fg_bottom, fg_bottom, fg_bottom, fg_bottom, i, j, LEFT);
-                vector_cell const bottom = get_neighbor_cell(fg_center, fg_left, fg_left, fg_bottom, fg_bottom, fg_bottom, fg_bottom, fg_bottom, fg_bottom, i, j, BOTTOM);
+                vector_cell const left = get_left_neighbor(fg_center, fg_left, i, j);
+                vector_cell const bottom = get_bottom_neighbor(fg_center, fg_bottom, i, j);
 
                 rhs.get_cell_ref(i, j).value = 1./dt * ( (center.first - left.first)/dx + (center.second - bottom.second)/dy);
             }

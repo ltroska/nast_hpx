@@ -12,7 +12,7 @@ project(nast_hpx CXX)
 
 find_package(HPX)
 
-enable_testing()
+#enable_testing()
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeSettings.txt)
 
@@ -31,170 +31,16 @@ add_hpx_component(
 
 add_hpx_component(
     stepper_server
-    SOURCES src/stepper/server/stepper_server.cpp
-    HEADERS src/stepper/server/stepper_server.hpp
+    SOURCES src/stepper/server/stepper_server.cpp src/computation/custom_grain_size.cpp
+    HEADERS src/stepper/server/stepper_server.hpp src/computation/custom_grain_size.hpp
+    COMPILE_FLAGS -DCUSTOM_GRAIN_SIZE
     COMPONENT_DEPENDENCIES iostreams partition_server)
 
 add_hpx_executable(
     main
     ESSENTIAL
-    SOURCES src/main.cpp src/computation/with_for_each.cpp src/computation/custom_grain_size.cpp
+    SOURCES src/main.cpp src/io/config.cpp#src/computation/with_for_each.cpp
+    HEADERS src/io/config.hpp
     DEPENDENCIES pugixml
     COMPONENT_DEPENDENCIES partition_server stepper_server
 )
-
-# --------------- UNIT TESTS --------------- #
-
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
-
-# partition_data
-
-add_hpx_executable(
-    test_partition_data
-    ESSENTIAL
-    SOURCES tests/test_partition_data.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(partition_data_test test_partition_data -t4)
-
-# partition
-
-add_hpx_executable(
-    test_partition
-    ESSENTIAL
-    SOURCES tests/test_partition.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(partition_test test_partition -t4)
-
-# get_neighbor_cell()
-
-add_hpx_executable(
-    test_get_neighbor_cell
-    ESSENTIAL
-    SOURCES tests/test_get_neighbor_cell.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(get_neighbor_cell test_get_neighbor_cell -t4)
-
-# cgs::set_velocity_on_boundary()
-
-add_hpx_executable(
-    test_cgs_set_velocity_on_boundary
-    ESSENTIAL
-    SOURCES tests/test_cgs_set_velocity_on_boundary.cpp src/computation/custom_grain_size.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(cgs_set_velocity_on_boundary_test  test_cgs_set_velocity_on_boundary -t4)
-
-# cgs::set_pressure_on_boundary()
-
-add_hpx_executable(
-    test_cgs_set_pressure_on_boundary
-    ESSENTIAL
-    SOURCES tests/test_cgs_set_pressure_on_boundary.cpp src/computation/custom_grain_size.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(cgs_set_pressure_on_boundary_test  test_cgs_set_pressure_on_boundary -t4)
-
-# cgs::compute_fg()
-
-add_hpx_executable(
-    test_cgs_compute_fg
-    ESSENTIAL
-    SOURCES tests/test_cgs_compute_fg.cpp src/computation/custom_grain_size.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(cgs_compute_fg_test  test_cgs_compute_fg -t4)
-
-# cgs::compute_rhs()
-
-add_hpx_executable(
-    test_cgs_compute_rhs
-    ESSENTIAL
-    SOURCES tests/test_cgs_compute_rhs.cpp src/computation/custom_grain_size.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(cgs_compute_rhs_test  test_cgs_compute_rhs -t4)
-
-# cgs::sor_cycle()
-
-add_hpx_executable(
-    test_cgs_sor_cycle
-    ESSENTIAL
-    SOURCES tests/test_cgs_sor_cycle.cpp src/computation/custom_grain_size.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(cgs_sor_cycle_test  test_cgs_sor_cycle -t4)
-
-# cgs::update_velocities()
-
-add_hpx_executable(
-    test_cgs_update_velocities
-    ESSENTIAL
-    SOURCES tests/test_cgs_update_velocities.cpp src/computation/custom_grain_size.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(cgs_update_velocities_test  test_cgs_update_velocities -t4)
-
-# wfe::set_velocity_on_boundary()
-
-add_hpx_executable(
-    test_wfe_set_velocity_on_boundary
-    ESSENTIAL
-    SOURCES tests/test_wfe_set_velocity_on_boundary.cpp src/computation/with_for_each.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(wfe_set_velocity_on_boundary_test  test_wfe_set_velocity_on_boundary -t4)
-
-# wfe::set_pressure_on_boundary()
-
-add_hpx_executable(
-    test_wfe_set_pressure_on_boundary
-    ESSENTIAL
-    SOURCES tests/test_wfe_set_pressure_on_boundary.cpp src/computation/with_for_each.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(wfe_set_pressure_on_boundary_test  test_wfe_set_pressure_on_boundary -t4)
-
-# wfe::compute_fg()
-
-add_hpx_executable(
-    test_wfe_compute_fg
-    ESSENTIAL
-    SOURCES tests/test_wfe_compute_fg.cpp src/computation/with_for_each.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(wfe_compute_fg_test  test_wfe_compute_fg -t4)
-
-# wfe::compute_rhs()
-
-add_hpx_executable(
-    test_wfe_compute_rhs
-    ESSENTIAL
-    SOURCES tests/test_wfe_compute_rhs.cpp src/computation/with_for_each.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(wfe_compute_rhs_test  test_wfe_compute_rhs -t4)
-
-# wfe::sor_cycle()
-
-add_hpx_executable(
-    test_wfe_sor_cycle
-    ESSENTIAL
-    SOURCES tests/test_wfe_sor_cycle.cpp src/computation/with_for_each.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(wfe_sor_cycle_test  test_wfe_sor_cycle -t4)
-
-# wfe::update_velocities()
-
-add_hpx_executable(
-    test_wfe_update_velocities
-    ESSENTIAL
-    SOURCES tests/test_wfe_update_velocities.cpp src/computation/with_for_each.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(wfe_update_velocities_test  test_wfe_update_velocities -t4)
-
-

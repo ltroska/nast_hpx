@@ -74,7 +74,7 @@ public:
         {
             case TOP_LEFT:
             {
-                data_ = buffer_type(base.data_.data()+base.size_x()-1, 1, buffer_type::reference);
+                data_ = buffer_type(base.data_.data()+base.size_x()-1, 1, buffer_type::reference, hold_reference(base.data_));
                 size_x_ = 1;
                 size_y_ = 1;
                 size_ = 1;
@@ -83,7 +83,7 @@ public:
 
             case TOP:
             {
-                data_ = buffer_type(base.data_.data(), base.size_x(), buffer_type::reference);
+                data_ = buffer_type(base.data_.data(), base.size_x(), buffer_type::reference, hold_reference(base.data_));
                 size_x_ = base.size_x();
                 size_y_ = 1;
                 size_ = base.size_x();
@@ -92,13 +92,14 @@ public:
 
             case TOP_RIGHT:
             {
-                data_ = buffer_type(base.data_.data(), 1, buffer_type::reference);
+                data_ = buffer_type(base.data_.data(), 1, buffer_type::reference, hold_reference(base.data_));
                 size_x_ = 1;
                 size_y_ = 1;
                 size_ = 1;
                 break;
             }
 
+            // TODO: make this not copy
             case LEFT:
             {
                 data_ = buffer_type(new T [base.size_y()], base.size_y(), buffer_type::take, array_deleter());
@@ -127,7 +128,7 @@ public:
 
             case BOTTOM_LEFT:
             {
-                data_ = buffer_type(base.data_.data()+base.size()-1, 1, buffer_type::reference);
+                data_ = buffer_type(base.data_.data()+base.size()-1, 1, buffer_type::reference, hold_reference(base.data_));
                 size_x_ = 1;
                 size_y_ = 1;
                 size_ = 1;
@@ -136,7 +137,7 @@ public:
 
             case BOTTOM:
             {
-                data_ = buffer_type(base.data_.data()+base.size()-base.size_x(), base.size_x(), buffer_type::reference);
+                data_ = buffer_type(base.data_.data()+base.size()-base.size_x(), base.size_x(), buffer_type::reference, hold_reference(base.data_));
                 size_x_ = base.size_x();
                 size_y_ = 1;
                 size_ = base.size_x();
@@ -145,7 +146,7 @@ public:
 
             case BOTTOM_RIGHT:
             {
-                data_ = buffer_type(base.data_.data()+base.size()-base.size_x(), 1, buffer_type::reference);
+                data_ = buffer_type(base.data_.data()+base.size()-base.size_x(), 1, buffer_type::reference, hold_reference(base.data_));
                 size_x_ = 1;
                 size_y_ = 1;
                 size_ = 1;

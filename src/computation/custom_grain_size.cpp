@@ -5,728 +5,1127 @@
 
 namespace computation {
 
-void custom_grain_size::set_boundary(vector_data uv_center, vector_data const& uv_left, vector_data const& uv_right, vector_data const& uv_bottom, vector_data const& uv_top,
-                                    scalar_data temperature, std::vector<std::bitset<5> > const& flag_data, boundary_data const& data_type,
-                                    boundary_data const& temp_data_type, boundary_data const& u_bnd, boundary_data const& v_bnd, boundary_data const& temp_bnd,
-                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy)
+vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
+        vector_partition const& middle,
+        vector_partition const& left,
+        vector_partition const& right,
+        vector_partition const& bottom,
+        vector_partition const& top,
+        std::vector<std::bitset<5> > const& flag_data,
+        boundary_data const& type,
+        boundary_data const& u,
+        boundary_data const& v,
+        uint global_i, uint global_j, uint i_max, uint j_max
+    )
 {
+    hpx::shared_future<vector_data> middle_data =
+        middle.get_data(CENTER);
+    
+    //do local computation first
+    hpx::future<vector_data> next_middle = middle_data.then(
+        hpx::util::unwrapped(
+            [middle, flag_data, type, u, v, global_i, global_j, i_max, j_max]
+            (vector_data const& m) -> vector_data
+            {
+                uint size_x = m.size_x();
+                uint size_y = m.size_y();
+                
+                vector_data next(size_x, size_y);
+
+                for (uint j = 1; j < size_y - 1; j++)
+                    for (uint i = 1; i < size_x - 1; i++)
+                        set_velocity_for_obstacle_cell(
+                                next.get_cell_ref(i, j),
+                                m.get_cell(i - 1, j),
+                                m.get_cell(i + 1, j),
+                                m.get_cell(i, j - 1),
+                                m.get_cell(i, j + 1),
+                                flag_data[j * size_x + i],
+                                type, u, v, global_i, global_j, i, j,
+                                i_max, j_max);
+
+                return next;
+            }
+        )
+    );
+
+    return hpx::dataflow(
+        hpx::launch::async,
+        hpx::util::unwrapped(
+            [middle, flag_data, type, u, v, global_i, global_j, i_max, j_max]
+            (vector_data next, vector_data const& m, vector_data const& l,
+            vector_data const& r, vector_data const& b, vector_data const& t)
+            -> vector_partition
+            {
+                uint size_x = m.size_x();
+                uint size_y = m.size_y();
+                                
+                //left and right
+                for (uint j = 0; j < size_y; j++)
+                {
+                    uint i = 0;
+                    set_velocity_selector((global_i == 0),
+                        next.get_cell_ref(i, j),
+                        get_left_neighbor(m, l, i, j),
+                        get_right_neighbor(m, r, i, j),
+                        get_bottom_neighbor(m, b, i, j),
+                        get_top_neighbor(m, t, i, j),
+                        flag_data[j * size_x + i],
+                        type, u, v, global_i, global_j, i, j,
+                        i_max, j_max);
+                     
+                    
+                    i = size_x - 1;
+                    set_velocity_selector((global_i + size_x >= i_max),
+                        next.get_cell_ref(i, j),
+                        get_left_neighbor(m, l, i, j),
+                        get_right_neighbor(m, r, i, j),
+                        get_bottom_neighbor(m, b, i, j),
+                        get_top_neighbor(m, t, i, j),
+                        flag_data[j * size_x + i],
+                        type, u, v, global_i, global_j, i, j,
+                        i_max, j_max);
+                }    
+                
+                //bottom and top
+                for (uint i = 0; i < size_x; i++)
+                {
+                    uint j = 0;
+                    set_velocity_selector((global_j == 0),
+                        next.get_cell_ref(i, j),
+                        get_left_neighbor(m, l, i, j),
+                        get_right_neighbor(m, r, i, j),
+                        get_bottom_neighbor(m, b, i, j),
+                        get_top_neighbor(m, t, i, j),
+                        flag_data[j * size_x + i],
+                        type, u, v, global_i, global_j, i, j,
+                        i_max, j_max);
+                     
+                    
+                    j = size_y - 1;
+                    set_velocity_selector((global_j + size_y >= j_max),
+                        next.get_cell_ref(i, j),
+                        get_left_neighbor(m, l, i, j),
+                        get_right_neighbor(m, r, i, j),
+                        get_bottom_neighbor(m, b, i, j),
+                        get_top_neighbor(m, t, i, j),
+                        flag_data[j * size_x + i],
+                        type, u, v, global_i, global_j, i, j,
+                        i_max, j_max);
+                }                     
+                
+                return vector_partition(middle.get_id(), next);
+            }
+        ),
+        std::move(next_middle),
+        middle_data,
+        left.get_data(LEFT),
+        right.get_data(RIGHT),
+        bottom.get_data(BOTTOM),
+        top.get_data(TOP)
+    );        
+}
+
+void custom_grain_size::set_velocity_for_obstacle_cell(vector_cell& middle,
+    vector_cell const& left, vector_cell const& right,
+    vector_cell const& bottom, vector_cell const& top,
+    std::bitset<5> const& cell_type,
+    boundary_data const& type,
+    boundary_data const& u,
+    boundary_data const& v,
+    uint global_i, uint global_j, uint i, uint j, uint i_max, uint j_max
+    )
+{
+    //north
+    if (cell_type == std::bitset<5>("00001"))
+    {
+        middle.second = 0;
+        middle.first = -top.first;
+    }
+
+    //east
+    else if (cell_type == std::bitset<5>("01000"))
+    {
+        middle.first = 0;
+        middle.second = -right.second;
+    }
+
+    //south
+    else if (cell_type == std::bitset<5>("00010"))
+    {
+        middle.first = -bottom.first;
+    }
+
+    else if (cell_type.test(4) && !cell_type.test(0))
+    {
+        if (global_j + j != j_max)
+            middle.second = 0;
+        
+        //special case for cell adjacent to top boundary
+        else
+            switch((int)type.top)
+            {
+                case 1 : middle.second = 0; break;
+                case 2 : middle.second = 0; break;
+                case 3 : middle.second = bottom.second; break;
+                case 4 : middle.second = v.top; break;
+            }            
+    }
+
+    //west
+    else if (cell_type == std::bitset<5>("00100"))
+    {
+        middle.second = -left.second;
+    }
+
+    else if (cell_type.test(4) && !cell_type.test(3))
+    {
+        if (global_i + i != i_max)
+            middle.first = 0;
+        
+        //special case for cell adjacent to right boundary
+        else
+            switch((int)type.right)
+            {
+                case 1 : middle.first = 0; break;
+                case 2 : middle.first = 0; break;
+                case 3 : middle.first = left.second; break;
+                case 4 : middle.first = u.right; break;
+            }
+    }
+
+    //north east
+    else if (cell_type == std::bitset<5>("01001"))
+    {
+        middle.first = 0;
+        middle.second = 0;
+    }
+
+    //south east
+    else if (cell_type == std::bitset<5>("01010"))
+    {
+        middle.first = 0;
+        middle.second = -right.second;
+    }
+
+    //south west
+    else if (cell_type == std::bitset<5>("00110"))
+    {
+        middle.first = -bottom.first;
+        middle.second = -left.second;
+    }
+
+    //north west
+    else if (cell_type == std::bitset<5>("00101"))
+    {
+        middle.first = -top.first;
+        middle.second = 0;
+    }
+}
+
+
+void custom_grain_size::set_velocity_for_boundary_cell(vector_cell& middle,
+        vector_cell const& left, vector_cell const& right,
+        vector_cell const& bottom, vector_cell const& top,
+        boundary_data const& type,
+        boundary_data const& u,
+        boundary_data const& v,
+        uint global_i, uint global_j, uint i, uint j, uint i_max, uint j_max
+        )
+{
+    //left
+    if (in_range(0, 0, 1, j_max, global_i + i, global_j + j))
+        switch((int)type.left)
+        {
+        case 1: middle.first = 0;
+                middle.second = -right.second;
+                break;
+        case 2: middle.first = 0;
+                middle.second = right.second;
+                break;
+        case 3: middle.first = right.first;
+                middle.second = right.second;
+                break;
+        case 4: middle.first = u.left;
+                middle.second = 2*v.left - right.second;
+                break;  
+        }
+
+    //right
+    else if (in_range(i_max + 1, i_max + 1, 1, j_max, global_i + i, global_j + j))
+        switch((int)type.right)
+        {
+        case 1: middle.second = -left.second;
+                break;
+        case 2: middle.second = left.second;
+                break;
+        case 3: middle.second = left.second;
+                break;
+        case 4: middle.second = 2*v.right - left.second;
+                break;  
+        }      
+
+    //bottom
+    else if (in_range(1, i_max, 0, 0, global_i + i, global_j + j))
+        switch((int)type.bottom)
+        {
+        case 1: middle.first = -top.first;
+                middle.second = 0;
+                break;
+        case 2: middle.first = top.first;
+                middle.second = 0;
+                break;
+        case 3: middle.first = top.first;
+                middle.second = top.second;
+                break;
+        case 4: middle.first = 2*u.bottom - top.first;
+                middle.second = v.bottom;
+                break;  
+        }  
+
+    //top
+    else if (in_range(1, i_max, j_max + 1, j_max + 1, global_i + i, global_j + j))
+        switch((int)type.top)
+        {
+        case 1: middle.first = 2*u.top - bottom.first;
+                break;
+        case 2: middle.first = bottom.first;
+                break;
+        case 3: middle.first = bottom.first;
+                break;
+        case 4: middle.first = 2*u.top - bottom.first;
+                break;  
+        } 
+}
+    
+
+scalar_partition custom_grain_size::set_temperature_for_boundary_and_obstacles(
+        scalar_partition const& middle,
+        scalar_partition const& left,
+        scalar_partition const& right,
+        scalar_partition const& bottom,
+        scalar_partition const& top,
+        std::vector<std::bitset<5> > const& flag_data,
+        boundary_data const& boundary_data_type,
+        boundary_data const& temperature_boundary_data,
+        uint global_i, uint global_j, uint i_max, uint j_max,
+        RealType dx, RealType dy
+)
+{
+    hpx::shared_future<scalar_data> middle_data =
+        middle.get_data(CENTER);
+        
+    //TODO: implement temperature for obstacles
+    //do local computation first
+   /* hpx::future<vector_data> next_middle = middle_data.then(
+        hpx::util::unwrapped(
+            [middle, flag_data, type, u, v, global_i, global_j, i_max, j_max]
+            (vector_data const& m) -> vector_data
+            {
+                uint size_x = m.size_x();
+                uint size_y = m.size_y();
+                
+                vector_data next(size_x, size_y);
+
+                for (uint j = 1; j < size_y - 1; j++)
+                    for (uint i = 1; i < size_x - 1; i++)
+                        set_velocity_for_obstacle_cell(
+                                next.get_cell_ref(i, j),
+                                m.get_cell(i - 1, j),
+                                m.get_cell(i + 1, j),
+                                m.get_cell(i, j - 1),
+                                m.get_cell(i, j + 1),
+                                flag_data[j * size_x + i],
+                                type, u, v, global_i, global_j, i, j,
+                                i_max, j_max);
+
+                return next;
+            }
+        )
+    );*/
+
+    return hpx::dataflow(
+        hpx::launch::async,
+        hpx::util::unwrapped(
+            [middle, flag_data, boundary_data_type, temperature_boundary_data,
+                global_i, global_j, i_max, j_max, dx, dy]
+            (scalar_data next, scalar_data const& m, scalar_data const& l,
+            scalar_data const& r, scalar_data const& b, scalar_data const& t)
+            -> scalar_partition
+            {
+                uint size_x = m.size_x();
+                uint size_y = m.size_y();
+                                
+                //left and right
+                for (uint j = 0; j < size_y; j++)
+                {
+                    uint i = 0;
+                    set_temperature_selector((global_i == 0),
+                        next.get_cell_ref(i, j),
+                        get_left_neighbor(m, l, i, j),
+                        get_right_neighbor(m, r, i, j),
+                        get_bottom_neighbor(m, b, i, j),
+                        get_top_neighbor(m, t, i, j),
+                        boundary_data_type, temperature_boundary_data,
+                        global_i, global_j, i, j, i_max, j_max, dx, dy);
+                     
+                    
+                    i = size_x - 1;
+                    set_temperature_selector((global_i + size_x >= i_max),
+                        next.get_cell_ref(i, j),
+                        get_left_neighbor(m, l, i, j),
+                        get_right_neighbor(m, r, i, j),
+                        get_bottom_neighbor(m, b, i, j),
+                        get_top_neighbor(m, t, i, j),
+                        boundary_data_type, temperature_boundary_data,
+                        global_i, global_j, i, j, i_max, j_max, dx, dy);
+                }    
+                
+                //bottom and top
+                for (uint i = 0; i < size_x; i++)
+                {
+                    uint j = 0;
+                    set_temperature_selector((global_j == 0),
+                        next.get_cell_ref(i, j),
+                        get_left_neighbor(m, l, i, j),
+                        get_right_neighbor(m, r, i, j),
+                        get_bottom_neighbor(m, b, i, j),
+                        get_top_neighbor(m, t, i, j),
+                        boundary_data_type, temperature_boundary_data,
+                        global_i, global_j, i, j, i_max, j_max, dx, dy);
+                     
+                    
+                    j = size_y - 1;
+                    set_temperature_selector((global_j + size_y >= j_max),
+                        next.get_cell_ref(i, j),
+                        get_left_neighbor(m, l, i, j),
+                        get_right_neighbor(m, r, i, j),
+                        get_bottom_neighbor(m, b, i, j),
+                        get_top_neighbor(m, t, i, j),
+                        boundary_data_type, temperature_boundary_data,
+                        global_i, global_j, i, j, i_max, j_max, dx, dy);
+                }                     
+                
+                return scalar_partition(middle.get_id(), next);
+            }
+        ),
+        std::move(middle_data),
+        middle_data,
+        left.get_data(LEFT),
+        right.get_data(RIGHT),
+        bottom.get_data(BOTTOM),
+        top.get_data(TOP)
+    );        
+}
+
+void custom_grain_size::set_temperature_for_boundary_cell(scalar_cell& middle,
+        scalar_cell const& left, scalar_cell const& right,
+        scalar_cell const& bottom, scalar_cell const& top,
+        boundary_data const& boundary_data_type,
+        boundary_data const& temperature_boundary_data,
+        uint global_i, uint global_j, uint i, uint j, uint i_max, uint j_max,
+        RealType dx, RealType dy
+        )
+{
+    if (in_range(0, 0, 1, j_max, global_i + i, global_j + j))
+        switch((int)boundary_data_type.left)
+        {
+        case 1: middle.value = 2*temperature_boundary_data.left - right.value; break;            
+        case 2: middle.value = right.value + dx*temperature_boundary_data.left; break;
+        }
+    
+
+    //right
+    if (in_range(i_max + 1, i_max + 1, 1, j_max, global_i + i, global_j + j))
+        switch((int)boundary_data_type.right)
+        {
+        case 1: middle.value = 2*temperature_boundary_data.right - left.value; break;            
+        case 2: middle.value = left.value + dx*temperature_boundary_data.right; break;
+        }
+
+    //bottom
+    if (in_range(1, i_max, 0, 0, global_i + i, global_j + j))
+        switch((int)boundary_data_type.bottom)
+        {
+        case 1: middle.value = 2*temperature_boundary_data.bottom - top.value; break;            
+        case 2: middle.value = top.value + dy*temperature_boundary_data.bottom; break;
+        }
+
+    //top
+    if (in_range(1, i_max, j_max + 1, j_max + 1, global_i + i, global_j + j))
+        switch((int)boundary_data_type.top)
+        {
+        case 1: middle.value = 2*temperature_boundary_data.top - bottom.value; break;            
+        case 2: middle.value = bottom.value + dy*temperature_boundary_data.top; break;
+        }    
+}
+
+vector_partition custom_grain_size::compute_fg_on_fluid_cells(
+      vector_partition const& middle_uv,
+      vector_partition const& left_uv, vector_partition const& right_uv,
+      vector_partition const& bottom_uv, vector_partition const& top_uv,
+      vector_partition const& bottomright_uv, vector_partition const& topleft_uv,
+      scalar_partition const& middle_temperature,
+      scalar_partition const& right_temperature,
+      scalar_partition const& top_temperature,
+      std::vector<std::bitset<5> > const& flag_data,
+      RealType re,
+      RealType gx, RealType gy, RealType beta,
+      RealType dx, RealType dy, RealType dt, RealType alpha)
+{           
+    
+    hpx::shared_future<scalar_data> middle_temperature_data =
+        middle_temperature.get_data(CENTER);
+    
+    hpx::shared_future<vector_data> middle_uv_data = middle_uv.get_data(CENTER);
+    
+    //do local computation first
+     hpx::future<vector_data> next_fg_middle = 
+        hpx::dataflow(
+            hpx::launch::async,
+            hpx::util::unwrapped(
+                [middle_uv, flag_data, re, gx, gy, beta, dx, dy, dt, alpha]
+                (vector_data const& m_uv,
+                    scalar_data const& m_temp)
+                -> vector_data
+                {
+                    uint size_x = m_uv.size_x();
+                    uint size_y = m_uv.size_y();
+
+                    vector_data next(size_x, size_y);
+
+                    for (uint j = 1; j < size_y - 1; j++)
+                        for (uint i = 1; i < size_x - 1; i++)
+                            compute_fg_for_cell(
+                                    next.get_cell_ref(i, j),
+                                    m_uv.get_cell(i, j),
+                                    m_uv.get_cell(i - 1, j),
+                                    m_uv.get_cell(i + 1, j),
+                                    m_uv.get_cell(i, j - 1),
+                                    m_uv.get_cell(i, j + 1),
+                                    m_uv.get_cell(i + 1, j - 1),
+                                    m_uv.get_cell(i - 1, j + 1),
+                                    m_temp.get_cell(i, j),
+                                    m_temp.get_cell(i + 1, j),
+                                    m_temp.get_cell(i, j + 1),
+                                    flag_data[j * size_x + i],
+                                    re, gx, gy, beta, dx, dy, dt, alpha);
+
+                    return next;
+                }
+            ),
+            middle_uv_data,
+            middle_temperature_data
+        );
+
+    return hpx::dataflow(
+        hpx::launch::async,
+        hpx::util::unwrapped(
+            [middle_uv, flag_data, re, gx, gy, beta, dx, dy, dt, alpha]
+            (vector_data next, vector_data const& m_uv, vector_data const& l_uv,
+            vector_data const& r_uv, vector_data const& b_uv, vector_data const& t_uv,
+            vector_data const& br_uv, vector_data const& tl_uv,
+            scalar_data const& m_temp, scalar_data const& r_temp,
+            scalar_data const& t_temp)
+            -> vector_partition
+            {
+                uint size_x = next.size_x();
+                uint size_y = next.size_y();
+                                
+                //left and right
+                for (uint j = 0; j < size_y; j++)
+                {
+                    uint i = 0;                     
+                    compute_fg_for_cell(
+                        next.get_cell_ref(i, j),
+                        m_uv.get_cell(i, j),
+                        get_left_neighbor(m_uv, l_uv, i, j),
+                        get_right_neighbor(m_uv, r_uv, i, j),
+                        get_bottom_neighbor(m_uv, b_uv, i, j),
+                        get_top_neighbor(m_uv, t_uv, i, j),
+                        get_bottomright_neighbor(m_uv, b_uv, r_uv, br_uv, i, j),
+                        get_topleft_neighbor(m_uv, t_uv, l_uv, tl_uv, i, j),
+                        m_temp.get_cell(i, j),
+                        get_right_neighbor(m_temp, r_temp, i, j),
+                        get_top_neighbor(m_temp, t_temp, i, j),
+                        flag_data[j * size_x + i],
+                        re, gx, gy, beta, dx, dy, dt, alpha);
+                     
+                    
+                    i = size_x - 1;
+                    compute_fg_for_cell(
+                        next.get_cell_ref(i, j),
+                        m_uv.get_cell(i, j),
+                        get_left_neighbor(m_uv, l_uv, i, j),
+                        get_right_neighbor(m_uv, r_uv, i, j),
+                        get_bottom_neighbor(m_uv, b_uv, i, j),
+                        get_top_neighbor(m_uv, t_uv, i, j),
+                        get_bottomright_neighbor(m_uv, b_uv, r_uv, br_uv, i, j),
+                        get_topleft_neighbor(m_uv, t_uv, l_uv, tl_uv, i, j),
+                        m_temp.get_cell(i, j),
+                        get_right_neighbor(m_temp, r_temp, i, j),
+                        get_top_neighbor(m_temp, t_temp, i, j),
+                        flag_data[j * size_x + i],
+                        re, gx, gy, beta, dx, dy, dt, alpha);
+                }    
+                
+                //bottom and top
+                for (uint i = 0; i < size_x; i++)
+                {
+                    uint j = 0;
+                    compute_fg_for_cell(
+                        next.get_cell_ref(i, j),
+                        m_uv.get_cell(i, j),
+                        get_left_neighbor(m_uv, l_uv, i, j),
+                        get_right_neighbor(m_uv, r_uv, i, j),
+                        get_bottom_neighbor(m_uv, b_uv, i, j),
+                        get_top_neighbor(m_uv, t_uv, i, j),
+                        get_bottomright_neighbor(m_uv, b_uv, r_uv, br_uv, i, j),
+                        get_topleft_neighbor(m_uv, t_uv, l_uv, tl_uv, i, j),
+                        m_temp.get_cell(i, j),
+                        get_right_neighbor(m_temp, r_temp, i, j),
+                        get_top_neighbor(m_temp, t_temp, i, j),
+                        flag_data[j * size_x + i],
+                        re, gx, gy, beta, dx, dy, dt, alpha);
+                     
+                    
+                    j = size_y - 1;
+                    compute_fg_for_cell(
+                        next.get_cell_ref(i, j),
+                        m_uv.get_cell(i, j),
+                        get_left_neighbor(m_uv, l_uv, i, j),
+                        get_right_neighbor(m_uv, r_uv, i, j),
+                        get_bottom_neighbor(m_uv, b_uv, i, j),
+                        get_top_neighbor(m_uv, t_uv, i, j),
+                        get_bottomright_neighbor(m_uv, b_uv, r_uv, br_uv, i, j),
+                        get_topleft_neighbor(m_uv, t_uv, l_uv, tl_uv, i, j),
+                        m_temp.get_cell(i, j),
+                        get_right_neighbor(m_temp, r_temp, i, j),
+                        get_top_neighbor(m_temp, t_temp, i, j),
+                        flag_data[j * size_x + i],
+                        re, gx, gy, beta, dx, dy, dt, alpha);
+                }                     
+                
+                return vector_partition(middle_uv.get_id(), next);
+            }
+        ),
+        std::move(next_fg_middle),
+        middle_uv_data,
+        left_uv.get_data(LEFT),
+        right_uv.get_data(RIGHT),
+        bottom_uv.get_data(BOTTOM),
+        top_uv.get_data(TOP),
+        bottomright_uv.get_data(BOTTOM_RIGHT),
+        topleft_uv.get_data(TOP_LEFT),
+        middle_temperature_data,
+        right_temperature.get_data(RIGHT),
+        top_temperature.get_data(TOP)
+    );        
+}
+
+void custom_grain_size::compute_fg_for_cell(vector_cell& middle_fg,
+        vector_cell const& middle_uv, vector_cell const& left_uv,
+        vector_cell const& right_uv, vector_cell const& bottom_uv,
+        vector_cell const& top_uv, vector_cell const& bottomright_uv,
+        vector_cell const& topleft_uv, scalar_cell const& middle_temperature,
+        scalar_cell const& right_temperature, scalar_cell const& top_temperature,
+        std::bitset<5> const& type,
+        RealType re, RealType gx, RealType gy, RealType beta,
+        RealType dx, RealType dy, RealType dt, RealType alpha)
+{
+    //north
+    if (!type.test(4) && type.test(0))
+        middle_fg.second = middle_uv.second;
+
+    //east
+    if (!type.test(4) && type.test(3))
+        middle_fg.first = middle_uv.first;
+
+    if (type.test(4))
+    {
+        if (!type.test(3))
+            middle_fg.first = middle_uv.first;
+        else
+        {
+            middle_fg.first = middle_uv.first + dt * (
+                            1./re * (second_derivative_fwd_bkwd_x(right_uv.first, middle_uv.first, left_uv.first, dx)
+                                        + second_derivative_fwd_bkwd_y(top_uv.first, middle_uv.first, bottom_uv.first, dy))
+
+                            - first_derivative_of_square_x(right_uv.first, middle_uv.first, left_uv.first, dx, alpha)
+                            - first_derivative_of_product_y(right_uv.second, middle_uv.second, bottom_uv.second, bottomright_uv.second,
+                                                            bottom_uv.first, middle_uv.first, top_uv.first, dy, alpha)
+
+                            + gx
+                            )
+                            - beta * dt / 2. * (middle_temperature.value + right_temperature.value) * gx;
+        }
+
+        if (!type.test(0))
+            middle_fg.second = middle_uv.second;
+        else
+        {
+            middle_fg.second = middle_uv.second + dt * (
+                            1./re * (second_derivative_fwd_bkwd_x(right_uv.second, middle_uv.second, left_uv.second, dx)
+                                        + second_derivative_fwd_bkwd_y(top_uv.second, middle_uv.second, bottom_uv.second, dy))
+
+                            - first_derivative_of_product_x(left_uv.first, middle_uv.first, top_uv.first, topleft_uv.first,
+                                                            left_uv.second, middle_uv.second, right_uv.second, dx, alpha)
+                            - first_derivative_of_square_y(top_uv.second, middle_uv.second, bottom_uv.second, dy, alpha)
+
+                            + gy
+                            )
+                            - beta * dt / 2. * (middle_temperature.value + top_temperature.value) * gy;
+        }
+    }
+}
+
+scalar_partition custom_grain_size::compute_temperature_on_fluid_cells(
+    scalar_partition const& middle_temperature,
+    scalar_partition const& left_temperature,
+    scalar_partition const& right_temperature,
+    scalar_partition const& bottom_temperature,
+    scalar_partition const& top_temperature,
+    vector_partition const& middle_uv,
+    vector_partition const& left_uv,
+    vector_partition const& bottom_uv,
+    std::vector<std::bitset<5> > const& flag_data,
+    RealType re, RealType pr, RealType dx, RealType dy, RealType dt,
+    RealType alpha        
+)
+{           
+    hpx::shared_future<scalar_data> middle_temperature_data =
+        middle_temperature.get_data(CENTER);
+    
+    hpx::shared_future<vector_data> middle_uv_data =
+        middle_uv.get_data(CENTER);
+    
+    //do local computation first
+     hpx::future<scalar_data> next_temperature_middle = 
+        hpx::dataflow(
+            hpx::launch::async,
+            hpx::util::unwrapped(
+                [middle_temperature, flag_data, re, pr, dx, dy, dt, alpha]
+                (scalar_data const& m_temp, vector_data const& m_uv)
+                -> scalar_data
+                {
+                    uint size_x = m_temp.size_x();
+                    uint size_y = m_temp.size_y();
+
+                    scalar_data next(size_x, size_y);
+
+                    for (uint j = 1; j < size_y - 1; j++)
+                        for (uint i = 1; i < size_x - 1; i++)
+                            compute_temperature_for_cell(
+                                    next.get_cell_ref(i, j),
+                                    m_temp.get_cell(i, j),
+                                    m_temp.get_cell(i - 1, j),
+                                    m_temp.get_cell(i + 1, j),
+                                    m_temp.get_cell(i, j - 1),
+                                    m_temp.get_cell(i, j + 1),
+                                    m_uv.get_cell(i, j),
+                                    m_uv.get_cell(i - 1, j),
+                                    m_uv.get_cell(i, j - 1),
+                                    flag_data[j * size_x + i],
+                                    re, pr, dx, dy, dt, alpha);
+
+                    return next;
+                }
+            ),
+            middle_temperature_data,
+            middle_uv_data
+        );
+
+    return hpx::dataflow(
+        hpx::launch::async,
+        hpx::util::unwrapped(
+            [middle_temperature, flag_data, re, pr, dx, dy, dt, alpha]
+            (scalar_data next, scalar_data const& m_temp, scalar_data const& l_temp,
+            scalar_data const& r_temp, scalar_data const& b_temp, scalar_data const& t_temp,
+            vector_data const& m_uv, vector_data const& l_uv,
+            vector_data const& b_uv)
+            -> scalar_partition
+            {
+                uint size_x = next.size_x();
+                uint size_y = next.size_y();
+                                
+                //left and right
+                for (uint j = 0; j < size_y; j++)
+                {
+                    uint i = 0;                     
+                    compute_temperature_for_cell(
+                        next.get_cell_ref(i, j),
+                        m_temp.get_cell(i, j),
+                        get_left_neighbor(m_temp, l_temp, i, j),
+                        get_right_neighbor(m_temp, r_temp, i, j),
+                        get_bottom_neighbor(m_temp, b_temp, i, j),
+                        get_top_neighbor(m_temp, t_temp, i, j),
+                        m_uv.get_cell(i, j),
+                        get_left_neighbor(m_uv, l_uv, i, j),
+                        get_bottom_neighbor(m_uv, b_uv, i, j),
+                        flag_data[j * size_x + i],
+                        re, pr, dx, dy, dt, alpha);
+                     
+                    
+                    i = size_x - 1;
+                    compute_temperature_for_cell(
+                        next.get_cell_ref(i, j),
+                        m_temp.get_cell(i, j),
+                        get_left_neighbor(m_temp, l_temp, i, j),
+                        get_right_neighbor(m_temp, r_temp, i, j),
+                        get_bottom_neighbor(m_temp, b_temp, i, j),
+                        get_top_neighbor(m_temp, t_temp, i, j),
+                        m_uv.get_cell(i, j),
+                        get_left_neighbor(m_uv, l_uv, i, j),
+                        get_bottom_neighbor(m_uv, b_uv, i, j),
+                        flag_data[j * size_x + i],
+                        re, pr, dx, dy, dt, alpha);
+                }    
+                
+                //bottom and top
+                for (uint i = 0; i < size_x; i++)
+                {
+                    uint j = 0;
+                    compute_temperature_for_cell(
+                        next.get_cell_ref(i, j),
+                        m_temp.get_cell(i, j),
+                        get_left_neighbor(m_temp, l_temp, i, j),
+                        get_right_neighbor(m_temp, r_temp, i, j),
+                        get_bottom_neighbor(m_temp, b_temp, i, j),
+                        get_top_neighbor(m_temp, t_temp, i, j),
+                        m_uv.get_cell(i, j),
+                        get_left_neighbor(m_uv, l_uv, i, j),
+                        get_bottom_neighbor(m_uv, b_uv, i, j),
+                        flag_data[j * size_x + i],
+                        re, pr, dx, dy, dt, alpha);
+                     
+                    
+                    j = size_y - 1;
+                    compute_temperature_for_cell(
+                        next.get_cell_ref(i, j),
+                        m_temp.get_cell(i, j),
+                        get_left_neighbor(m_temp, l_temp, i, j),
+                        get_right_neighbor(m_temp, r_temp, i, j),
+                        get_bottom_neighbor(m_temp, b_temp, i, j),
+                        get_top_neighbor(m_temp, t_temp, i, j),
+                        m_uv.get_cell(i, j),
+                        get_left_neighbor(m_uv, l_uv, i, j),
+                        get_bottom_neighbor(m_uv, b_uv, i, j),
+                        flag_data[j * size_x + i],
+                        re, pr, dx, dy, dt, alpha);
+                }                     
+                
+                return scalar_partition(middle_temperature.get_id(), next);
+            }
+        ),
+        std::move(next_temperature_middle),
+        middle_temperature_data,
+        left_temperature.get_data(LEFT),
+        right_temperature.get_data(RIGHT),
+        bottom_temperature.get_data(BOTTOM),
+        top_temperature.get_data(TOP),
+        middle_uv_data,
+        left_uv.get_data(LEFT),
+        bottom_uv.get_data(BOTTOM)
+    );        
+}
+
+void custom_grain_size::compute_temperature_for_cell(scalar_cell& middle_temperature,
+    scalar_cell const& old_middle_temperature,
+    scalar_cell const& left_temperature, scalar_cell const& right_temperature,
+    scalar_cell const& bottom_temperature, scalar_cell const& top_temperature,
+    vector_cell const& middle_uv, vector_cell const& left_uv,
+    vector_cell const& bottom_uv, std::bitset<5> const& type,
+    RealType re, RealType pr, RealType dx, RealType dy, RealType dt,
+    RealType alpha
+    )
+{
+    
+    if (type.test(4))
+    {
+        middle_temperature.value =
+            dt * (1./re*1./pr * (second_derivative_fwd_bkwd_x(right_temperature.value, old_middle_temperature.value, left_temperature.value, dx)
+                                                + second_derivative_fwd_bkwd_y(top_temperature.value, old_middle_temperature.value, bottom_temperature.value, dy)
+                                                )
+                               // + (i == 1 ? 1 : 0)
+                                - first_derivative_u_temp_x(middle_uv.first, left_uv.first, old_middle_temperature.value, right_temperature.value, left_temperature.value, dx, alpha)
+                                - first_derivative_v_temp_y(middle_uv.second, bottom_uv.second, old_middle_temperature.value, top_temperature.value, bottom_temperature.value, dy, alpha)
+                                )
+                                + old_middle_temperature.value;
+    }
+    else
+    {
+        middle_temperature.value = old_middle_temperature.value;
+    }
+}
+
+scalar_partition custom_grain_size::compute_right_hand_side_on_fluid_cells(
+    vector_partition const& middle_fg,  vector_partition const& left_fg,
+    vector_partition const& bottom_fg,
+    std::vector<std::bitset<5> > const& flag_data,
+    RealType dx, RealType dy, RealType dt)
+{
+    hpx::shared_future<vector_data> middle_fg_data = middle_fg.get_data(CENTER);
+    
+    //do local computation first
+    hpx::future<scalar_data> next_rhs_middle = 
+        hpx::dataflow(
+            hpx::launch::async,
+            hpx::util::unwrapped(
+                [middle_fg, flag_data, dx, dy, dt]
+                (vector_data const& m_fg)
+                -> scalar_data
+                {
+                    uint size_x = m_fg.size_x();
+                    uint size_y = m_fg.size_y();
+
+                    scalar_data next(size_x, size_y);
+
+                    for (uint j = 1; j < size_y - 1; j++)
+                        for (uint i = 1; i < size_x - 1; i++)
+                            compute_rhs_for_cell(
+                                next.get_cell_ref(i, j),
+                                m_fg.get_cell(i, j),
+                                m_fg.get_cell(i - 1, j),
+                                m_fg.get_cell(i, j - 1),
+                                flag_data[j * size_x + i],
+                                dx, dy, dt);
+
+                    return next;
+                }
+            ),
+            middle_fg_data
+        );
+
+    return hpx::dataflow(
+        hpx::launch::async,
+        hpx::util::unwrapped(
+            [middle_fg, flag_data, dx, dy, dt]
+            (scalar_data next, vector_data const& m_fg, vector_data const& l_fg,
+                vector_data const& b_fg)
+            -> scalar_partition
+            {
+                uint size_x = next.size_x();
+                uint size_y = next.size_y();
+                                
+                //left and right
+                for (uint j = 0; j < size_y; j++)
+                {
+                    uint i = 0;                     
+                    compute_rhs_for_cell(
+                        next.get_cell_ref(i, j),
+                        m_fg.get_cell(i, j),
+                        get_left_neighbor(m_fg, l_fg, i, j),
+                        get_bottom_neighbor(m_fg, b_fg, i, j),
+                        flag_data[j * size_x + i],
+                        dx, dy, dt);
+                     
+                    
+                    i = size_x - 1;
+                    compute_rhs_for_cell(
+                        next.get_cell_ref(i, j),
+                        m_fg.get_cell(i, j),
+                        get_left_neighbor(m_fg, l_fg, i, j),
+                        get_bottom_neighbor(m_fg, b_fg, i, j),
+                        flag_data[j * size_x + i],
+                        dx, dy, dt);
+                }    
+                
+                //bottom and top
+                for (uint i = 0; i < size_x; i++)
+                {
+                    uint j = 0;
+                    compute_rhs_for_cell(
+                        next.get_cell_ref(i, j),
+                        m_fg.get_cell(i, j),
+                        get_left_neighbor(m_fg, l_fg, i, j),
+                        get_bottom_neighbor(m_fg, b_fg, i, j),
+                        flag_data[j * size_x + i],
+                        dx, dy, dt);
+                     
+                    
+                    j = size_y - 1;
+                    compute_rhs_for_cell(
+                        next.get_cell_ref(i, j),
+                        m_fg.get_cell(i, j),
+                        get_left_neighbor(m_fg, l_fg, i, j),
+                        get_bottom_neighbor(m_fg, b_fg, i, j),
+                        flag_data[j * size_x + i],
+                        dx, dy, dt);
+                }                     
+                
+                return scalar_partition(middle_fg.get_id(), next);
+            }
+        ),
+        std::move(next_rhs_middle),
+        middle_fg_data,
+        left_fg.get_data(LEFT),
+        bottom_fg.get_data(BOTTOM)
+    );    
+}
+
+void custom_grain_size::compute_rhs_for_cell(scalar_cell& middle_rhs,
+    vector_cell const& middle_fg, vector_cell const& left_fg,
+    vector_cell const& bottom_fg, std::bitset<5> const& type,
+    RealType dx, RealType dy, RealType dt)
+{
+    if (type.test(4))          
+        middle_rhs.value =
+            1./dt * ( (middle_fg.first - left_fg.first)/dx
+                     + (middle_fg.second - bottom_fg.second)/dy);
+}
+
+scalar_partition custom_grain_size::set_pressure_on_boundary_and_obstacles(
+        scalar_partition const& middle_p, scalar_partition const& left_p,
+        scalar_partition const& right_p, scalar_partition const& bottom_p,
+        scalar_partition const& top_p, std::vector<std::bitset<5> > const& flag_data)
+{
+    scalar_data middle_p_data = middle_p.get_data(CENTER).get();
+    scalar_data left_p_data = middle_p.get_data(LEFT).get();
+    scalar_data right_p_data = middle_p.get_data(RIGHT).get();
+    scalar_data bottom_p_data = middle_p.get_data(BOTTOM).get();
+    scalar_data top_p_data = middle_p.get_data(TOP).get();   
+    
+    set_pressure_on_boundary(middle_p_data, left_p_data, right_p_data, bottom_p_data,
+        top_p_data, flag_data, 0, 0, 0, 0);
+        
+    return scalar_partition(middle_p.get_id(), middle_p_data);
+    
     /*
-    *@TODO: maybe create new vector_data here
-    */
-    uint size_x = uv_center.size_x();
-    uint size_y = uv_center.size_y();
+    //do local computation first
+    hpx::future<scalar_data> next_p_middle = 
+        hpx::dataflow(
+            hpx::launch::async,
+            hpx::util::unwrapped(
+                [middle_p, flag_data]
+                (scalar_data m_p)
+                -> scalar_data
+                {
+                    uint size_x = m_p.size_x();
+                    uint size_y = m_p.size_y();
 
-    for (uint j = 0; j < size_y; j++)
-        for (uint i = 0; i < size_x; i++)
-        {
-            std::bitset<5> cell_type = flag_data[j*size_x + i];
+                    //scalar_data next(size_x, size_y);
 
-            //obstacle
-            if (in_range(1, i_max, 1, j_max, global_i + i, global_j + j))
+                    for (uint j = 0; j < size_y ; j++)
+                        for (uint i = 0; i < size_x ; i++)
+                            set_pressure_for_cell(
+                                m_p.get_cell_ref(i, j),
+                                m_p.get_cell(i - 1, j),
+                                m_p.get_cell(i + 1, j),
+                                m_p.get_cell(i, j - 1),
+                                m_p.get_cell(i, j + 1),
+                                flag_data[j * size_x + i]);
+
+                    return m_p;
+                }
+            ),
+            middle_p.get_data(CENTER)
+        );
+
+    return hpx::dataflow(
+        hpx::launch::async,
+        hpx::util::unwrapped(
+            [middle_p, flag_data]
+            (scalar_data next, scalar_data const& l_p,
+                scalar_data const& r_p, scalar_data const& b_p,
+                scalar_data const& t_p)
+            -> scalar_partition
             {
-                //north
-                if (cell_type == std::bitset<5>("00001"))
+                uint size_x = next.size_x();
+                uint size_y = next.size_y();
+                                
+                //left and right
+                for (uint j = 0; j < size_y; j++)
                 {
-                    vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                    vector_cell const top_cell = get_top_neighbor(uv_center, uv_top, i, j);
-
-                    curr_cell.second = 0;
-                    curr_cell.first = -top_cell.first;
-                }
-
-                //east
-                if (cell_type == std::bitset<5>("01000"))
+                    uint i = 0;                     
+                    set_pressure_for_cell(
+                       next.get_cell_ref(i, j),
+                       get_left_neighbor(next, l_p, i, j),
+                       get_right_neighbor(next, r_p, i, j),
+                       get_bottom_neighbor(next, b_p, i, j),
+                       get_top_neighbor(next, t_p, i, j),
+                       flag_data[j * size_x + i]);
+                     
+                    
+                    i = size_x - 1;
+                    set_pressure_for_cell(
+                       next.get_cell_ref(i, j),
+                       get_left_neighbor(next, l_p, i, j),
+                       get_right_neighbor(next, r_p, i, j),
+                       get_bottom_neighbor(next, b_p, i, j),
+                       get_top_neighbor(next, t_p, i, j),
+                       flag_data[j * size_x + i]);
+                }    
+                
+                //bottom and top
+                for (uint i = 0; i < size_x; i++)
                 {
-                    vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                    vector_cell const right_cell = get_right_neighbor(uv_center, uv_right, i, j);
-
-                    curr_cell.first = 0;
-                    curr_cell.second = -right_cell.second;
-                }
-
-                //south
-                if (cell_type == std::bitset<5>("00010"))
-                {
-                    vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                    vector_cell const bottom_cell = get_bottom_neighbor(uv_center, uv_bottom, i, j);
-
-                    curr_cell.first = -bottom_cell.first;
-                }
-
-                if (cell_type == std::bitset<5>("11110") && global_j + j != j_max)
-                {
-                    vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-
-                    curr_cell.second = 0;
-                }
-
-                //west
-                if (cell_type == std::bitset<5>("00100"))
-                {
-                    vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                    vector_cell const left_cell = get_left_neighbor(uv_center, uv_left, i, j);
-
-                    curr_cell.second = -left_cell.second;
-                }
-
-                if (cell_type == std::bitset<5>("10111") && global_i + i != i_max)
-                {
-                    vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-
-                    curr_cell.first = 0;
-                }
-
-                //north east
-                if (cell_type == std::bitset<5>("01001"))
-                {
-                    vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-
-                    curr_cell.first = 0;
-                    curr_cell.second = 0;
-                }
-
-                //south east
-                if (cell_type == std::bitset<5>("01010"))
-                {
-                    vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                    vector_cell const right_cell = get_right_neighbor(uv_center, uv_right, i, j);
-
-                    curr_cell.first = 0;
-                    curr_cell.second = -right_cell.second;
-                }
-
-                //south west
-                if (cell_type == std::bitset<5>("00110"))
-                {
-                    vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                    vector_cell const bottom_cell = get_bottom_neighbor(uv_center, uv_bottom, i, j);
-                    vector_cell const left_cell = get_left_neighbor(uv_center, uv_left, i, j);
-
-                    curr_cell.first = -bottom_cell.first;
-                    curr_cell.second = -left_cell.second;
-                }
-
-                //north west
-                if (cell_type == std::bitset<5>("00101"))
-                {
-                    vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                    vector_cell const top_cell = get_top_neighbor(uv_center, uv_top, i, j);
-
-                    curr_cell.first = -top_cell.first;
-                    curr_cell.second = 0;
-                }
+                    uint j = 0;
+                    set_pressure_for_cell(
+                       next.get_cell_ref(i, j),
+                       get_left_neighbor(next, l_p, i, j),
+                       get_right_neighbor(next, r_p, i, j),
+                       get_bottom_neighbor(next, b_p, i, j),
+                       get_top_neighbor(next, t_p, i, j),
+                       flag_data[j * size_x + i]);
+                     
+                    
+                    j = size_y - 1;
+                    set_pressure_for_cell(
+                       next.get_cell_ref(i, j),
+                       get_left_neighbor(next, l_p, i, j),
+                       get_right_neighbor(next, r_p, i, j),
+                       get_bottom_neighbor(next, b_p, i, j),
+                       get_top_neighbor(next, t_p, i, j),
+                       flag_data[j * size_x + i]);
+                }                    
+                
+                return scalar_partition(middle_p.get_id(), next);
             }
-            //boundary
-            else
-            {
-                //left
-                if (in_range(0, 0, 1, j_max, global_i + i, global_j + j))
-                {
-                    if (data_type.left == 1)
-                    {
-                        vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                        vector_cell const right_cell = get_right_neighbor(uv_center, uv_right, i, j);
-
-                        curr_cell.first = 0;
-                        curr_cell.second = -right_cell.second;
-                    }
-
-                    if (data_type.left == 2)
-                    {
-                        vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                        vector_cell const right_cell = get_right_neighbor(uv_center, uv_right, i, j);
-
-                        curr_cell.first = 0;
-                        curr_cell.second = right_cell.second;
-                    }
-
-                    if (data_type.left == 3)
-                    {
-                        vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                        vector_cell const right_cell = get_right_neighbor(uv_center, uv_right, i, j);
-
-                        curr_cell.first = right_cell.first;
-                        curr_cell.second = right_cell.second;
-                    }
-
-                    if (data_type.left == 4)
-                    {
-                        vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                        vector_cell const right_cell = get_right_neighbor(uv_center, uv_right, i, j);
-
-                        curr_cell.first = u_bnd.left;
-                        curr_cell.second = 2*v_bnd.left - right_cell.second;
-                    }
-                }
-                //right
-                if (in_range(i_max + 1, i_max + 1, 1, j_max, global_i + i, global_j + j))
-                {
-                    if (data_type.right == 1)
-                    {
-                        vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                        vector_cell& left_cell = uv_center.get_cell_ref(i - 1, j);
-
-                        left_cell.first = 0;
-                        curr_cell.second = -left_cell.second;
-                    }
-
-                    if (data_type.right == 2)
-                    {
-                        vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                        vector_cell& left_cell = uv_center.get_cell_ref(i - 1, j);
-
-                        left_cell.first = 0;
-                        curr_cell.second = left_cell.second;
-                    }
-
-                    if (data_type.right == 3)
-                    {
-                        vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                        vector_cell& left_cell = uv_center.get_cell_ref(i - 1, j);
-                        vector_cell const left2_cell = get_left_neighbor(uv_center, uv_left, i-1, j);
-
-                        left_cell.first = left2_cell.first;
-                        curr_cell.second = left_cell.second;
-                    }
-
-                    if (data_type.right == 4)
-                    {
-                        vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                        vector_cell& left_cell = uv_center.get_cell_ref(i - 1, j);
-
-                        left_cell.first = u_bnd.right;
-                        curr_cell.second = 2*v_bnd.right - left_cell.second;
-                    }
-                }
-
-                //bottom
-                if (in_range(1, i_max, 0, 0, global_i + i, global_j + j))
-                {
-                    if (data_type.bottom == 1)
-                    {
-                        vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                        vector_cell const top_cell = get_top_neighbor(uv_center, uv_top, i, j);
-
-                        curr_cell.first = -top_cell.first;
-                        curr_cell.second = 0;
-                    }
-
-                    if (data_type.bottom == 2)
-                    {
-                        vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                        vector_cell const top_cell = get_top_neighbor(uv_center, uv_top, i, j);
-
-                        curr_cell.first = top_cell.first;
-                        curr_cell.second = 0;
-                    }
-
-                    if (data_type.bottom == 3)
-                    {
-                        vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                        vector_cell const top_cell = get_top_neighbor(uv_center, uv_top, i, j);
-
-                        curr_cell.first = top_cell.first;
-                        curr_cell.second = top_cell.second;
-                    }
-
-                    if (data_type.bottom == 4)
-                    {
-                        vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                        vector_cell const top_cell = get_top_neighbor(uv_center, uv_top, i, j);
-
-                        curr_cell.first = 2*u_bnd.bottom - top_cell.first;
-                        curr_cell.second = v_bnd.bottom;
-                    }
-                }
-
-                //top
-                if (in_range(1, i_max, j_max + 1, j_max + 1, global_i + i, global_j + j))
-                {
-                    if (data_type.top == 1)
-                    {
-                        vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                        vector_cell& bottom_cell = uv_center.get_cell_ref(i, j - 1);
-
-                        curr_cell.first = 2*u_bnd.top - bottom_cell.first;
-                        bottom_cell.second = 0;
-                    }
-
-                    if (data_type.top == 2)
-                    {
-                        vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                        vector_cell& bottom_cell = uv_center.get_cell_ref(i, j - 1);
-
-                        curr_cell.first = bottom_cell.first;
-                        bottom_cell.second = 0;
-                    }
-
-                    if (data_type.top == 3)
-                    {
-                        vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                        vector_cell& bottom_cell = uv_center.get_cell_ref(i, j - 1);
-                        vector_cell const bottom2_cell = get_bottom_neighbor(uv_center, uv_bottom, i, j-1);
-
-                        curr_cell.first = bottom_cell.first;
-                        bottom_cell.second = bottom2_cell.second;
-                    }
-
-                    if (data_type.top == 4)
-                    {
-                        vector_cell& curr_cell = uv_center.get_cell_ref(i, j);
-                        vector_cell& bottom_cell = uv_center.get_cell_ref(i, j - 1);
-
-                        curr_cell.first = 2*u_bnd.top - bottom_cell.first;
-                        bottom_cell.second = v_bnd.top;
-                    }
-                }
-            }
-        }
+        ),
+        std::move(next_p_middle),
+        left_p.get_data(LEFT),
+        right_p.get_data(RIGHT),
+        bottom_p.get_data(BOTTOM),
+        top_p.get_data(TOP)
+    ); */
 }
 
-void custom_grain_size::set_boundary_temp(scalar_data temperature, std::vector<std::bitset<5> > const& flag_data,
-                                    boundary_data const& temp_data_type, boundary_data const& temp_bnd,
-                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy)
+void custom_grain_size::set_pressure_for_cell(scalar_cell& middle_p,
+    scalar_cell const& left_p, scalar_cell const& right_p,
+    scalar_cell const& bottom_p, scalar_cell const& top_p,
+    std::bitset<5> const& type)
 {
-
-/*
-    *@TODO: maybe create new vector_data here
-    */
-    uint size_x = temperature.size_x();
-    uint size_y = temperature.size_y();
-
-    for (uint j = 0; j < size_y; j++)
-        for (uint i = 0; i < size_x; i++)
-        {
-            std::bitset<5> cell_type = flag_data[j*size_x + i];
-
-            //boundary
-            //left
-            if (in_range(0, 0, 1, j_max, global_i + i, global_j + j))
-            {
-                if (temp_data_type.left != -1)
-                {
-                    //Dirichlet
-                    if (temp_data_type.left == 1)
-                    {
-                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                        scalar_cell const right_cell = temperature.get_cell(i+1, j);
-
-                        curr_cell.value = 2*temp_bnd.left - right_cell.value;//*((j - 0.5)*dy) - right_cell.value;
-                    }
-
-                    //Neumann
-                    else if (temp_data_type.left == 2)
-                    {
-                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                        scalar_cell const right_cell = temperature.get_cell(i+1, j);
-
-                        curr_cell.value = right_cell.value + dx*temp_bnd.left*((j-0.5)*dy);
-                    }
-                }
-            }
-
-            //right
-            if (in_range(i_max + 1, i_max + 1, 1, j_max, global_i + i, global_j + j))
-            {
-                if (temp_data_type.right != -1)
-                {
-                    //Dirichlet
-                    if (temp_data_type.right == 1)
-                    {
-                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                        scalar_cell const left_cell = temperature.get_cell(i-1, j);
-
-                        curr_cell.value = 2*temp_bnd.right - left_cell.value;// * ((j - 0.5)*dy) - left_cell.value;
-                    }
-
-                    //Neumann
-                    else if (temp_data_type.right == 2)
-                    {
-                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                        scalar_cell const left_cell = temperature.get_cell(i-1, j);
-
-                        curr_cell.value = left_cell.value + dx*temp_bnd.right*((j-0.5)*dy);
-                    }
-                }
-            }
-
-            //bottom
-            if (in_range(1, i_max, 0, 0, global_i + i, global_j + j))
-            {
-                if (temp_data_type.bottom != -1)
-                {
-                    //Dirichlet
-                    if (temp_data_type.bottom == 1)
-                    {
-                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                        scalar_cell const top_cell = temperature.get_cell(i, j+1);
-
-                        curr_cell.value = 2*temp_bnd.bottom - top_cell.value;// * ((i - 0.5)*dx) - top_cell.value;
-                    }
-
-                    //Neumann
-                    else if (temp_data_type.bottom == 2)
-                    {
-                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                        scalar_cell const top_cell = temperature.get_cell(i, j+1);
-
-                        curr_cell.value = top_cell.value + dy*temp_bnd.bottom*((i-0.5)*dx);
-                    }
-                }
-            }
-
-            //top
-            if (in_range(1, i_max, j_max + 1, j_max + 1, global_i + i, global_j + j))
-            {
-                if (temp_data_type.top != -1)
-                {
-                    //Dirichlet
-                    if (temp_data_type.top == 1)
-                    {
-                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                        scalar_cell const bottom_cell = temperature.get_cell(i, j-1);
-
-                        curr_cell.value = 2*temp_bnd.top - bottom_cell.value;// * ((i - 0.5)*dx) - bottom_cell.value;
-                    }
-
-                    //Neumann
-                    else if (temp_data_type.top == 2)
-                    {
-                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                        scalar_cell const bottom_cell = temperature.get_cell(i, j-1);
-
-                        curr_cell.value = bottom_cell.value + dy*temp_bnd.top*((i-0.5)*dx);
-                    }
-                }
-            }
-
-        }
-}
-
-
-void custom_grain_size::set_boundary_temp(scalar_data temperature, scalar_data const& temperature_old, std::vector<std::bitset<5> > const& flag_data,
-                                    boundary_data const& temp_data_type, boundary_data const& temp_bnd,
-                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy)
-{
-
-/*
-    *@TODO: maybe create new vector_data here
-    */
-    uint size_x = temperature.size_x();
-    uint size_y = temperature.size_y();
-
-    for (uint j = 0; j < size_y; j++)
-        for (uint i = 0; i < size_x; i++)
-        {
-            std::bitset<5> cell_type = flag_data[j*size_x + i];
-
-            //boundary
-            //left
-            if (in_range(0, 0, 1, j_max, global_i + i, global_j + j))
-            {
-                if (temp_data_type.left != -1)
-                {
-                    //Dirichlet
-                    if (temp_data_type.left == 1)
-                    {
-                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                        scalar_cell const right_cell = temperature_old.get_cell(i+1, j);
-
-                        curr_cell.value = 2*temp_bnd.left - right_cell.value;//*((j - 0.5)*dy) - right_cell.value;
-                    }
-
-                    //Neumann
-                    else if (temp_data_type.left == 2)
-                    {
-                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                        scalar_cell const right_cell = temperature_old.get_cell(i+1, j);
-
-                        curr_cell.value = right_cell.value + dx*temp_bnd.left*((j-0.5)*dy);
-                    }
-                }
-            }
-
-            //right
-            if (in_range(i_max + 1, i_max + 1, 1, j_max, global_i + i, global_j + j))
-            {
-                if (temp_data_type.right != -1)
-                {
-                    //Dirichlet
-                    if (temp_data_type.right == 1)
-                    {
-                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                        scalar_cell const left_cell = temperature_old.get_cell(i-1, j);
-
-                        curr_cell.value = 2*temp_bnd.right - left_cell.value;// * ((j - 0.5)*dy) - left_cell.value;
-                    }
-
-                    //Neumann
-                    else if (temp_data_type.right == 2)
-                    {
-                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                        scalar_cell const left_cell = temperature_old.get_cell(i-1, j);
-
-                        curr_cell.value = left_cell.value + dx*temp_bnd.right*((j-0.5)*dy);
-                    }
-                }
-            }
-
-            //bottom
-            if (in_range(1, i_max, 0, 0, global_i + i, global_j + j))
-            {
-                if (temp_data_type.bottom != -1)
-                {
-                    //Dirichlet
-                    if (temp_data_type.bottom == 1)
-                    {
-                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                        scalar_cell const top_cell = temperature_old.get_cell(i, j+1);
-
-                        curr_cell.value = 2*temp_bnd.bottom - top_cell.value;// * ((i - 0.5)*dx) - top_cell.value;
-                    }
-
-                    //Neumann
-                    else if (temp_data_type.bottom == 2)
-                    {
-                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                        scalar_cell const top_cell = temperature_old.get_cell(i, j+1);
-
-                        curr_cell.value = top_cell.value + dy*temp_bnd.bottom*((i-0.5)*dx);
-                    }
-                }
-            }
-
-            //top
-            if (in_range(1, i_max, j_max + 1, j_max + 1, global_i + i, global_j + j))
-            {
-                if (temp_data_type.top != -1)
-                {
-                    //Dirichlet
-                    if (temp_data_type.top == 1)
-                    {
-                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                        scalar_cell const bottom_cell = temperature_old.get_cell(i, j-1);
-
-                        curr_cell.value = 2*temp_bnd.top - bottom_cell.value;// * ((i - 0.5)*dx) - bottom_cell.value;
-                    }
-
-                    //Neumann
-                    else if (temp_data_type.top == 2)
-                    {
-                        scalar_cell& curr_cell = temperature.get_cell_ref(i, j);
-                        scalar_cell const bottom_cell = temperature_old.get_cell(i, j-1);
-
-                        curr_cell.value = bottom_cell.value + dy*temp_bnd.top*((i-0.5)*dx);
-                    }
-                }
-            }
-
-        }
-}
-
-void custom_grain_size::compute_fg(vector_data& fg, vector_data const& uv_center,
-                        vector_data const& uv_left, vector_data const& uv_right,
-                        vector_data const& uv_bottom, vector_data const& uv_top,
-                        vector_data const& uv_bottomright, vector_data const& uv_topleft,
-                        scalar_data const& temp_center, scalar_data const& temp_right,
-                        scalar_data const& temp_top,
-                        std::vector<std::bitset<5> > const& flag_data,
-                        uint global_i, uint global_j, uint i_max, uint j_max, RealType re,
-                        RealType gx, RealType gy, RealType beta,
-                        RealType dx, RealType dy, RealType dt, RealType alpha)
-{
-
-    uint size_x = uv_center.size_x();
-    uint size_y = uv_center.size_y();
-
-    for (uint j = 0; j < size_y; j++)
-        for (uint i = 0; i < size_x; i++)
-        {
-            vector_cell& fg_cell = fg.get_cell_ref(i, j);
-
-            vector_cell const center = uv_center.get_cell(i, j);
-
-            std::bitset<5> cell_type = flag_data[j*size_x + i];
-
-            //north
-            if (!cell_type.test(4) && cell_type.test(0))
-            {
-                vector_cell& curr_cell = fg.get_cell_ref(i, j);
-                vector_cell const curr_uv = uv_center.get_cell(i, j);
-
-                curr_cell.second = curr_uv.second;
-            }
-
-            //east
-            if (!cell_type.test(4) && cell_type.test(3))
-            {
-                vector_cell& curr_cell = fg.get_cell_ref(i, j);
-                vector_cell const curr_uv = uv_center.get_cell(i, j);
-
-                curr_cell.first = curr_uv.first;
-            }
-
-            if (cell_type.test(4))
-            {
-                vector_cell const left = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, LEFT);
-                vector_cell const right = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, RIGHT);
-                vector_cell const bottom = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, BOTTOM);
-                vector_cell const top = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, TOP);
-                vector_cell const bottomright = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, BOTTOM_RIGHT);
-                vector_cell const topleft = get_neighbor_cell(uv_center, uv_left, uv_right, uv_bottom, uv_top, uv_top, uv_bottomright, uv_topleft, uv_topleft, i, j, TOP_LEFT);
-
-                scalar_cell const t_center = temp_center.get_cell(i, j);
-                scalar_cell const t_right = get_right_neighbor(temp_center, temp_right, i, j);
-                scalar_cell const t_top = get_top_neighbor(temp_center, temp_top, i, j);
-
-                if (!cell_type.test(3))
-                {
-                    fg_cell.first = center.first;
-                }
-                else
-                {
-                    fg_cell.first = center.first + dt * (
-                                    1./re * (second_derivative_fwd_bkwd_x(right.first, center.first, left.first, dx)
-                                                + second_derivative_fwd_bkwd_y(top.first, center.first, bottom.first, dy))
-
-                                    - first_derivative_of_square_x(right.first, center.first, left.first, dx, alpha)
-                                    - first_derivative_of_product_y(right.second, center.second, bottom.second, bottomright.second,
-                                                                    bottom.first, center.first, top.first, dy, alpha)
-
-                                    + gx
-                                    )
-                                    - beta * dt / 2. * (t_center.value + t_right.value) * gx;
-                }
-
-                if (!cell_type.test(0))
-                {
-                    fg_cell.second = center.second;
-                }
-                else
-                {
-                    fg_cell.second = center.second + dt * (
-                                    1./re * (second_derivative_fwd_bkwd_x(right.second, center.second, left.second, dx)
-                                                + second_derivative_fwd_bkwd_y(top.second, center.second, bottom.second, dy))
-
-                                    - first_derivative_of_product_x(left.first, center.first, top.first, topleft.first,
-                                                                    left.second, center.second, right.second, dx, alpha)
-                                    - first_derivative_of_square_y(top.second, center.second, bottom.second, dy, alpha)
-
-                                    + gy
-                                    )
-                                    - beta * dt / 2. * (t_center.value + t_top.value) * gy;
-                }
-            }
-
-        }
-}
-
-void custom_grain_size::compute_temp(scalar_data& temp_center, scalar_data const& temp_left, scalar_data const& temp_right,
-                                    scalar_data const& temp_bottom, scalar_data const& temp_top,
-                                    vector_data const& uv_center, vector_data const& uv_left,
-                                    vector_data const& uv_bottom, std::vector<std::bitset<5> > const& flag_data,
-                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType re, RealType pr,
-                                    RealType dx, RealType dy, RealType dt, RealType alpha)
-{
-    uint size_x = temp_center.size_x();
-    uint size_y = temp_center.size_y();
-
-
-
-    for (uint j = 0; j < size_y; j++)
-        for (uint i = 0; i < size_x; i++)
-        {
-            scalar_cell& temp_cell = temp_center.get_cell_ref(i, j);
-            scalar_cell const temp_left_cell = get_left_neighbor(temp_center, temp_left, i, j);
-            scalar_cell const temp_right_cell = get_right_neighbor(temp_center, temp_right, i, j);
-            scalar_cell const temp_bottom_cell = get_bottom_neighbor(temp_center, temp_bottom, i, j);
-            scalar_cell const temp_top_cell = get_top_neighbor(temp_center, temp_top, i, j);
-
-            vector_cell const uv_center_cell = uv_center.get_cell(i, j);
-            vector_cell const uv_left_cell = get_left_neighbor(uv_center, uv_left, i, j);
-            vector_cell const uv_bottom_cell = get_bottom_neighbor(uv_center, uv_bottom, i, j);
-
-            std::bitset<5> cell_type = flag_data[j*size_x + i];
-
-            if (cell_type.test(4))
-            {
-                temp_cell.value = dt * (1./re*1./pr * (second_derivative_fwd_bkwd_x(temp_right_cell.value, temp_cell.value, temp_left_cell.value, dx)
-                                                        + second_derivative_fwd_bkwd_y(temp_top_cell.value, temp_cell.value, temp_bottom_cell.value, dy)
-                                                        )
-                                       // + (i == 1 ? 1 : 0)
-                                        - first_derivative_u_temp_x(uv_center_cell.first, uv_left_cell.first, temp_cell.value, temp_right_cell.value, temp_left_cell.value, dx, alpha)
-                                        - first_derivative_v_temp_y(uv_center_cell.second, uv_bottom_cell.second, temp_cell.value, temp_top_cell.value, temp_bottom_cell.value, dy, alpha)
-                                        )
-                                        + temp_cell.value;
-            }
-        }
-}
-
-void custom_grain_size::compute_temp(scalar_data& temp_center, scalar_data const& temp_center_old, scalar_data const& temp_left, scalar_data const& temp_right,
-                                    scalar_data const& temp_bottom, scalar_data const& temp_top,
-                                    vector_data const& uv_center, vector_data const& uv_left,
-                                    vector_data const& uv_bottom, std::vector<std::bitset<5> > const& flag_data,
-                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType re, RealType pr,
-                                    RealType dx, RealType dy, RealType dt, RealType alpha)
-{
-    uint size_x = temp_center.size_x();
-    uint size_y = temp_center.size_y();
-
-    for (uint j = 0; j < size_y; j++)
-        for (uint i = 0; i < size_x; i++)
-        {
-            scalar_cell& temp_cell = temp_center.get_cell_ref(i, j);
-            scalar_cell const temp_center_cell = temp_center_old.get_cell(i, j);
-            scalar_cell const temp_left_cell = get_left_neighbor(temp_center_old, temp_left, i, j);
-            scalar_cell const temp_right_cell = get_right_neighbor(temp_center_old, temp_right, i, j);
-            scalar_cell const temp_bottom_cell = get_bottom_neighbor(temp_center_old, temp_bottom, i, j);
-            scalar_cell const temp_top_cell = get_top_neighbor(temp_center_old, temp_top, i, j);
-
-            vector_cell const uv_center_cell = uv_center.get_cell(i, j);
-            vector_cell const uv_left_cell = get_left_neighbor(uv_center, uv_left, i, j);
-            vector_cell const uv_bottom_cell = get_bottom_neighbor(uv_center, uv_bottom, i, j);
-
-            std::bitset<5> cell_type = flag_data[j*size_x + i];
-
-            if (cell_type.test(4))
-            {
-                temp_cell.value = dt * (1./re*1./pr * (second_derivative_fwd_bkwd_x(temp_right_cell.value, temp_center_cell.value, temp_left_cell.value, dx)
-                                                        + second_derivative_fwd_bkwd_y(temp_top_cell.value, temp_center_cell.value, temp_bottom_cell.value, dy)
-                                                        )
-                                       // + (i == 1 ? 1 : 0)
-                                        - first_derivative_u_temp_x(uv_center_cell.first, uv_left_cell.first, temp_center_cell.value, temp_right_cell.value, temp_left_cell.value, dx, alpha)
-                                        - first_derivative_v_temp_y(uv_center_cell.second, uv_bottom_cell.second, temp_center_cell.value, temp_top_cell.value, temp_bottom_cell.value, dy, alpha)
-                                        )
-                                        + temp_center_cell.value;
-            }
-            else
-            {
-                temp_cell.value = temp_center_cell.value;
-            }
-        }
-}
-
-void custom_grain_size::compute_rhs(scalar_data& rhs, vector_data const& fg_center, vector_data const& fg_left,
-                                    vector_data const& fg_bottom, std::vector<std::bitset<5> > const& flag_data, uint global_i, uint global_j, uint i_max, uint j_max,
-                                    RealType dx, RealType dy, RealType dt)
-{
-    uint size_x = rhs.size_x();
-    uint size_y = rhs.size_y();
-
-   for (uint j = 0; j < size_y; j++)
-        for (uint i = 0; i < size_x; i++)
-        {
-            std::bitset<5> cell_type = flag_data[j*size_x + i];
-
-            if (cell_type.test(4))
-            {
-                vector_cell const center = fg_center.get_cell(i, j);
-                vector_cell const left = get_left_neighbor(fg_center, fg_left, i, j);
-                vector_cell const bottom = get_bottom_neighbor(fg_center, fg_bottom, i, j);
-
-                rhs.get_cell_ref(i, j).value = 1./dt * ( (center.first - left.first)/dx + (center.second - bottom.second)/dy);
-            }
-        }
+    //east
+    if (type == std::bitset<5>("01000"))
+        middle_p.value = right_p.value;
+
+    //west
+    else if (type == std::bitset<5>("00100"))
+        middle_p.value = left_p.value;
+
+    //south
+    else if (type == std::bitset<5>("00010"))
+        middle_p.value = bottom_p.value;
+
+    //north
+    else if (type == std::bitset<5>("00001"))
+        middle_p.value = top_p.value;
+
+    //NE
+    else if (type == std::bitset<5>("01001"))
+        middle_p.value = (top_p.value + right_p.value) / 2.;
+
+    //SE
+    else if (type == std::bitset<5>("01010"))
+        middle_p.value = (bottom_p.value + right_p.value) / 2.;
+
+    //SW
+    else if (type == std::bitset<5>("00110"))
+        middle_p.value = (bottom_p.value + left_p.value) / 2.;
+
+    //NW
+    else if (type == std::bitset<5>("00101"))
+        middle_p.value = (top_p.value + left_p.value) / 2.;
 }
 
 void custom_grain_size::set_pressure_on_boundary(scalar_data& p_center, scalar_data const& p_left, scalar_data const& p_right,

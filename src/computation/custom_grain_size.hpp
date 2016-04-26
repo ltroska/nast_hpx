@@ -11,79 +11,199 @@ namespace computation {
 
 class custom_grain_size {
 
-    public:
-        static void set_boundary(vector_data uv_center, vector_data const& uv_left, vector_data const& uv_right, vector_data const& uv_bottom, vector_data const& uv_top,
-                                    scalar_data temperature, std::vector<std::bitset<5> > const& flag_data, boundary_data const& data_type,
-                                    boundary_data const& temp_data_type, boundary_data const& u_bnd, boundary_data const& v_bnd, boundary_data const& temp_bnd,
-                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy);
+public:
+    static vector_partition set_velocity_for_boundary_and_obstacles(
+            vector_partition const& middle_partition,
+            vector_partition const& left_partition,
+            vector_partition const& right_partition,
+            vector_partition const& bottom_partition,
+            vector_partition const& top_partition,
+            std::vector<std::bitset<5> > const& flag_data,
+            boundary_data const& boundary_data_type,
+            boundary_data const& u_boundary_data,
+            boundary_data const& v_boundary_data,
+            uint global_i, uint global_j, uint i_max, uint j_max
+    );
+    
+    static scalar_partition set_temperature_for_boundary_and_obstacles(
+            scalar_partition const& middle_partition,
+            scalar_partition const& left_partition,
+            scalar_partition const& right_partition,
+            scalar_partition const& bottom_partition,
+            scalar_partition const& top_partition,
+            std::vector<std::bitset<5> > const& flag_data,
+            boundary_data const& boundary_data_type,
+            boundary_data const& temperature_boundary_data,
+            uint global_i, uint global_j, uint i_max, uint j_max,
+            RealType dx, RealType dy
+    );
+    
+    static vector_partition compute_fg_on_fluid_cells(
+        vector_partition const& middle_uv,
+        vector_partition const& left_uv, vector_partition const& right_uv,
+        vector_partition const& bottom_uv, vector_partition const& top_uv,
+        vector_partition const& bottomright_uv, vector_partition const& topleft_uv,
+        scalar_partition const& middle_temperature,
+        scalar_partition const& right_temperature,
+        scalar_partition const& top_temperature,
+        std::vector<std::bitset<5> > const& flag_data,
+        RealType re,
+        RealType gx, RealType gy, RealType beta,
+        RealType dx, RealType dy, RealType dt, RealType alpha);
+    
+    static scalar_partition compute_temperature_on_fluid_cells(
+        scalar_partition const& middle_temperature,
+        scalar_partition const& left_temperature,
+        scalar_partition const& right_temperature,
+        scalar_partition const& bottom_temperature,
+        scalar_partition const& top_temperature,
+        vector_partition const& middle_uv,
+        vector_partition const& left_uv,
+        vector_partition const& bottom_uv,
+        std::vector<std::bitset<5> > const& flag_data,
+        RealType re, RealType pr, RealType dx, RealType dy, RealType dt,
+        RealType alpha        
+    );
+    
+    static scalar_partition compute_right_hand_side_on_fluid_cells(
+        vector_partition const& middle_fg,  vector_partition const& left_fg,
+        vector_partition const& bottom_fg,
+        std::vector<std::bitset<5> > const& flag_data,
+        RealType dx, RealType dy, RealType dt);
+    
+    static scalar_partition set_pressure_on_boundary_and_obstacles(
+        scalar_partition const& middle_p, scalar_partition const& left_p,
+        scalar_partition const& right_p, scalar_partition const& bottom_p,
+        scalar_partition const& top_p, std::vector<std::bitset<5> > const& flag_data
+        );
 
-        static void set_boundary_temp(scalar_data temperature, std::vector<std::bitset<5> > const& flag_data,
-                                    boundary_data const& temp_data_type, boundary_data const& temp_bnd,
-                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy);
-
-        static void set_boundary_temp(scalar_data temperature, scalar_data const& temperature_old, std::vector<std::bitset<5> > const& flag_data,
-                                    boundary_data const& temp_data_type, boundary_data const& temp_bnd,
-                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy);
-
-        static void compute_fg(vector_data& fg, vector_data const& uv_center,
-                                    vector_data const& uv_left, vector_data const& uv_right,
-                                    vector_data const& uv_bottom, vector_data const& uv_top,
-                                    vector_data const& uv_bottomright, vector_data const& uv_topleft,
-                                    scalar_data const& temp_center, scalar_data const& temp_right,
-                                    scalar_data const& temp_top,
-                                    std::vector<std::bitset<5> > const& flag_data,
-                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType re,
-                                    RealType gx, RealType gy, RealType beta,
-                                    RealType dx, RealType dy, RealType dt, RealType alpha);
-
-        static void compute_temp(scalar_data& temp_center, scalar_data const& temp_left, scalar_data const& temp_right,
-                                    scalar_data const& temp_bottom, scalar_data const& temp_top,
-                                    vector_data const& uv_center, vector_data const& uv_left,
-                                    vector_data const& uv_bottom, std::vector<std::bitset<5> > const& flag_data,
-                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType re, RealType pr,
-                                    RealType dx, RealType dy, RealType dt, RealType alpha);
-
-        static void compute_temp(scalar_data& temp_center, scalar_data const& temp_center_old, scalar_data const& temp_left, scalar_data const& temp_right,
-                                    scalar_data const& temp_bottom, scalar_data const& temp_top,
-                                    vector_data const& uv_center, vector_data const& uv_left,
-                                    vector_data const& uv_bottom, std::vector<std::bitset<5> > const& flag_data,
-                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType re, RealType pr,
-                                    RealType dx, RealType dy, RealType dt, RealType alpha);
-
-        static void compute_rhs(scalar_data& rhs, vector_data const& fg_center, vector_data const& fg_left,
-                                    vector_data const& fg_bottom, std::vector<std::bitset<5> > const& flag_data, uint global_i, uint global_j, uint i_max, uint j_max,
-                                    RealType dx, RealType dy, RealType dt);
-
-        static void set_pressure_on_boundary(scalar_data& p_center, scalar_data const& p_left, scalar_data const& p_right,
+    static void set_pressure_on_boundary(scalar_data& p_center, scalar_data const& p_left, scalar_data const& p_right,
                                                 scalar_data const& p_bottom, scalar_data const& p_top, std::vector<std::bitset<5> > const& flag_data,
                                                 uint global_i, uint global_j, uint i_max, uint j_max);
+    
+    static void sor_cycle(scalar_data& p_center, scalar_data const& p_left, scalar_data const& p_right,
+                        scalar_data const& p_bottom, scalar_data const& p_top,
+                        scalar_data const& rhs_center, std::vector<std::bitset<5> > const& flag_data,
+                        uint global_i, uint global_j, uint i_max, uint j_max,
+                        RealType omega, RealType dx, RealType dy);
 
-        static void sor_cycle(scalar_data& p_center, scalar_data const& p_left, scalar_data const& p_right,
-                            scalar_data const& p_bottom, scalar_data const& p_top,
-                            scalar_data const& rhs_center, std::vector<std::bitset<5> > const& flag_data,
-                            uint global_i, uint global_j, uint i_max, uint j_max,
-                            RealType omega, RealType dx, RealType dy);
+    static RealType compute_residual(scalar_data const& p_center, scalar_data const& p_left,
+                                        scalar_data const& p_right, scalar_data const& p_bottom,
+                                        scalar_data const& p_top, scalar_data const& rhs_center,
+                                        std::vector<std::bitset<5> > const& flag_data,
+                                        uint global_i, uint global_j, uint i_max, uint j_max, RealType dx,
+                                        RealType dy);
 
-        static RealType compute_residual(scalar_data const& p_center, scalar_data const& p_left,
-                                            scalar_data const& p_right, scalar_data const& p_bottom,
-                                            scalar_data const& p_top, scalar_data const& rhs_center,
-                                            std::vector<std::bitset<5> > const& flag_data,
-                                            uint global_i, uint global_j, uint i_max, uint j_max, RealType dx,
-                                            RealType dy);
+    static void update_velocities(vector_data& uv_center, scalar_data const& p_center, scalar_data const& p_right,
+                                    scalar_data const& p_top, vector_data const& fg_center, std::vector<std::bitset<5> > const& flag_data,
+                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy, RealType dt);
 
-        static void update_velocities(vector_data& uv_center, scalar_data const& p_center, scalar_data const& p_right,
-                                        scalar_data const& p_top, vector_data const& fg_center, std::vector<std::bitset<5> > const& flag_data,
-                                        uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy, RealType dt);
+    static std::pair<RealType, RealType> max_velocity(vector_data& uv_center);
 
-        static std::pair<RealType, RealType> max_velocity(vector_data& uv_center);
-
-        static void compute_stream_vorticity_heat(scalar_data& stream_center, scalar_data& vorticity_center, scalar_data& heat_center,
-                                                    scalar_data const& stream_bottom, scalar_data const& heat_bottom,
-                                                    vector_data const& uv_center, vector_data const& uv_right, vector_data const& uv_top,
-                                                    scalar_data const& temp_center, scalar_data const& temp_right,
-                                                    std::vector<std::bitset<5> > const& flag_data,
-                                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType re, RealType pr,
-                                                    RealType dx, RealType dy);
+    static void compute_stream_vorticity_heat(scalar_data& stream_center, scalar_data& vorticity_center, scalar_data& heat_center,
+                                                scalar_data const& stream_bottom, scalar_data const& heat_bottom,
+                                                vector_data const& uv_center, vector_data const& uv_right, vector_data const& uv_top,
+                                                scalar_data const& temp_center, scalar_data const& temp_right,
+                                                std::vector<std::bitset<5> > const& flag_data,
+                                                uint global_i, uint global_j, uint i_max, uint j_max, RealType re, RealType pr,
+                                                RealType dx, RealType dy);
+        
+private:
+    static void set_velocity_selector(bool bnd, vector_cell& middle,
+            vector_cell const& left, vector_cell const& right,
+            vector_cell const& bottom, vector_cell const& top,
+            std::bitset<5> const& cell_type,
+            boundary_data const& type,
+            boundary_data const& u,
+            boundary_data const& v,
+            uint global_i, uint global_j, uint i, uint j, uint i_max, uint j_max
+            )
+    {
+        if (bnd)
+            set_velocity_for_boundary_cell(middle, left, right, bottom, top,
+                   type, u, v, global_i, global_j, i, j, i_max, j_max);
+        else
+            set_velocity_for_obstacle_cell(middle, left, right, bottom, top,
+                    cell_type, type, u, v, global_i, global_j, i, j, i_max, j_max);
+        
+    }
+    
+    static void set_velocity_for_boundary_cell(vector_cell& middle,
+            vector_cell const& left, vector_cell const& right,
+            vector_cell const& bottom, vector_cell const& top,
+            boundary_data const& type,
+            boundary_data const& u,
+            boundary_data const& v,
+            uint global_i, uint global_j, uint i, uint j, uint i_max, uint j_max
+            );
+    
+    static void set_velocity_for_obstacle_cell(vector_cell& middle,
+            vector_cell const& left, vector_cell const& right,
+            vector_cell const& bottom, vector_cell const& top,
+            std::bitset<5> const& cell_type,
+            boundary_data const& type,
+            boundary_data const& u,
+            boundary_data const& v,
+            uint global_i, uint global_j, uint i, uint j, uint i_max, uint j_max
+            );
+    
+    static void set_temperature_selector(bool bnd, scalar_cell& middle,
+        scalar_cell const& left, scalar_cell const& right,
+        scalar_cell const& bottom, scalar_cell const& top,
+        boundary_data const& boundary_data_type,
+        boundary_data const& temperature_boundary_data,
+        uint global_i, uint global_j, uint i, uint j, uint i_max, uint j_max,
+        RealType dx, RealType dy
+        )
+    {
+        if (bnd)
+            set_temperature_for_boundary_cell(middle, left, right, bottom, top,
+                    boundary_data_type, temperature_boundary_data,
+                    global_i, global_j, i, j, i_max, j_max, dx, dy);
+      /*  else
+            set_velocity_for_obstacle_cell(middle, left, right, bottom, top,
+                    cell_type, type, u, v, global_i, global_j, i, j, i_max, j_max);*/
+        
+    }
+    
+    static void set_temperature_for_boundary_cell(scalar_cell& middle,
+            scalar_cell const& left, scalar_cell const& right,
+            scalar_cell const& bottom, scalar_cell const& top,
+            boundary_data const& type,
+            boundary_data const& temperature,
+            uint global_i, uint global_j, uint i, uint j, uint i_max, uint j_max,
+            RealType dx, RealType dy
+    );
+    
+    static void compute_fg_for_cell(vector_cell& middle_fg,
+        vector_cell const& middle_uv, vector_cell const& left_uv,
+        vector_cell const& right_uv, vector_cell const& bottom_uv,
+        vector_cell const& top_uv, vector_cell const& bottomright_uv,
+        vector_cell const& topleft_uv, scalar_cell const& middle_temperature,
+        scalar_cell const& right_temperature, scalar_cell const& top_temperature,
+        std::bitset<5> const& type,
+        RealType re, RealType gx, RealType gy, RealType beta,
+        RealType dx, RealType dy, RealType dt, RealType alpha);
+    
+    static void compute_temperature_for_cell(scalar_cell& middle_temperature,
+        scalar_cell const& old_middle_temperature,
+        scalar_cell const& left_temperature, scalar_cell const& right_temperature,
+        scalar_cell const& bottom_temperature, scalar_cell const& top_temperature,
+        vector_cell const& middle_uv, vector_cell const& left_uv,
+        vector_cell const& bottom_uv, std::bitset<5> const& type,
+        RealType re, RealType pr, RealType dx, RealType dy, RealType dt,
+        RealType alpha
+        );
+    
+    static void compute_rhs_for_cell(scalar_cell& middle_rhs,
+        vector_cell const& middle_fg, vector_cell const& left_fg,
+        vector_cell const& bottom_fg, std::bitset<5> const& type,
+        RealType dx, RealType dy, RealType dt);
+    
+    static void set_pressure_for_cell(scalar_cell& middle_p,
+        scalar_cell const& left_p, scalar_cell const& right_p,
+        scalar_cell const& bottom_p, scalar_cell const& top_p,
+        std::bitset<5> const& type);
 };
 
 }//namespace

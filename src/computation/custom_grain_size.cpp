@@ -632,7 +632,7 @@ void custom_grain_size::compute_fg_for_cell(vector_cell& middle_fg,
         std::bitset<5> const& type,
         RealType re, RealType gx, RealType gy, RealType beta,
         RealType dx, RealType dy, RealType dt, RealType alpha)
-{
+{   
     //north
     if (!type.test(4) && type.test(0))
         middle_fg.second = middle_uv.second;
@@ -841,7 +841,7 @@ void custom_grain_size::compute_temperature_for_cell(scalar_cell& middle_tempera
 {
     
     if (type.test(4))
-    {
+    {        
         middle_temperature.value =
             dt * (1./re*1./pr * (second_derivative_fwd_bkwd_x(right_temperature.value, old_middle_temperature.value, left_temperature.value, dx)
                                                 + second_derivative_fwd_bkwd_y(top_temperature.value, old_middle_temperature.value, bottom_temperature.value, dy)
@@ -1303,11 +1303,11 @@ scalar_partition custom_grain_size::sor_cycle(scalar_partition const& middle_p,
             }
         ),
         next_middle_p,
-        left_p.get_data(LEFT),
+        left_p_data,
         right_p.get_data(RIGHT),
-        bottom_p.get_data(BOTTOM),
+        bottom_p_data,
         top_p.get_data(TOP),
-        middle_rhs.get_data(CENTER)
+        middle_rhs_data
     );    
 }
 

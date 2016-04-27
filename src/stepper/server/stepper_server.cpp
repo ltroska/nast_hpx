@@ -225,8 +225,6 @@ void stepper_server::do_work()
                                                     
         max_uv = max_uv_fut.get();
         
-        return;
-
         RealType tmp = std::min(c.re/2. * 1./(1./std::pow(params.dx, 2) + 1./std::pow(params.dy, 2)),
                                         std::min(params.dx/max_uv.first, params.dy/max_uv.second));
 
@@ -268,36 +266,39 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
                         params.j_max                    
                     );
 
-                temperature_temp_grid[get_index(k, l)] =
-                    hpx::dataflow(
-                        hpx::launch::async,
-                        &strategy::set_temperature_for_boundary_and_obstacles,
-                        temperature_grid[get_index(k, l)],
-                        temperature_grid[get_index(k-1, l)],
-                        temperature_grid[get_index(k+1, l)],
-                        temperature_grid[get_index(k, l-1)],
-                        temperature_grid[get_index(k, l+1)],
-                        flag_grid[get_index(k, l)],
-                        c.temp_data_type,
-                        c.temp_bnd,
-                        global_i,
-                        global_j,
-                        params.i_max,
-                        params.j_max,
-                        params.dx,
-                        params.dy
-                    );
+                if (c.pr != 0)
+                    temperature_temp_grid[get_index(k, l)] =
+                        hpx::dataflow(
+                            hpx::launch::async,
+                            &strategy::set_temperature_for_boundary_and_obstacles,
+                            temperature_grid[get_index(k, l)],
+                            temperature_grid[get_index(k-1, l)],
+                            temperature_grid[get_index(k+1, l)],
+                            temperature_grid[get_index(k, l-1)],
+                            temperature_grid[get_index(k, l+1)],
+                            flag_grid[get_index(k, l)],
+                            c.temp_data_type,
+                            c.temp_bnd,
+                            global_i,
+                            global_j,
+                            params.i_max,
+                            params.j_max,
+                            params.dx,
+                            params.dy
+                        );
 
             }
             else
             {
                 uv_temp_grid[get_index(k, l)] = uv_grid[get_index(k, l)];
-                temperature_temp_grid[get_index(k, l)] = temperature_grid[get_index(k, l)];
+                if (c.pr != 0)
+                    temperature_temp_grid[get_index(k, l)] = temperature_grid[get_index(k, l)];
             }
         }
 
     uv_grid = uv_temp_grid;
-    temperature_grid = temperature_temp_grid;
+    if (c.pr != 0)
+        temperature_grid = temperature_temp_grid;
     //print_grid(temperature_grid);
    // print_grid(uv_grid);
    // print_grid(temperature_grid);
@@ -305,35 +306,38 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
    // communicate_uv_grid(step);
 
     // COMPUTE TEMPERATURE
-    for (uint l = 0; l < params.num_partitions_y; l++)
-        for (uint k = 0; k < params.num_partitions_x; k++)
-        {
-            if ( k != 0 && k != params.num_partitions_x - 1 && l != 0 && l != params.num_partitions_x - 1)
+    if (c.pr != 0)
+    {
+        for (uint l = 0; l < params.num_partitions_y; l++)
+            for (uint k = 0; k < params.num_partitions_x; k++)
             {
-                temperature_temp_grid[get_index(k, l)] =
-                    hpx::dataflow(
-                        hpx::launch::async,
-                        &strategy::compute_temperature_on_fluid_cells,
-                        temperature_grid[get_index(k, l)],
-                        temperature_grid[get_index(k-1, l)],
-                        temperature_grid[get_index(k+1, l)],
-                        temperature_grid[get_index(k, l-1)],
-                        temperature_grid[get_index(k, l+1)],
-                        uv_grid[get_index(k, l)],
-                        uv_grid[get_index(k-1, l)],
-                        uv_grid[get_index(k, l-1)],
-                        flag_grid[get_index(k, l)],
-                        params.re, c.pr, params.dx, params.dy, dt, c.alpha
-                );
+                if ( k != 0 && k != params.num_partitions_x - 1 && l != 0 && l != params.num_partitions_x - 1)
+                {
+                    temperature_temp_grid[get_index(k, l)] =
+                        hpx::dataflow(
+                            hpx::launch::async,
+                            &strategy::compute_temperature_on_fluid_cells,
+                            temperature_grid[get_index(k, l)],
+                            temperature_grid[get_index(k-1, l)],
+                            temperature_grid[get_index(k+1, l)],
+                            temperature_grid[get_index(k, l-1)],
+                            temperature_grid[get_index(k, l+1)],
+                            uv_grid[get_index(k, l)],
+                            uv_grid[get_index(k-1, l)],
+                            uv_grid[get_index(k, l-1)],
+                            flag_grid[get_index(k, l)],
+                            params.re, c.pr, params.dx, params.dy, dt, c.alpha
+                    );
+                }
+                else
+                {
+                    temperature_temp_grid[get_index(k, l)] = temperature_grid[get_index(k, l)];
+                }
             }
-            else
-            {
-                temperature_temp_grid[get_index(k, l)] = temperature_grid[get_index(k, l)];
-            }
-        }
 
 
-    temperature_grid = temperature_temp_grid;
+        temperature_grid = temperature_temp_grid;
+    }
   //  print_grid(temperature_grid);
 
     //COMPUTE FG
@@ -380,16 +384,14 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
                 );
         }
 
-   // print_grid(uv_grid);
-   // print_grid(temperature_grid);
-   // print_grid(fg_grid);
-   // print_grid(rhs_grid);
+    
+    //print_grid(uv_grid);
+    //print_grid(temperature_grid);
+    ////print_grid(rhs_grid);
 
     RealType t1_elapsed = t1.elapsed();
     
     
-    hpx::wait_all(rhs_grid);
-    hpx::wait_all(p_grid);
     hpx::util::high_resolution_timer t2;
     uint iter = 0;
     RealType res = 0;
@@ -424,10 +426,8 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
                 }
                 else
                     p_temp_grid[get_index(k, l)] = p_grid[get_index(k, l)];
-            }   
+            }                          
         
-        // communicate_p_grid(step*c.iter_max + iter);
-
         for (uint l = 0; l < params.num_partitions_y; l++)
             for (uint k = 0; k < params.num_partitions_x; k++)
             {
@@ -452,7 +452,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
                     p_grid[get_index(k, l)] = p_temp_grid[get_index(k, l)];
                 }
             }
-        
+                
        // hpx::future<RealType> residual_fut = hpx::make_ready_future(10.);
         
         std::vector<hpx::future<RealType> > residuals;
@@ -482,7 +482,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
                         [](std::vector< hpx::future<RealType> > residuals)
                         -> RealType
                         {
-                            RealType sum;
+                            RealType sum = 0;
 
                             for (auto& r : residuals)
                                 sum += r.get();
@@ -522,6 +522,8 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
 
     } while(keep_running.receive(step*c.iter_max + iter).get());
     RealType t2_elapsed = t2.elapsed();
+    
+    //print_grid(p_grid);
     
     hpx::util::high_resolution_timer t3;
 
@@ -583,6 +585,8 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
                             return max_uv;
                         }));
     
+                        auto max_ = max_uv.get();
+                        
     if ( (c.output_skip_size != 0 && (step % c.output_skip_size == 0)) || (c.delta_vec != 0 && next_write <= t))
     {
         if (c.delta_vec != 0)
@@ -593,14 +597,14 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
 
         if (hpx::get_locality_id() == 0)
             std::cout << "t " << t << " | dt " << dt << " | iterations: " << iter << " | residual squared " << res 
-                      << " | before SOR = " << t1_elapsed << " | SOR = " << t2_elapsed << " | after SOR = " << t3.elapsed() <<  std::endl;
+                      << " | before SOR = " << t1_elapsed << " | SOR = " << t2_elapsed << " | after SOR = " << t3.elapsed() << " | max uv " << max_.first << " " << max_.second <<  std::endl;
 
         out_iter++;
     }
 
 
    // std::pair<RealType, RealType> max_uv(0, 0);
-    return max_uv.get();
+    return max_;
 }
 
 void stepper_server::do_sor_cycle()

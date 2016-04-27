@@ -88,20 +88,38 @@ namespace io
         {
             cfg.re = config_node.child("Re").first_attribute().as_double();
         }
+        else {
+            std::cerr << "Error: Re not set!" << std::endl;
+            exit(1);
+        }
+           
 
         if(config_node.child("Pr") != NULL)
         {
             cfg.pr = config_node.child("Pr").first_attribute().as_double();
+        }
+        else
+        {
+            cfg.pr = 0;
         }
 
         if(config_node.child("omega") != NULL)
         {
             cfg.omega = config_node.child("omega").first_attribute().as_double();
         }
-
+        else
+        {
+            std::cerr << "Error: Omega not set!" << std::endl;
+            exit(1);
+        }
+        
         if(config_node.child("tau") != NULL)
         {
             cfg.tau = config_node.child("tau").first_attribute().as_double();
+        }
+        else
+        {
+            cfg.tau = 0.5;
         }
 
         if(config_node.child("eps") != NULL)
@@ -109,10 +127,19 @@ namespace io
             cfg.eps = config_node.child("eps").first_attribute().as_double();
             cfg.eps_sq = cfg.eps * cfg.eps;
         }
-
+        else
+        {
+            std::cerr << "Error: Eps not set!" << std::endl;
+            exit(1);
+        }
+        
         if(config_node.child("alpha") != NULL)
         {
             cfg.alpha = config_node.child("alpha").first_attribute().as_double();
+        }
+        else
+        {
+            cfg.alpha = 0.9;
         }
 
         if(config_node.child("beta") != NULL)
@@ -124,10 +151,20 @@ namespace io
         {
             cfg.iter_max = config_node.child("iterMax").first_attribute().as_int();
         }
+        else
+        {
+            std::cerr << "Error: iterMax not set!" << std::endl;
+            exit(1);
+        }
 
         if(config_node.child("tEnd") != NULL)
         {
             cfg.t_end = config_node.child("tEnd").first_attribute().as_double();
+        }
+        else
+        {
+            std::cerr << "Error: tEnd not set!" << std::endl;
+            exit(1);
         }
 
         if(config_node.child("dt") != NULL)
@@ -431,7 +468,8 @@ namespace io
         }
         else
         {
-            cfg.with_flag_grid = false;
+            std::cerr << "Error: geometry file given not set!" << std::endl;
+            exit(1);
         }
 
         if(config_node.child("initialUVFile") != NULL)

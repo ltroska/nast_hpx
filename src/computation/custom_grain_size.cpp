@@ -979,20 +979,32 @@ scalar_partition custom_grain_size::set_pressure_on_boundary_and_obstacles(
         scalar_partition const& right_p, scalar_partition const& bottom_p,
         scalar_partition const& top_p, std::vector<std::bitset<5> > const& flag_data)
 {
-  /*  scalar_data middle_p_data = middle_p.get_data(CENTER).get();
-    scalar_data left_p_data = middle_p.get_data(LEFT).get();
-    scalar_data right_p_data = middle_p.get_data(RIGHT).get();
-    scalar_data bottom_p_data = middle_p.get_data(BOTTOM).get();
-    scalar_data top_p_data = middle_p.get_data(TOP).get();   
+    /*scalar_data m_p = middle_p.get_data(CENTER).get();
+    scalar_data l_p = middle_p.get_data(LEFT).get();
+    scalar_data r_p = middle_p.get_data(RIGHT).get();
+    scalar_data b_p = middle_p.get_data(BOTTOM).get();
+    scalar_data t_p = middle_p.get_data(TOP).get();   
     
-    set_pressure_on_boundary(middle_p_data, left_p_data, right_p_data, bottom_p_data,
-        top_p_data, flag_data, 0, 0, 0, 0);
+    uint size_x = m_p.size_x();
+     uint size_y = m_p.size_y();
+
+
+    for (uint j = 1; j < size_y - 1; j++)
+        for (uint i = 1; i < size_x - 1; i++)
+            set_pressure_for_cell(
+                m_p.get_cell_ref(i, j),
+                get_left_neighbor(m_p, l_p, i, j),
+                get_right_neighbor(m_p, r_p, i, j),
+                get_bottom_neighbor(m_p, b_p, i, j),
+                get_top_neighbor(m_p, t_p, i, j),
+                flag_data[j * size_x + i]);
         
-    return scalar_partition(middle_p.get_id(), middle_p_data);
-    */
+    return scalar_partition(middle_p.get_id(), m_p);*/
+    
     
     //do local computation first
-    hpx::future<scalar_data> next_p_middle = 
+   // return middle_p;
+     hpx::future<scalar_data> next_p_middle = 
         hpx::dataflow(
             hpx::launch::async,
             hpx::util::unwrapped(
@@ -1020,8 +1032,8 @@ scalar_partition custom_grain_size::set_pressure_on_boundary_and_obstacles(
             ),
             middle_p.get_data(CENTER)
         );
-
-    return hpx::dataflow(
+   
+   return hpx::dataflow(
         hpx::launch::async,
         hpx::util::unwrapped(
             [middle_p, flag_data]
@@ -1032,7 +1044,17 @@ scalar_partition custom_grain_size::set_pressure_on_boundary_and_obstacles(
             {
                 uint size_x = next.size_x();
                 uint size_y = next.size_y();
-                                
+                for (uint j = 0; j < size_y; j++)
+                 for (uint i = 0; i < size_x; i++)
+                     set_pressure_for_cell(
+                        next.get_cell_ref(i, j),
+                        get_left_neighbor(next, l_p, i, j),
+                        get_right_neighbor(next, r_p, i, j),
+                        get_bottom_neighbor(next, b_p, i, j),
+                        get_top_neighbor(next, t_p, i, j),
+                        flag_data[j * size_x + i]);
+        
+                             
                 //left and right
                 for (uint j = 0; j < size_y; j++)
                 {
@@ -1077,7 +1099,7 @@ scalar_partition custom_grain_size::set_pressure_on_boundary_and_obstacles(
                        get_bottom_neighbor(next, b_p, i, j),
                        get_top_neighbor(next, t_p, i, j),
                        flag_data[j * size_x + i]);
-                }                    
+                }                                              
                 
                 return scalar_partition(middle_p.get_id(), next);
             }
@@ -1232,7 +1254,7 @@ scalar_partition custom_grain_size::sor_cycle(scalar_partition const& middle_p,
             bottom_p_data,
             middle_rhs_data
         );
-    
+        
     return hpx::dataflow(
         hpx::launch::async,
         hpx::util::unwrapped(

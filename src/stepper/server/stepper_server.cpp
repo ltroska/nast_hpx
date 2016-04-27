@@ -224,6 +224,8 @@ void stepper_server::do_work()
                                                     });
                                                     
         max_uv = max_uv_fut.get();
+        
+        return;
 
         RealType tmp = std::min(c.re/2. * 1./(1./std::pow(params.dx, 2) + 1./std::pow(params.dy, 2)),
                                         std::min(params.dx/max_uv.first, params.dy/max_uv.second));
@@ -385,29 +387,16 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
 
     RealType t1_elapsed = t1.elapsed();
     
+    
+    hpx::wait_all(rhs_grid);
+    hpx::wait_all(p_grid);
     hpx::util::high_resolution_timer t2;
     uint iter = 0;
     RealType res = 0;
 
-//    RealType average = 0;
     do
     {
             //    hpx::util::high_resolution_timer t5;
-
-     /*  for (uint l = 1; l < params.num_partitions_y - 1; l++)
-            for (uint k = 1; k < params.num_partitions_x - 1; k++)
-            {
-                    uint global_i = index_grid[get_index(k, l)].first;
-                    uint global_j = index_grid[get_index(k, l)].second;
-
-                    scalar_data p_center = p_grid[get_index(k, l)].get_data(CENTER).get();
-                    scalar_data p_left = p_grid[get_index(k-1, l)].get_data(LEFT).get();
-                    scalar_data p_right = p_grid[get_index(k+1, l)].get_data(RIGHT).get();
-                    scalar_data p_bottom = p_grid[get_index(k, l-1)].get_data(BOTTOM).get();
-                    scalar_data p_top = p_grid[get_index(k, l+1)].get_data(TOP).get();
-
-                   strategy::set_pressure_on_boundary(p_center, p_left, p_right, p_bottom, p_top, flag_grid[get_index(k, l)], global_i, global_j, params.i_max, params.j_max);
-            }*/
         
         for (uint l = 0; l < params.num_partitions_y; l++)
             for (uint k = 0; k < params.num_partitions_x; k++)
@@ -425,16 +414,25 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
                             p_grid[get_index(k, l + 1)],
                             flag_grid[get_index(k, l)]
                         );
+                    
+                   /* p_temp_grid[get_index(k, l)] = strategy::set_pressure_on_boundary_and_obstacles(p_grid[get_index(k, l)],
+                            p_grid[get_index(k - 1, l)],
+                            p_grid[get_index(k + 1, l)],
+                            p_grid[get_index(k, l - 1)],
+                            p_grid[get_index(k, l + 1)],
+                            flag_grid[get_index(k, l)]);*/
                 }
                 else
                     p_temp_grid[get_index(k, l)] = p_grid[get_index(k, l)];
-            }           
-
+            }   
+        
         // communicate_p_grid(step*c.iter_max + iter);
 
-        for (uint l = 1; l < params.num_partitions_y - 1; l++)
-            for (uint k = 1; k < params.num_partitions_x - 1; k++)
+        for (uint l = 0; l < params.num_partitions_y; l++)
+            for (uint k = 0; k < params.num_partitions_x; k++)
             {
+                if ( k != 0 && k != params.num_partitions_x - 1 && l != 0 && l != params.num_partitions_x - 1)
+                {
                 p_grid[get_index(k, l)] =
                         hpx::dataflow(
                             hpx::launch::async,
@@ -447,8 +445,15 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
                             rhs_grid[get_index(k, l)],
                             flag_grid[get_index(k, l)],
                             c.omega, params.dx, params.dy
-                        );                  
+                        ); 
+                }
+                else
+                {
+                    p_grid[get_index(k, l)] = p_temp_grid[get_index(k, l)];
+                }
             }
+        
+       // hpx::future<RealType> residual_fut = hpx::make_ready_future(10.);
         
         std::vector<hpx::future<RealType> > residuals;
         
@@ -484,7 +489,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
 
                             return sum;
                         }));
-
+                
         iter++;
 
         if (hpx::get_locality_id() == 0)

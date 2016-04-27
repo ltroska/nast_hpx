@@ -979,7 +979,7 @@ scalar_partition custom_grain_size::set_pressure_on_boundary_and_obstacles(
         scalar_partition const& right_p, scalar_partition const& bottom_p,
         scalar_partition const& top_p, std::vector<std::bitset<5> > const& flag_data)
 {
-    scalar_data middle_p_data = middle_p.get_data(CENTER).get();
+  /*  scalar_data middle_p_data = middle_p.get_data(CENTER).get();
     scalar_data left_p_data = middle_p.get_data(LEFT).get();
     scalar_data right_p_data = middle_p.get_data(RIGHT).get();
     scalar_data bottom_p_data = middle_p.get_data(BOTTOM).get();
@@ -989,8 +989,8 @@ scalar_partition custom_grain_size::set_pressure_on_boundary_and_obstacles(
         top_p_data, flag_data, 0, 0, 0, 0);
         
     return scalar_partition(middle_p.get_id(), middle_p_data);
+    */
     
-    /*
     //do local computation first
     hpx::future<scalar_data> next_p_middle = 
         hpx::dataflow(
@@ -1005,8 +1005,8 @@ scalar_partition custom_grain_size::set_pressure_on_boundary_and_obstacles(
 
                     //scalar_data next(size_x, size_y);
 
-                    for (uint j = 0; j < size_y ; j++)
-                        for (uint i = 0; i < size_x ; i++)
+                    for (uint j = 1; j < size_y - 1; j++)
+                        for (uint i = 1; i < size_x - 1; i++)
                             set_pressure_for_cell(
                                 m_p.get_cell_ref(i, j),
                                 m_p.get_cell(i - 1, j),
@@ -1087,7 +1087,7 @@ scalar_partition custom_grain_size::set_pressure_on_boundary_and_obstacles(
         right_p.get_data(RIGHT),
         bottom_p.get_data(BOTTOM),
         top_p.get_data(TOP)
-    ); */
+    );
 }
 
 void custom_grain_size::set_pressure_for_cell(scalar_cell& middle_p,
@@ -1176,126 +1176,342 @@ void custom_grain_size::set_pressure_on_boundary(scalar_data& p_center, scalar_d
         }
 }
 
-void custom_grain_size::sor_cycle(scalar_data& p_center, scalar_data const& p_left, scalar_data const& p_right,
-                                scalar_data const& p_bottom, scalar_data const& p_top,
-                                scalar_data const& rhs_center, std::vector<std::bitset<5> > const& flag_data,
-                                uint global_i, uint global_j, uint i_max, uint j_max,
-                                RealType omega, RealType dx, RealType dy)
+scalar_partition custom_grain_size::sor_cycle(scalar_partition const& middle_p,
+        scalar_partition const& left_p, scalar_partition const& right_p,
+        scalar_partition const& bottom_p, scalar_partition const& top_p,
+        scalar_partition const& middle_rhs, 
+        std::vector<std::bitset<5> > const& flag_data,
+        RealType omega, RealType dx, RealType dy)
 {
-    uint size_x = p_center.size_x();
-    uint size_y = p_center.size_y();
-
     RealType const dx_sq = std::pow(dx, 2);
     RealType const dy_sq = std::pow(dy, 2);
     RealType const part1 = 1. - omega;
     RealType const part2 = omega * dx_sq * dy_sq / (2. * (dx_sq + dy_sq));
+   
+    hpx::shared_future<scalar_data> middle_rhs_data =
+        middle_rhs.get_data(CENTER);
+    
+    hpx::shared_future<scalar_data> left_p_data =
+        left_p.get_data(LEFT);
+    
+    hpx::shared_future<scalar_data> bottom_p_data =
+        bottom_p.get_data(BOTTOM);
+    
+     //do local computation first
+    hpx::future<scalar_data> next_middle_p = 
+        hpx::dataflow(
+            hpx::launch::async,
+            hpx::util::unwrapped(
+                [middle_p, flag_data, dx_sq, dy_sq, part1, part2]
+                (scalar_data m_p, scalar_data const& l_p,
+                    scalar_data const& b_p, scalar_data const& m_rhs)
+                -> scalar_data
+                {
+                    uint size_x = m_p.size_x();
+                    uint size_y = m_p.size_y();
 
+                    //scalar_data next(size_x, size_y);
 
-    for (uint j = 0; j < size_y; j++)
-        for (uint i = 0; i < size_x; i++)
-        {
-            std::bitset<5> cell_type = flag_data[j*size_x + i];
+                    for (uint j = 0; j < size_y - 1; j++)
+                        for (uint i = 0; i < size_x - 1; i++)
+                            do_sor_cycle_for_cell(
+                                m_p.get_cell_ref(i, j),
+                                get_left_neighbor(m_p, l_p, i, j),
+                                m_p.get_cell(i + 1, j),
+                                get_bottom_neighbor(m_p, b_p, i, j),
+                                m_p.get_cell(i, j + 1),
+                                m_rhs.get_cell(i, j),
+                                flag_data[j * size_x + i],
+                                dx_sq, dy_sq, part1, part2);
 
-            if (cell_type.test(4))
+                    return m_p;
+                }
+            ),
+            middle_p.get_data(CENTER),
+            left_p_data,
+            bottom_p_data,
+            middle_rhs_data
+        );
+    
+    return hpx::dataflow(
+        hpx::launch::async,
+        hpx::util::unwrapped(
+            [middle_p, flag_data, dx_sq, dy_sq, part1, part2]
+            (scalar_data next, scalar_data const& l_p, scalar_data const& r_p,
+                scalar_data const& b_p, scalar_data const& t_p,
+                scalar_data const& m_rhs)
+            -> scalar_partition
             {
-                scalar_cell& next_p = p_center.get_cell_ref(i, j);
-                scalar_cell const current_rhs = rhs_center.get_cell(i, j);
-                scalar_cell const left = get_left_neighbor(p_center, p_left, i, j);
-                scalar_cell const right = get_right_neighbor(p_center, p_right, i, j);
-                scalar_cell const bottom = get_bottom_neighbor(p_center, p_bottom, i, j);
-                scalar_cell const top = get_top_neighbor(p_center, p_top, i, j);
+                uint size_x = next.size_x();
+                uint size_y = next.size_y();
 
-                next_p.value = part1 * next_p.value
-                            + part2 * ( (right.value + left.value) / dx_sq + (top.value + bottom.value) / dy_sq - current_rhs.value);
+                //right
+                for (uint j = 0; j < size_y; j++)
+                {
+                    uint i = size_x - 1;
+                    
+                    do_sor_cycle_for_cell(
+                        next.get_cell_ref(i, j),
+                        get_left_neighbor(next, l_p, i, j),
+                        get_right_neighbor(next, r_p, i, j),
+                        get_bottom_neighbor(next, b_p, i, j),
+                        get_top_neighbor(next, t_p, i, j),
+                        m_rhs.get_cell(i, j),
+                        flag_data[j * size_x + i],
+                        dx_sq, dy_sq, part1, part2);
+                }
+                
+                //top
+                for (uint i = 0; i < size_x; i++)
+                {
+                    uint j = size_y - 1;
+                    
+                    do_sor_cycle_for_cell(
+                        next.get_cell_ref(i, j),
+                        get_left_neighbor(next, l_p, i, j),
+                        get_right_neighbor(next, r_p, i, j),
+                        get_bottom_neighbor(next, b_p, i, j),
+                        get_top_neighbor(next, t_p, i, j),
+                        m_rhs.get_cell(i, j),
+                        flag_data[j * size_x + i],
+                        dx_sq, dy_sq, part1, part2);
+                }
+                
+                return scalar_partition(middle_p.get_id(), next);
             }
-        }
+        ),
+        next_middle_p,
+        left_p.get_data(LEFT),
+        right_p.get_data(RIGHT),
+        bottom_p.get_data(BOTTOM),
+        top_p.get_data(TOP),
+        middle_rhs.get_data(CENTER)
+    );    
 }
 
-
-RealType custom_grain_size::compute_residual(scalar_data const& p_center, scalar_data const& p_left,
-                                            scalar_data const& p_right, scalar_data const& p_bottom,
-                                            scalar_data const& p_top, scalar_data const& rhs_center,
-                                            std::vector<std::bitset<5> > const& flag_data,
-                                            uint global_i, uint global_j, uint i_max, uint j_max, RealType dx,
-                                            RealType dy)
+void custom_grain_size::do_sor_cycle_for_cell(scalar_cell& middle_p,
+    scalar_cell const& left_p, scalar_cell const& right_p,
+    scalar_cell const& bottom_p, scalar_cell const& top_p,
+    scalar_cell const& middle_rhs, std::bitset<5> const& type,
+    RealType dx_sq, RealType dy_sq, RealType part1, RealType part2)
 {
-    uint size_x = p_center.size_x();
-    uint size_y = p_center.size_y();
+    if (type.test(4))
+                middle_p.value = part1 * middle_p.value
+                            + part2 * ( (right_p.value + left_p.value) / dx_sq 
+                                        + (top_p.value + bottom_p.value) / dy_sq 
+                                        - middle_rhs.value);
+}
 
+hpx::future<RealType> custom_grain_size::compute_residual(scalar_partition const& middle_p,
+                            scalar_partition const& left_p,
+                            scalar_partition const& right_p,
+                            scalar_partition const& bottom_p,
+                            scalar_partition const& top_p,
+                            scalar_partition const& middle_rhs,
+                            std::vector<std::bitset<5> > const& flag_data,
+                            RealType dx, RealType dy)
+{
     RealType const over_dx_sq = 1./std::pow(dx, 2);
     RealType const over_dy_sq = 1./std::pow(dy, 2);
-
-    RealType local_residual = 0;
-
-    for (uint j = 0; j < size_y; j++)
-        for (uint i = 0; i < size_x; i++)
-        {
-            std::bitset<5> cell_type = flag_data[j*size_x + i];
-
-            if (cell_type.test(4))
+   
+    return hpx::dataflow(
+        hpx::launch::async,
+        hpx::util::unwrapped(
+            [flag_data, over_dx_sq, over_dy_sq]
+            (scalar_data const& m_p, scalar_data const& l_p,
+                scalar_data const& r_p, scalar_data const& b_p,
+                scalar_data const& t_p, scalar_data const& m_rhs)
+            -> RealType
             {
-                scalar_cell const center = p_center.get_cell(i, j);
-                scalar_cell const rhs = rhs_center.get_cell(i, j);
-                scalar_cell const left = get_left_neighbor(p_center, p_left, i, j);
-                scalar_cell const right = get_right_neighbor(p_center, p_right, i, j);
-                scalar_cell const bottom = get_bottom_neighbor(p_center, p_bottom, i, j);
-                scalar_cell const top = get_top_neighbor(p_center, p_top, i, j);
-
-                RealType tmp = (right.value - 2*center.value + left.value)*over_dx_sq + (top.value - 2*center.value + bottom.value)*over_dy_sq - rhs.value;
-
-                local_residual += std::pow(tmp, 2);
+                uint size_x = m_p.size_x();
+                uint size_y = m_p.size_y();
+                
+                RealType local_residual = 0;
+                
+                for (uint j = 1; j < size_y - 1; j++)
+                        for (uint i = 1; i < size_x - 1; i++)
+                            local_residual +=
+                                compute_residual_for_cell(
+                                    m_p.get_cell(i, j),
+                                    get_left_neighbor(m_p, l_p, i, j),
+                                    get_right_neighbor(m_p, r_p, i, j),
+                                    get_bottom_neighbor(m_p, b_p, i, j),
+                                    get_top_neighbor(m_p, t_p, i, j),
+                                    m_rhs.get_cell(i, j),
+                                    flag_data[j * size_x + i],
+                                    over_dx_sq, over_dy_sq);
+                
+                return local_residual;
             }
-        }
-
-    return local_residual;
+        ),
+        middle_p.get_data(CENTER),
+        left_p.get_data(LEFT),
+        right_p.get_data(RIGHT),
+        bottom_p.get_data(BOTTOM),
+        top_p.get_data(TOP),
+        middle_rhs.get_data(CENTER)
+    );   
 }
 
-void custom_grain_size::update_velocities(vector_data& uv_center, scalar_data const& p_center, scalar_data const& p_right,
-                                        scalar_data const& p_top, vector_data const& fg_center, std::vector<std::bitset<5> > const& flag_data,
-                                        uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy, RealType dt)
+RealType custom_grain_size::compute_residual_for_cell(scalar_cell const& middle_p,
+    scalar_cell const& left_p, scalar_cell const& right_p,
+    scalar_cell const& bottom_p, scalar_cell const& top_p,
+    scalar_cell const& middle_rhs, std::bitset<5> const& type,
+    RealType over_dx_sq, RealType over_dy_sq)
 {
-    uint size_x = uv_center.size_x();
-    uint size_y = uv_center.size_y();
-
-    RealType over_dx = 1./dx;
-    RealType over_dy = 1./dy;
-
-    for (uint j = 0; j < size_y; j++)
-        for (uint i = 0; i < size_x; i++)
-        {
-            std::bitset<5> cell_type = flag_data[j*size_x + i];
-
-            if (cell_type.test(4))
-            {
-                vector_cell& center_uv = uv_center.get_cell_ref(i, j);
-                vector_cell const center_fg = fg_center.get_cell(i, j);
-                scalar_cell const center_p = p_center.get_cell(i, j);
-                scalar_cell const right_p = get_neighbor_cell(p_center, p_right, p_right, p_right, p_top, p_top, p_top, p_top, p_top, i, j, RIGHT);
-                scalar_cell const top_p = get_neighbor_cell(p_center, p_right, p_right, p_right, p_top, p_top, p_top, p_top, p_top, i, j, TOP);
-
-                if (cell_type.test(3))
-                    center_uv.first = center_fg.first - dt * over_dx * (right_p.value - center_p.value);
-
-                if (cell_type.test(0))
-                    center_uv.second = center_fg.second - dt * over_dy * (top_p.value - center_p.value);
-            }
-        }
-}
-
-std::pair<RealType, RealType> custom_grain_size::max_velocity(vector_data& uv_center)
-{
-    uint size_x = uv_center.size_x();
-    uint size_y = uv_center.size_y();
-
-    std::pair <RealType, RealType> max_uv(0, 0);
-
-    for (auto const uv_cell : uv_center)
+    if (type.test(4))
     {
-        max_uv.first = (std::abs(uv_cell.first) > max_uv.first ? std::abs(uv_cell.first) : max_uv.first);
-        max_uv.second = (std::abs(uv_cell.second) > max_uv.second ? std::abs(uv_cell.second) : max_uv.second);
+        RealType tmp =
+            (right_p.value - 2*middle_p.value + left_p.value)*over_dx_sq 
+            + (top_p.value - 2*middle_p.value + bottom_p.value)*over_dy_sq 
+            - middle_rhs.value;
+        
+        return std::pow(tmp, 2);
     }
+}
 
-    return max_uv;
+vector_partition custom_grain_size::update_velocities(
+       vector_partition const& middle_uv, scalar_partition const& middle_p,
+       scalar_partition const& right_p, scalar_partition const& top_p, 
+       vector_partition const& middle_fg, std::vector<std::bitset<5> > const& flag_data,
+       RealType dx, RealType dy, RealType dt)
+{
+    RealType const over_dx = 1./dx;
+    RealType const over_dy = 1./dy;
+       
+    hpx::shared_future<scalar_data> middle_p_data =
+        middle_p.get_data(CENTER);
+    
+    hpx::shared_future<vector_data> middle_fg_data =
+        middle_fg.get_data(CENTER);
+    
+    //do local computation first
+    hpx::future<vector_data> next_middle_uv = 
+        hpx::dataflow(
+            hpx::launch::async,
+            hpx::util::unwrapped(
+                [middle_uv, flag_data, over_dx, over_dy, dt]
+                (vector_data m_uv, scalar_data const& m_p,
+                    vector_data const& m_fg)
+                -> vector_data
+                {
+                    uint size_x = m_p.size_x();
+                    uint size_y = m_p.size_y();
+
+                    //scalar_data next(size_x, size_y);
+    
+                    for (uint j = 0; j < size_y - 1; j++)
+                        for (uint i = 0; i < size_x - 1; i++)
+                            update_velocity_for_cell(
+                                m_uv.get_cell_ref(i, j),
+                                m_p.get_cell(i, j),
+                                m_p.get_cell(i + 1, j),
+                                m_p.get_cell(i, j + 1),
+                                m_fg.get_cell(i, j),
+                                flag_data[j * size_x + i],
+                                over_dx, over_dy, dt);
+
+                    return m_uv;
+                }
+            ),
+            middle_uv.get_data(CENTER),
+            middle_p_data,
+            middle_fg_data
+        );
+    
+    return hpx::dataflow(
+        hpx::launch::async,
+        hpx::util::unwrapped(
+            [middle_uv, flag_data, over_dx, over_dy, dt]
+            (vector_data next, scalar_data const& m_p, scalar_data const& r_p,
+                scalar_data const& t_p, vector_data const& m_fg)
+            -> vector_partition
+            {
+                uint size_x = next.size_x();
+                uint size_y = next.size_y();
+
+                //right
+                for (uint j = 0; j < size_y; j++)
+                {
+                    uint i = size_x - 1;
+                    
+                    update_velocity_for_cell(
+                        next.get_cell_ref(i, j),
+                        m_p.get_cell(i, j),
+                        get_right_neighbor(m_p, r_p, i, j),
+                        get_top_neighbor(m_p, t_p, i, j),
+                        m_fg.get_cell(i, j),
+                        flag_data[j * size_x + i],
+                        over_dx, over_dy, dt);
+                }
+                
+                //top
+                for (uint i = 0; i < size_x; i++)
+                {
+                    uint j = size_y - 1;
+                    
+                    update_velocity_for_cell(
+                        next.get_cell_ref(i, j),
+                        m_p.get_cell(i, j),
+                        get_right_neighbor(m_p, r_p, i, j),
+                        get_top_neighbor(m_p, t_p, i, j),
+                        m_fg.get_cell(i, j),
+                        flag_data[j * size_x + i],
+                        over_dx, over_dy, dt);
+                }
+                
+                return vector_partition(middle_uv.get_id(), next);
+            }
+        ),
+        next_middle_uv,
+        middle_p_data,
+        right_p.get_data(RIGHT),
+        top_p.get_data(TOP),
+        middle_fg_data
+    );    
+}
+
+void custom_grain_size::update_velocity_for_cell(vector_cell& middle_uv,
+        scalar_cell const& middle_p, scalar_cell const& right_p,
+        scalar_cell const& top_p, vector_cell const& middle_fg,
+        std::bitset<5> const& type, RealType over_dx, RealType over_dy, RealType dt)
+{
+    if (type.test(4))
+    {
+        if (type.test(3))
+            middle_uv.first = middle_fg.first - dt * over_dx * (right_p.value - middle_p.value);
+
+        if (type.test(0))
+            middle_uv.second = middle_fg.second - dt * over_dy * (top_p.value - middle_p.value);
+    }
+}
+
+hpx::future<std::pair<RealType, RealType> > custom_grain_size::max_velocity(
+    vector_partition const& middle_uv)
+{
+    return hpx::dataflow(
+        hpx::launch::async,
+        hpx::util::unwrapped(
+            [](vector_data const& m_uv)
+            -> std::pair<RealType, RealType>
+            {                
+                std::pair<RealType, RealType> max_uv(0, 0);
+
+                for (uint idx = 0; idx < m_uv.size(); idx++)
+                {
+                    vector_cell const uv_cell = m_uv[idx];
+                    
+                    max_uv.first = (std::abs(uv_cell.first) > max_uv.first ?
+                        std::abs(uv_cell.first) : max_uv.first);
+                    max_uv.second = (std::abs(uv_cell.second) > max_uv.second ?
+                        std::abs(uv_cell.second) : max_uv.second);
+                }
+
+                return max_uv;
+            }
+        ),
+        middle_uv.get_data(CENTER)          
+    );    
 }
 
 void custom_grain_size::compute_stream_vorticity_heat(scalar_data& stream_center, scalar_data& vorticity_center, scalar_data& heat_center,

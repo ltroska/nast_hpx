@@ -81,25 +81,33 @@ public:
                                                 scalar_data const& p_bottom, scalar_data const& p_top, std::vector<std::bitset<5> > const& flag_data,
                                                 uint global_i, uint global_j, uint i_max, uint j_max);
     
-    static void sor_cycle(scalar_data& p_center, scalar_data const& p_left, scalar_data const& p_right,
-                        scalar_data const& p_bottom, scalar_data const& p_top,
-                        scalar_data const& rhs_center, std::vector<std::bitset<5> > const& flag_data,
-                        uint global_i, uint global_j, uint i_max, uint j_max,
-                        RealType omega, RealType dx, RealType dy);
-
-    static RealType compute_residual(scalar_data const& p_center, scalar_data const& p_left,
-                                        scalar_data const& p_right, scalar_data const& p_bottom,
-                                        scalar_data const& p_top, scalar_data const& rhs_center,
-                                        std::vector<std::bitset<5> > const& flag_data,
-                                        uint global_i, uint global_j, uint i_max, uint j_max, RealType dx,
-                                        RealType dy);
-
-    static void update_velocities(vector_data& uv_center, scalar_data const& p_center, scalar_data const& p_right,
-                                    scalar_data const& p_top, vector_data const& fg_center, std::vector<std::bitset<5> > const& flag_data,
-                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType dx, RealType dy, RealType dt);
-
-    static std::pair<RealType, RealType> max_velocity(vector_data& uv_center);
-
+    static scalar_partition sor_cycle(scalar_partition const& middle_p,
+        scalar_partition const& left_p, scalar_partition const& right_p,
+        scalar_partition const& bottom_p, scalar_partition const& top_p,
+        scalar_partition const& middle_rhs, 
+        std::vector<std::bitset<5> > const& flag_data,
+        RealType omega, RealType dx, RealType dy);
+    
+  
+    static hpx::future<RealType> compute_residual(
+                            scalar_partition const& middle_p,
+                            scalar_partition const& left_p,
+                            scalar_partition const& right_p,
+                            scalar_partition const& bottom_p,
+                            scalar_partition const& top_p,
+                            scalar_partition const& middle_rhs,
+                            std::vector<std::bitset<5> > const& flag_data,
+                            RealType dx, RealType dy);
+    
+    static vector_partition update_velocities(
+       vector_partition const& middle_uv, scalar_partition const& middle_p,
+       scalar_partition const& right_p, scalar_partition const& top_p, 
+       vector_partition const& middle_fg, std::vector<std::bitset<5> > const& flag_data,
+       RealType dx, RealType dy, RealType dt);
+    
+    static hpx::future<std::pair<RealType, RealType> > max_velocity(
+        vector_partition const& middle_uv);
+    
     static void compute_stream_vorticity_heat(scalar_data& stream_center, scalar_data& vorticity_center, scalar_data& heat_center,
                                                 scalar_data const& stream_bottom, scalar_data const& heat_bottom,
                                                 vector_data const& uv_center, vector_data const& uv_right, vector_data const& uv_top,
@@ -204,6 +212,23 @@ private:
         scalar_cell const& left_p, scalar_cell const& right_p,
         scalar_cell const& bottom_p, scalar_cell const& top_p,
         std::bitset<5> const& type);
+    
+    static void do_sor_cycle_for_cell(scalar_cell& middle_p,
+        scalar_cell const& left_p, scalar_cell const& right_p,
+        scalar_cell const& bottom_p, scalar_cell const& top_p,
+        scalar_cell const& middle_rhs, std::bitset<5> const& type,
+        RealType dx_sq, RealType dy_sq, RealType part1, RealType part2);
+    
+    static RealType compute_residual_for_cell(scalar_cell const& middle_p,
+        scalar_cell const& left_p, scalar_cell const& right_p,
+        scalar_cell const& bottom_p, scalar_cell const& top_p,
+        scalar_cell const& middle_rhs, std::bitset<5> const& type,
+        RealType over_dx_sq, RealType over_dy_sq);
+
+    static void update_velocity_for_cell(vector_cell& middle_uv,
+        scalar_cell const& middle_p, scalar_cell const& right_p,
+        scalar_cell const& top_p, vector_cell const& middle_fg,
+        std::bitset<5> const& type, RealType over_dx, RealType over_dy, RealType dt);
 };
 
 }//namespace

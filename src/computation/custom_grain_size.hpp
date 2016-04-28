@@ -76,10 +76,6 @@ public:
         scalar_partition const& right_p, scalar_partition const& bottom_p,
         scalar_partition const& top_p, std::vector<std::bitset<5> > const& flag_data
         );
-
-    static void set_pressure_on_boundary(scalar_data& p_center, scalar_data const& p_left, scalar_data const& p_right,
-                                                scalar_data const& p_bottom, scalar_data const& p_top, std::vector<std::bitset<5> > const& flag_data,
-                                                uint global_i, uint global_j, uint i_max, uint j_max);
     
     static scalar_partition sor_cycle(scalar_partition const& middle_p,
         scalar_partition const& left_p, scalar_partition const& right_p,

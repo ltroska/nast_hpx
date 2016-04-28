@@ -978,33 +978,9 @@ scalar_partition custom_grain_size::set_pressure_on_boundary_and_obstacles(
         scalar_partition const& middle_p, scalar_partition const& left_p,
         scalar_partition const& right_p, scalar_partition const& bottom_p,
         scalar_partition const& top_p, std::vector<std::bitset<5> > const& flag_data)
-{
-    /*scalar_data m_p = middle_p.get_data(CENTER).get();
-    scalar_data l_p = middle_p.get_data(LEFT).get();
-    scalar_data r_p = middle_p.get_data(RIGHT).get();
-    scalar_data b_p = middle_p.get_data(BOTTOM).get();
-    scalar_data t_p = middle_p.get_data(TOP).get();   
-    
-    uint size_x = m_p.size_x();
-     uint size_y = m_p.size_y();
-
-
-    for (uint j = 1; j < size_y - 1; j++)
-        for (uint i = 1; i < size_x - 1; i++)
-            set_pressure_for_cell(
-                m_p.get_cell_ref(i, j),
-                get_left_neighbor(m_p, l_p, i, j),
-                get_right_neighbor(m_p, r_p, i, j),
-                get_bottom_neighbor(m_p, b_p, i, j),
-                get_top_neighbor(m_p, t_p, i, j),
-                flag_data[j * size_x + i]);
-        
-    return scalar_partition(middle_p.get_id(), m_p);*/
-    
-    
+{ 
     //do local computation first
-   // return middle_p;
-     hpx::future<scalar_data> next_p_middle = 
+    hpx::future<scalar_data> next_p_middle = 
         hpx::dataflow(
             hpx::launch::async,
             hpx::util::unwrapped(
@@ -1148,54 +1124,6 @@ void custom_grain_size::set_pressure_for_cell(scalar_cell& middle_p,
     //NW
     else if (type == std::bitset<5>("00101"))
         middle_p.value = (top_p.value + left_p.value) / 2.;
-}
-
-void custom_grain_size::set_pressure_on_boundary(scalar_data& p_center, scalar_data const& p_left, scalar_data const& p_right,
-                                                scalar_data const& p_bottom, scalar_data const& p_top, std::vector<std::bitset<5> > const& flag_data,
-                                                uint global_i, uint global_j, uint i_max, uint j_max)
-{
-    uint size_x = p_center.size_x();
-    uint size_y = p_center.size_y();
-
-    for (uint j = 0; j < size_y; j++)
-        for (uint i = 0; i < size_x; i++)
-        {
-            scalar_cell& curr_cell = p_center.get_cell_ref(i, j);
-
-            std::bitset<5> cell_type = flag_data[j*size_x + i];
-
-            //east
-            if (cell_type == std::bitset<5>("01000"))
-                curr_cell.value = get_right_neighbor(p_center, p_right, i, j).value;
-
-            //west
-            else if (cell_type == std::bitset<5>("00100"))
-                curr_cell.value = get_left_neighbor(p_center, p_left, i, j).value;
-
-            //south
-            else if (cell_type == std::bitset<5>("00010"))
-                curr_cell.value = get_bottom_neighbor(p_center, p_bottom, i, j).value;
-
-            //north
-            else if (cell_type == std::bitset<5>("00001"))
-                curr_cell.value = get_top_neighbor(p_center, p_top, i, j).value;
-
-            //NE
-            else if (cell_type == std::bitset<5>("01001"))
-                curr_cell.value = (get_top_neighbor(p_center, p_top, i, j).value + get_right_neighbor(p_center, p_right, i, j).value) / 2.;
-
-            //SE
-            else if (cell_type == std::bitset<5>("01010"))
-                curr_cell.value = (get_bottom_neighbor(p_center, p_bottom, i, j).value + get_right_neighbor(p_center, p_right, i, j).value) / 2.;
-
-            //SW
-            else if (cell_type == std::bitset<5>("00110"))
-                curr_cell.value = (get_bottom_neighbor(p_center, p_bottom, i, j).value + get_left_neighbor(p_center, p_left, i, j).value) / 2.;
-
-            //NW
-            else if (cell_type == std::bitset<5>("00101"))
-                curr_cell.value = (get_top_neighbor(p_center, p_top, i, j).value + get_left_neighbor(p_center, p_left, i, j).value) / 2.;
-        }
 }
 
 scalar_partition custom_grain_size::sor_cycle(scalar_partition const& middle_p,

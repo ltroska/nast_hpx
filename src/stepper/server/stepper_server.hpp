@@ -5,7 +5,6 @@
 #include <hpx/lcos/local/receive_buffer.hpp>
 
 #include "io/config.hpp"
-#include "computation/parameters.hpp"
 
 #ifdef CUSTOM_GRAIN_SIZE
 #include "computation/custom_grain_size.hpp"

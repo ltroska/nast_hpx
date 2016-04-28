@@ -14,7 +14,6 @@
 #endif
 
 #include "grid/types.hpp"
-#include "util/helpers.hpp"
 
 #include <hpx/error.hpp>
 

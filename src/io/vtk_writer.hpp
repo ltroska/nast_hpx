@@ -167,8 +167,6 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
 
     coordinate_y += "\n";
 
-    uint end_k, end_l;
-
     std::stringstream p_stream;
     p_stream << std::setprecision(std::numeric_limits<RealType>::digits10);
 
@@ -193,8 +191,6 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
     l = 0;
     i = 0;
     j = 0;
-
-    uint cnt = 1;
 
     vorticity_stream << "0\n";
     vorticity_stream << "0\n";
@@ -247,7 +243,7 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
 
     for (uint j = 1; j < actual_partitions_y - 1; j++)
     {
-        for (int row = 0; row < cells_y; row++)
+        for (uint row = 0; row < cells_y; row++)
         {
             p_stream << "0\n";
             temp_stream << "0\n";
@@ -261,7 +257,7 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
 
             for (uint i = 1; i < actual_partitions_x - 1; i++)
             {
-                for (int col = 0; col < cells_x; col++)
+                for (uint col = 0; col < cells_x; col++)
                 {
                     p_stream << p_grid[i][j].get_cell(col, row).value << "\n";
                     temp_stream << temp_grid[i][j].get_cell(col, row).value << "\n";

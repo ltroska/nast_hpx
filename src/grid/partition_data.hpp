@@ -103,7 +103,7 @@ public:
             case LEFT:
             {
                 data_ = buffer_type(new T [base.size_y()], base.size_y(), buffer_type::take, array_deleter());
-                for(int i = 0; i < base.size_y(); ++i) {
+                for(uint i = 0; i < base.size_y(); ++i) {
                     data_[i] = base.get_cell(base.size_x()-1,i);
                 }
 
@@ -116,7 +116,7 @@ public:
             case RIGHT:
             {
                 data_ = buffer_type(new T [base.size_y()], base.size_y(), buffer_type::take, array_deleter());
-                for(int i = 0; i < base.size_y(); ++i) {
+                for(uint i = 0; i < base.size_y(); ++i) {
                     data_[i] = base.get_cell(0,i);
                 }
 

@@ -7,6 +7,7 @@
 #include "stepper_server.hpp"
 
 #include "io/vtk_writer.hpp"
+#include "util/helpers.hpp"
 
 typedef stepper::server::stepper_server stepper_component;
 typedef hpx::components::component<stepper_component> stepper_server_type;
@@ -385,9 +386,10 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
         }
 
     
-    //print_grid(uv_grid);
-    //print_grid(temperature_grid);
-    ////print_grid(rhs_grid);
+   // print_grid(uv_grid);
+   // print_grid(temperature_grid);
+   // print_grid(fg_grid);
+  //  print_grid(rhs_grid);
 
     RealType t1_elapsed = t1.elapsed();
     

@@ -4,7 +4,7 @@
 #include "typedefs.hpp"
 
 //finding id of neighboring localities
-inline const uint get_neighbor_id(uint id, direction dir, uint num_localities)
+uint inline get_neighbor_id(uint id, direction dir, uint num_localities)
 {
     uint res_x, res_y;
     if (num_localities == 2)
@@ -51,7 +51,7 @@ inline const uint get_neighbor_id(uint id, direction dir, uint num_localities)
 }
 
 //check if point is in global id range
-inline bool in_range(uint start_i, uint end_i, uint start_j, uint end_j, uint i,  uint j)
+bool inline in_range(uint start_i, uint end_i, uint start_j, uint end_j, uint i,  uint j)
 {
     return !(i < start_i || i > end_i || j < start_j || j > end_j);
 }
@@ -124,6 +124,7 @@ T get_topleft_neighbor(grid::partition_data<T> const& center,
         return topleft.get_cell(0, 0);
 }
 
+/*
 template<typename T>
 const T get_neighbor_cell(grid::partition_data<T> const& center, grid::partition_data<T> const& left, grid::partition_data<T> const& right,
                            grid::partition_data<T> const& bottom, grid::partition_data<T> const& top, grid::partition_data<T> const& bottomleft,
@@ -203,5 +204,5 @@ const T get_neighbor_cell(grid::partition_data<T> const& center, grid::partition
         default:
             return center.get_cell(i, j);
     }
-}
+}*/
 #endif

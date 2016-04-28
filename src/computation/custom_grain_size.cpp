@@ -1390,6 +1390,8 @@ RealType custom_grain_size::compute_residual_for_cell(scalar_cell const& middle_
         
         return std::pow(tmp, 2);
     }
+    
+    return 0;
 }
 
 vector_partition custom_grain_size::update_velocities(

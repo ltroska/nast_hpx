@@ -391,6 +391,9 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
    // print_grid(fg_grid);
   //  print_grid(rhs_grid);
 
+    hpx::wait_all(p_grid);
+    hpx::wait_all(rhs_grid);
+    
     RealType t1_elapsed = t1.elapsed();
     
     
@@ -599,7 +602,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
 
         if (hpx::get_locality_id() == 0)
             std::cout << "t " << t << " | dt " << dt << " | iterations: " << iter << " | residual squared " << res 
-                      << " | before SOR = " << t1_elapsed << " | SOR = " << t2_elapsed << " | after SOR = " << t3.elapsed() << " | max uv " << max_.first << " " << max_.second <<  std::endl;
+                      << " | before SOR = " << t1_elapsed << " | SOR = " << t2_elapsed << " average = " << t2_elapsed/iter << " | after SOR = " << t3.elapsed() << " | max uv " << max_.first << " " << max_.second <<  std::endl;
 
         out_iter++;
     }

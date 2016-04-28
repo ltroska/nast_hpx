@@ -1394,7 +1394,8 @@ RealType custom_grain_size::compute_residual_for_cell(scalar_cell const& middle_
     return 0;
 }
 
-vector_partition custom_grain_size::update_velocities(
+hpx::future<std::pair<vector_partition, std::pair<RealType, RealType> > > 
+custom_grain_size::update_velocities(
        vector_partition const& middle_uv, scalar_partition const& middle_p,
        scalar_partition const& right_p, scalar_partition const& top_p, 
        vector_partition const& middle_fg, std::vector<std::bitset<5> > const& flag_data,
@@ -1410,32 +1411,44 @@ vector_partition custom_grain_size::update_velocities(
         middle_fg.get_data(CENTER);
     
     //do local computation first
-    hpx::future<vector_data> next_middle_uv = 
+    hpx::future<std::pair<vector_data, std::pair<RealType, RealType> > > next_middle_uv = 
         hpx::dataflow(
             hpx::launch::async,
             hpx::util::unwrapped(
                 [middle_uv, flag_data, over_dx, over_dy, dt]
                 (vector_data m_uv, scalar_data const& m_p,
                     vector_data const& m_fg)
-                -> vector_data
+                -> std::pair<vector_data, std::pair<RealType, RealType> >
                 {
-                    uint size_x = m_p.size_x();
-                    uint size_y = m_p.size_y();
+                    uint size_x = m_uv.size_x();
+                    uint size_y = m_uv.size_y();
 
+                    std::pair<RealType, RealType> max_uv(0., 0.);
+                    
                     //scalar_data next(size_x, size_y);
     
                     for (uint j = 0; j < size_y - 1; j++)
                         for (uint i = 0; i < size_x - 1; i++)
+                        {
+                            vector_cell& middle_cell = m_uv.get_cell_ref(i, j);
+                            
                             update_velocity_for_cell(
-                                m_uv.get_cell_ref(i, j),
+                                middle_cell,
                                 m_p.get_cell(i, j),
                                 m_p.get_cell(i + 1, j),
                                 m_p.get_cell(i, j + 1),
                                 m_fg.get_cell(i, j),
                                 flag_data[j * size_x + i],
                                 over_dx, over_dy, dt);
+                            
+                            max_uv.first = (std::abs(middle_cell.first) > max_uv.first)
+                                            ? std::abs(middle_cell.first) : max_uv.first;
+                            
+                            max_uv.second = (std::abs(middle_cell.second) > max_uv.second)
+                                            ? std::abs(middle_cell.second) : max_uv.second;                           
+                        }
 
-                    return m_uv;
+                    return std::make_pair(m_uv, max_uv);
                 }
             ),
             middle_uv.get_data(CENTER),
@@ -1447,10 +1460,13 @@ vector_partition custom_grain_size::update_velocities(
         hpx::launch::async,
         hpx::util::unwrapped(
             [middle_uv, flag_data, over_dx, over_dy, dt]
-            (vector_data next, scalar_data const& m_p, scalar_data const& r_p,
+            (std::pair<vector_data, std::pair<RealType, RealType> > next_, scalar_data const& m_p, scalar_data const& r_p,
                 scalar_data const& t_p, vector_data const& m_fg)
-            -> vector_partition
+            -> std::pair<vector_partition, std::pair<RealType, RealType> >
             {
+                vector_data next = next_.first;
+                auto max_uv = next_.second;
+                
                 uint size_x = next.size_x();
                 uint size_y = next.size_y();
 
@@ -1458,6 +1474,7 @@ vector_partition custom_grain_size::update_velocities(
                 for (uint j = 0; j < size_y; j++)
                 {
                     uint i = size_x - 1;
+                    vector_cell& middle_cell = next.get_cell_ref(i, j);
                     
                     update_velocity_for_cell(
                         next.get_cell_ref(i, j),
@@ -1467,13 +1484,20 @@ vector_partition custom_grain_size::update_velocities(
                         m_fg.get_cell(i, j),
                         flag_data[j * size_x + i],
                         over_dx, over_dy, dt);
+                    
+                    max_uv.first = (std::abs(middle_cell.first) > max_uv.first)
+                                            ? std::abs(middle_cell.first) : max_uv.first;
+                            
+                    max_uv.second = (std::abs(middle_cell.second) > max_uv.second)
+                                    ? std::abs(middle_cell.second) : max_uv.second;        
                 }
                 
                 //top
                 for (uint i = 0; i < size_x; i++)
                 {
                     uint j = size_y - 1;
-                    
+                    vector_cell& middle_cell = next.get_cell_ref(i, j);
+
                     update_velocity_for_cell(
                         next.get_cell_ref(i, j),
                         m_p.get_cell(i, j),
@@ -1482,9 +1506,15 @@ vector_partition custom_grain_size::update_velocities(
                         m_fg.get_cell(i, j),
                         flag_data[j * size_x + i],
                         over_dx, over_dy, dt);
+                    
+                    max_uv.first = (std::abs(middle_cell.first) > max_uv.first)
+                                            ? std::abs(middle_cell.first) : max_uv.first;
+                            
+                    max_uv.second = (std::abs(middle_cell.second) > max_uv.second)
+                                    ? std::abs(middle_cell.second) : max_uv.second;        
                 }
                 
-                return vector_partition(middle_uv.get_id(), next);
+                return std::make_pair(vector_partition(middle_uv.get_id(), next), max_uv);
             }
         ),
         next_middle_uv,
@@ -1508,34 +1538,6 @@ void custom_grain_size::update_velocity_for_cell(vector_cell& middle_uv,
         if (type.test(0))
             middle_uv.second = middle_fg.second - dt * over_dy * (top_p.value - middle_p.value);
     }
-}
-
-hpx::future<std::pair<RealType, RealType> > custom_grain_size::max_velocity(
-    vector_partition const& middle_uv)
-{
-    return hpx::dataflow(
-        hpx::launch::async,
-        hpx::util::unwrapped(
-            [](vector_data const& m_uv)
-            -> std::pair<RealType, RealType>
-            {                
-                std::pair<RealType, RealType> max_uv(0, 0);
-
-                for (uint idx = 0; idx < m_uv.size(); idx++)
-                {
-                    vector_cell const uv_cell = m_uv[idx];
-                    
-                    max_uv.first = (std::abs(uv_cell.first) > max_uv.first ?
-                        std::abs(uv_cell.first) : max_uv.first);
-                    max_uv.second = (std::abs(uv_cell.second) > max_uv.second ?
-                        std::abs(uv_cell.second) : max_uv.second);
-                }
-
-                return max_uv;
-            }
-        ),
-        middle_uv.get_data(CENTER)          
-    );    
 }
 
 void custom_grain_size::compute_stream_vorticity_heat(scalar_data& stream_center, scalar_data& vorticity_center, scalar_data& heat_center,

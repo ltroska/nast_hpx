@@ -99,15 +99,12 @@ public:
                             std::vector<std::bitset<5> > const& flag_data,
                             RealType dx, RealType dy);
     
-    static vector_partition update_velocities(
+    static hpx::future<std::pair<vector_partition, std::pair<RealType, RealType> > > update_velocities(
        vector_partition const& middle_uv, scalar_partition const& middle_p,
        scalar_partition const& right_p, scalar_partition const& top_p, 
        vector_partition const& middle_fg, std::vector<std::bitset<5> > const& flag_data,
        RealType dx, RealType dy, RealType dt);
-    
-    static hpx::future<std::pair<RealType, RealType> > max_velocity(
-        vector_partition const& middle_uv);
-    
+       
     static void compute_stream_vorticity_heat(scalar_data& stream_center, scalar_data& vorticity_center, scalar_data& heat_center,
                                                 scalar_data const& stream_bottom, scalar_data const& heat_bottom,
                                                 vector_data const& uv_center, vector_data const& uv_right, vector_data const& uv_top,

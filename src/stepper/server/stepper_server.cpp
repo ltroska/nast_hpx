@@ -537,12 +537,13 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
     
     hpx::util::high_resolution_timer t3;
 
+    std::vector<hpx::future<std::pair<RealType, RealType> > > max_uvs;
     
     for (uint l = 1; l < params.num_partitions_y - 1; l++)
         for (uint k = 1; k < params.num_partitions_x - 1; k++)
         {
-                uv_grid[get_index(k, l)] =
-                    hpx::dataflow(
+            hpx::future< std::pair<vector_partition, std::pair<RealType, RealType> > > f =
+                hpx::dataflow(
                         hpx::launch::async,
                         &strategy::update_velocities,
                         uv_grid[get_index(k, l)],
@@ -553,24 +554,26 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
                         flag_grid[get_index(k, l)],
                         params.dx, params.dy, dt
                     );
+            
+            hpx::lcos::local::promise<std::pair<RealType, RealType> > outer_p;
+
+            max_uvs.emplace_back(outer_p.get_future());
+            
+            uv_grid[get_index(k, l)] = f.then(
+                [outer_p = std::move(outer_p)](auto fut) mutable
+            -> vector_partition
+            {
+                std::pair<vector_partition, std::pair<RealType, RealType> > p =
+                    fut.get();
+                
+                outer_p.set_value(p.second);
+                
+                return p.first;
+            });
+
         }
 
     t += dt;
-
-    std::vector<hpx::future<std::pair<RealType, RealType> > > max_uvs;
-
-    for (uint l = 1; l < params.num_partitions_y - 1; l++)
-        for (uint k = 1; k < params.num_partitions_x - 1; k++)
-        { 
-            max_uvs.push_back(
-                hpx::dataflow(
-                    hpx::launch::async,
-                    &strategy::max_velocity,
-                    uv_grid[get_index(k, l)],
-                    flag_grid[get_index(k, l)]
-                )
-            );
-        }
     
     hpx::future<std::pair<RealType, RealType> > max_uv = 
                 hpx::when_all(max_uvs).then(

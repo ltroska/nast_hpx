@@ -17,48 +17,46 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
         boundary_data const& v,
         uint global_i, uint global_j, uint i_max, uint j_max
     )
-{
-    hpx::shared_future<vector_data> middle_data =
-        middle.get_data(CENTER);
-    
+{   
     //do local computation first
-    hpx::future<vector_data> next_middle = middle_data.then(
-        hpx::util::unwrapped(
-            [middle, flag_data, type, u, v, global_i, global_j, i_max, j_max]
-            (vector_data const& m) -> vector_data
-            {
-                uint size_x = m.size_x();
-                uint size_y = m.size_y();
-                
-                vector_data next(size_x, size_y);
+    hpx::future<vector_data> next_middle = 
+        hpx::dataflow(
+            hpx::launch::async,
+            hpx::util::unwrapped(
+                [middle, flag_data, type, u, v, global_i, global_j, i_max, j_max]
+                (vector_data m) -> vector_data
+                {
+                    uint size_x = m.size_x();
+                    uint size_y = m.size_y();
 
-                for (uint j = 1; j < size_y - 1; j++)
-                    for (uint i = 1; i < size_x - 1; i++)
-                        set_velocity_for_obstacle_cell(
-                                next.get_cell_ref(i, j),
-                                m.get_cell(i - 1, j),
-                                m.get_cell(i + 1, j),
-                                m.get_cell(i, j - 1),
-                                m.get_cell(i, j + 1),
-                                flag_data[j * size_x + i],
-                                type, u, v, global_i, global_j, i, j,
-                                i_max, j_max);
+                    for (uint j = 1; j < size_y - 1; j++)
+                        for (uint i = 1; i < size_x - 1; i++)
+                            set_velocity_for_obstacle_cell(
+                                    m.get_cell_ref(i, j),
+                                    m.get_cell(i - 1, j),
+                                    m.get_cell(i + 1, j),
+                                    m.get_cell(i, j - 1),
+                                    m.get_cell(i, j + 1),
+                                    flag_data[j * size_x + i],
+                                    type, u, v, global_i, global_j, i, j,
+                                    i_max, j_max);
 
-                return next;
-            }
-        )
-    );
+                    return m;
+                }
+            ),
+            middle.get_data(CENTER)
+        );
 
     return hpx::dataflow(
         hpx::launch::async,
         hpx::util::unwrapped(
             [middle, flag_data, type, u, v, global_i, global_j, i_max, j_max]
-            (vector_data next, vector_data const& m, vector_data const& l,
+            (vector_data next, vector_data const& l,
             vector_data const& r, vector_data const& b, vector_data const& t)
             -> vector_partition
             {
-                uint size_x = m.size_x();
-                uint size_y = m.size_y();
+                uint size_x = next.size_x();
+                uint size_y = next.size_y();
                                 
                 //left and right
                 for (uint j = 0; j < size_y; j++)
@@ -66,10 +64,10 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
                     uint i = 0;
                     set_velocity_selector((global_i == 0),
                         next.get_cell_ref(i, j),
-                        get_left_neighbor(m, l, i, j),
-                        get_right_neighbor(m, r, i, j),
-                        get_bottom_neighbor(m, b, i, j),
-                        get_top_neighbor(m, t, i, j),
+                        get_left_neighbor(next, l, i, j),
+                        get_right_neighbor(next, r, i, j),
+                        get_bottom_neighbor(next, b, i, j),
+                        get_top_neighbor(next, t, i, j),
                         flag_data[j * size_x + i],
                         type, u, v, global_i, global_j, i, j,
                         i_max, j_max);
@@ -78,10 +76,10 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
                     i = size_x - 1;
                     set_velocity_selector((global_i + size_x >= i_max),
                         next.get_cell_ref(i, j),
-                        get_left_neighbor(m, l, i, j),
-                        get_right_neighbor(m, r, i, j),
-                        get_bottom_neighbor(m, b, i, j),
-                        get_top_neighbor(m, t, i, j),
+                        get_left_neighbor(next, l, i, j),
+                        get_right_neighbor(next, r, i, j),
+                        get_bottom_neighbor(next, b, i, j),
+                        get_top_neighbor(next, t, i, j),
                         flag_data[j * size_x + i],
                         type, u, v, global_i, global_j, i, j,
                         i_max, j_max);
@@ -93,10 +91,10 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
                     uint j = 0;
                     set_velocity_selector((global_j == 0),
                         next.get_cell_ref(i, j),
-                        get_left_neighbor(m, l, i, j),
-                        get_right_neighbor(m, r, i, j),
-                        get_bottom_neighbor(m, b, i, j),
-                        get_top_neighbor(m, t, i, j),
+                        get_left_neighbor(next, l, i, j),
+                        get_right_neighbor(next, r, i, j),
+                        get_bottom_neighbor(next, b, i, j),
+                        get_top_neighbor(next, t, i, j),
                         flag_data[j * size_x + i],
                         type, u, v, global_i, global_j, i, j,
                         i_max, j_max);
@@ -105,10 +103,10 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
                     j = size_y - 1;
                     set_velocity_selector((global_j + size_y >= j_max),
                         next.get_cell_ref(i, j),
-                        get_left_neighbor(m, l, i, j),
-                        get_right_neighbor(m, r, i, j),
-                        get_bottom_neighbor(m, b, i, j),
-                        get_top_neighbor(m, t, i, j),
+                        get_left_neighbor(next, l, i, j),
+                        get_right_neighbor(next, r, i, j),
+                        get_bottom_neighbor(next, b, i, j),
+                        get_top_neighbor(next, t, i, j),
                         flag_data[j * size_x + i],
                         type, u, v, global_i, global_j, i, j,
                         i_max, j_max);
@@ -118,7 +116,6 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
             }
         ),
         std::move(next_middle),
-        middle_data,
         left.get_data(LEFT),
         right.get_data(RIGHT),
         bottom.get_data(BOTTOM),
@@ -1019,17 +1016,7 @@ scalar_partition custom_grain_size::set_pressure_on_boundary_and_obstacles(
             -> scalar_partition
             {
                 uint size_x = next.size_x();
-                uint size_y = next.size_y();
-                for (uint j = 0; j < size_y; j++)
-                 for (uint i = 0; i < size_x; i++)
-                     set_pressure_for_cell(
-                        next.get_cell_ref(i, j),
-                        get_left_neighbor(next, l_p, i, j),
-                        get_right_neighbor(next, r_p, i, j),
-                        get_bottom_neighbor(next, b_p, i, j),
-                        get_top_neighbor(next, t_p, i, j),
-                        flag_data[j * size_x + i]);
-        
+                uint size_y = next.size_y();        
                              
                 //left and right
                 for (uint j = 0; j < size_y; j++)
@@ -1137,33 +1124,52 @@ scalar_partition custom_grain_size::sor_cycle(scalar_partition const& middle_p,
     RealType const dy_sq = std::pow(dy, 2);
     RealType const part1 = 1. - omega;
     RealType const part2 = omega * dx_sq * dy_sq / (2. * (dx_sq + dy_sq));
-   
-    hpx::shared_future<scalar_data> middle_rhs_data =
-        middle_rhs.get_data(CENTER);
     
-    hpx::shared_future<scalar_data> left_p_data =
-        left_p.get_data(LEFT);
-    
-    hpx::shared_future<scalar_data> bottom_p_data =
-        bottom_p.get_data(BOTTOM);
-    
-     //do local computation first
-    hpx::future<scalar_data> next_middle_p = 
-        hpx::dataflow(
-            hpx::launch::async,
-            hpx::util::unwrapped(
-                [middle_p, flag_data, dx_sq, dy_sq, part1, part2]
-                (scalar_data m_p, scalar_data const& l_p,
-                    scalar_data const& b_p, scalar_data const& m_rhs)
-                -> scalar_data
-                {
-                    uint size_x = m_p.size_x();
-                    uint size_y = m_p.size_y();
+    return hpx::dataflow(
+        hpx::launch::async,
+        hpx::util::unwrapped(
+            [middle_p, flag_data, dx_sq, dy_sq, part1, part2]
+            (scalar_data m_p, scalar_data const& l_p, scalar_data const& r_p,
+                scalar_data const& b_p, scalar_data const& t_p,
+                scalar_data const& m_rhs)
+            -> scalar_partition
+            {
+                uint size_x = m_p.size_x();
+                uint size_y = m_p.size_y();
 
-                    //scalar_data next(size_x, size_y);
+                //scalar_data next(size_x, size_y);
+                for (uint j = 0; j < size_y - 1; j++)
+                    for (uint i = 0; i < size_x - 1; i++)
+                    {
+                        auto& top_type =
+                            flag_data[(j + 1) * size_x + i];
+                        auto& right_type =
+                            flag_data[j * size_x + i + 1];
 
-                    for (uint j = 0; j < size_y - 1; j++)
-                        for (uint i = 0; i < size_x - 1; i++)
+                        auto& type = flag_data[j * size_x + i];
+
+                        //top is obstacle or boundary cell
+                        if (!top_type.test(4))
+                            set_pressure_for_cell(
+                                m_p.get_cell_ref(i, j + 1),
+                                get_left_neighbor(m_p, l_p, i, j + 1),
+                                m_p.get_cell(i + 1, j + 1),
+                                m_p.get_cell(i, j),
+                                get_top_neighbor(m_p, t_p, i, j + 1),
+                                top_type);
+
+                        if (!right_type.test(4))
+                            set_pressure_for_cell(
+                                m_p.get_cell_ref(i + 1, j),
+                                m_p.get_cell(i, j),
+                                get_right_neighbor(m_p, r_p, i + 1, j),
+                                get_bottom_neighbor(m_p, b_p, i + 1, j),
+                                m_p.get_cell(i + 1, j + 1),
+                                right_type);
+
+                        //current cell is fluid cell
+
+                        if (type.test(4))
                             do_sor_cycle_for_cell(
                                 m_p.get_cell_ref(i, j),
                                 get_left_neighbor(m_p, l_p, i, j),
@@ -1173,69 +1179,67 @@ scalar_partition custom_grain_size::sor_cycle(scalar_partition const& middle_p,
                                 m_rhs.get_cell(i, j),
                                 flag_data[j * size_x + i],
                                 dx_sq, dy_sq, part1, part2);
-
-                    return m_p;
-                }
-            ),
-            middle_p.get_data(CENTER),
-            left_p_data,
-            bottom_p_data,
-            middle_rhs_data
-        );
-        
-    return hpx::dataflow(
-        hpx::launch::async,
-        hpx::util::unwrapped(
-            [middle_p, flag_data, dx_sq, dy_sq, part1, part2]
-            (scalar_data next, scalar_data const& l_p, scalar_data const& r_p,
-                scalar_data const& b_p, scalar_data const& t_p,
-                scalar_data const& m_rhs)
-            -> scalar_partition
-            {
-                uint size_x = next.size_x();
-                uint size_y = next.size_y();
-
+                        else if (i == 0 && j == 0)
+                            set_pressure_for_cell(
+                                m_p.get_cell_ref(i, j),
+                                get_left_neighbor(m_p, l_p, i, j),
+                                m_p.get_cell(i + 1, j),
+                                get_bottom_neighbor(m_p, b_p, i, j),
+                                m_p.get_cell(i, j + 1),
+                                flag_data[j * size_x + i]);
+                    }
+                
+                //TODO: get proper value from right and top for remote partition
                 //right
-                for (uint j = 0; j < size_y; j++)
+                uint i = size_x - 1;
+                for (uint j = 0; j < size_y - 1; j++)
                 {
-                    uint i = size_x - 1;
-                    
                     do_sor_cycle_for_cell(
-                        next.get_cell_ref(i, j),
-                        get_left_neighbor(next, l_p, i, j),
-                        get_right_neighbor(next, r_p, i, j),
-                        get_bottom_neighbor(next, b_p, i, j),
-                        get_top_neighbor(next, t_p, i, j),
+                        m_p.get_cell_ref(i, j),
+                        m_p.get_cell(i - 1, j),
+                        get_right_neighbor(m_p, r_p, i, j),
+                        get_bottom_neighbor(m_p, b_p, i, j),
+                        m_p.get_cell(i, j + 1),
                         m_rhs.get_cell(i, j),
                         flag_data[j * size_x + i],
                         dx_sq, dy_sq, part1, part2);
                 }
                 
                 //top
-                for (uint i = 0; i < size_x; i++)
-                {
-                    uint j = size_y - 1;
-                    
+                uint j = size_x - 1;
+                for (i = 0; i < size_x; i++)
+                {                                       
                     do_sor_cycle_for_cell(
-                        next.get_cell_ref(i, j),
-                        get_left_neighbor(next, l_p, i, j),
-                        get_right_neighbor(next, r_p, i, j),
-                        get_bottom_neighbor(next, b_p, i, j),
-                        get_top_neighbor(next, t_p, i, j),
+                        m_p.get_cell_ref(i, j),
+                        get_left_neighbor(m_p, l_p, i, j),
+                        get_right_neighbor(m_p, r_p, i, j),
+                        m_p.get_cell(i, j - 1),
+                        get_top_neighbor(m_p, t_p, i, j),
                         m_rhs.get_cell(i, j),
                         flag_data[j * size_x + i],
                         dx_sq, dy_sq, part1, part2);
                 }
                 
-                return scalar_partition(middle_p.get_id(), next);
+                i = size_x - 1;
+                j = size_x - 1;
+                
+                set_pressure_for_cell(
+                                m_p.get_cell_ref(i, j),
+                                get_left_neighbor(m_p, l_p, i, j),
+                                m_p.get_cell(i + 1, j),
+                                get_bottom_neighbor(m_p, b_p, i, j),
+                                m_p.get_cell(i, j + 1),
+                                flag_data[j * size_x + i]);
+                
+                return scalar_partition(middle_p.get_id(), m_p);
             }
         ),
-        next_middle_p,
-        left_p_data,
+        middle_p.get_data(CENTER),
+        left_p.get_data(LEFT),
         right_p.get_data(RIGHT),
-        bottom_p_data,
+        bottom_p.get_data(BOTTOM),
         top_p.get_data(TOP),
-        middle_rhs_data
+        middle_rhs.get_data(CENTER)
     );    
 }
 
@@ -1244,7 +1248,7 @@ void custom_grain_size::do_sor_cycle_for_cell(scalar_cell& middle_p,
     scalar_cell const& bottom_p, scalar_cell const& top_p,
     scalar_cell const& middle_rhs, std::bitset<5> const& type,
     RealType dx_sq, RealType dy_sq, RealType part1, RealType part2)
-{
+{    
     if (type.test(4))
                 middle_p.value = part1 * middle_p.value
                             + part2 * ( (right_p.value + left_p.value) / dx_sq 
@@ -1360,20 +1364,25 @@ custom_grain_size::update_velocities(
                         {
                             vector_cell& middle_cell = m_uv.get_cell_ref(i, j);
                             
+                            auto& type = flag_data[j * size_x + i];
+                            
                             update_velocity_for_cell(
                                 middle_cell,
                                 m_p.get_cell(i, j),
                                 m_p.get_cell(i + 1, j),
                                 m_p.get_cell(i, j + 1),
                                 m_fg.get_cell(i, j),
-                                flag_data[j * size_x + i],
+                                type,
                                 over_dx, over_dy, dt);
                             
-                            max_uv.first = (std::abs(middle_cell.first) > max_uv.first)
-                                            ? std::abs(middle_cell.first) : max_uv.first;
-                            
-                            max_uv.second = (std::abs(middle_cell.second) > max_uv.second)
-                                            ? std::abs(middle_cell.second) : max_uv.second;                           
+                            if (type.test(4))
+                            {
+                                max_uv.first = (std::abs(middle_cell.first) > max_uv.first)
+                                                ? std::abs(middle_cell.first) : max_uv.first;
+
+                                max_uv.second = (std::abs(middle_cell.second) > max_uv.second)
+                                                ? std::abs(middle_cell.second) : max_uv.second; 
+                            }
                         }
 
                     return std::make_pair(m_uv, max_uv);
@@ -1402,6 +1411,8 @@ custom_grain_size::update_velocities(
                 for (uint j = 0; j < size_y; j++)
                 {
                     uint i = size_x - 1;
+                    auto& type = flag_data[j * size_x + i];
+                    
                     vector_cell& middle_cell = next.get_cell_ref(i, j);
                     
                     update_velocity_for_cell(
@@ -1410,20 +1421,25 @@ custom_grain_size::update_velocities(
                         get_right_neighbor(m_p, r_p, i, j),
                         get_top_neighbor(m_p, t_p, i, j),
                         m_fg.get_cell(i, j),
-                        flag_data[j * size_x + i],
+                        type,
                         over_dx, over_dy, dt);
                     
-                    max_uv.first = (std::abs(middle_cell.first) > max_uv.first)
-                                            ? std::abs(middle_cell.first) : max_uv.first;
-                            
-                    max_uv.second = (std::abs(middle_cell.second) > max_uv.second)
-                                    ? std::abs(middle_cell.second) : max_uv.second;        
+                    if (type.test(4))
+                    {
+                        max_uv.first = (std::abs(middle_cell.first) > max_uv.first)
+                                        ? std::abs(middle_cell.first) : max_uv.first;
+
+                        max_uv.second = (std::abs(middle_cell.second) > max_uv.second)
+                                        ? std::abs(middle_cell.second) : max_uv.second; 
+                    }        
                 }
                 
                 //top
                 for (uint i = 0; i < size_x; i++)
                 {
                     uint j = size_y - 1;
+                    auto& type = flag_data[j * size_x + i];
+ 
                     vector_cell& middle_cell = next.get_cell_ref(i, j);
 
                     update_velocity_for_cell(
@@ -1432,14 +1448,17 @@ custom_grain_size::update_velocities(
                         get_right_neighbor(m_p, r_p, i, j),
                         get_top_neighbor(m_p, t_p, i, j),
                         m_fg.get_cell(i, j),
-                        flag_data[j * size_x + i],
+                        type,
                         over_dx, over_dy, dt);
                     
-                    max_uv.first = (std::abs(middle_cell.first) > max_uv.first)
-                                            ? std::abs(middle_cell.first) : max_uv.first;
-                            
-                    max_uv.second = (std::abs(middle_cell.second) > max_uv.second)
-                                    ? std::abs(middle_cell.second) : max_uv.second;        
+                    if (type.test(4))
+                           {
+                               max_uv.first = (std::abs(middle_cell.first) > max_uv.first)
+                                               ? std::abs(middle_cell.first) : max_uv.first;
+
+                               max_uv.second = (std::abs(middle_cell.second) > max_uv.second)
+                                               ? std::abs(middle_cell.second) : max_uv.second; 
+                           }
                 }
                 
                 return std::make_pair(vector_partition(middle_uv.get_id(), next), max_uv);

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from __future__ import print_function
 import sys
 
@@ -23,25 +24,39 @@ for row in range(len(in_grid)):
 	out_row = []
 
 	for col in range(len(in_grid[0])):
+
 		cell = 1 - int(in_grid[row][col])
-
 		type_int = 16*cell
-		
-		#north
-		if row != 0 and in_grid[row-1][col] != "1":
-			type_int += 1
 
-		#south
-		if row != len(in_grid) - 1 and in_grid[row+1][col] != "1":
-			type_int += 2
+		if row == 0 and col != 0 and col != len(in_grid[0]) - 1:
+			type_int = 0 + 1 + 4 + 8
 
-		#west
-		if col != 0 and in_grid[row][col-1] != "1":
-			type_int += 4
-		
-		#east
-		if col != len(in_grid[0]) - 1 and in_grid[row][col+1] != "1":
-			type_int += 8
+		elif row == len(in_grid) - 1 and col != 0 and col != len(in_grid[0]) - 1:
+			type_int = 0 + 2 + 4 + 8
+
+		elif col == 0 and row != 0 and row != len(in_grid) - 1:
+			type_int = 0 + 1 + 2 + 4
+
+		elif col == len(in_grid[0]) - 1 and row != 0 and row != len(in_grid) - 1:
+			type_int = 0 + 1 + 2 + 8
+
+		else:
+			#north
+			if row != 0 and in_grid[row-1][col] != "1":
+				type_int += 1
+			 
+			#south
+			if row != len(in_grid) - 1 and in_grid[row+1][col] != "1":
+				type_int += 2
+
+			#west
+			if col != 0 and in_grid[row][col-1] != "1":
+				type_int += 4
+
+			#east
+			if col != len(in_grid[0]) - 1 and in_grid[row][col+1] != "1":
+				type_int += 8
+
 
 		out_row.append(type_int)
 	

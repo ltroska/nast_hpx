@@ -269,12 +269,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
                     flag_grid[get_index(k, l)],
                     c.data_type,
                     c.u_bnd,
-                    c.v_bnd,
-                    global_i,
-                    global_j,
-                    params.i_max,
-                    params.j_max
-                    );
+                    c.v_bnd);
 
                 if (c.pr != 0)
                     temperature_temp_grid[get_index(k, l)] =
@@ -307,6 +302,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
         }
 
     uv_grid = uv_temp_grid;
+    
     if (c.pr != 0)
         temperature_grid = temperature_temp_grid;
     //print_grid(temperature_grid);
@@ -395,10 +391,10 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
         }
 
 
-    // print_grid(uv_grid);
-    // print_grid(temperature_grid);
-    // print_grid(fg_grid);
-    //  print_grid(rhs_grid);
+    /*print_grid(uv_grid, "uv");
+     print_grid(temperature_grid, "temp");
+     print_grid(fg_grid, "fg");
+      print_grid(rhs_grid, "rhs");*/
 
     hpx::wait_all(p_grid);
     hpx::wait_all(rhs_grid);
@@ -412,54 +408,6 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
 
     do
     {
-        //    hpx::util::high_resolution_timer t5;
-
-        /*    for (uint l = 0; l < params.num_partitions_y; l++)
-                for (uint k = 0; k < params.num_partitions_x; k++)
-                {
-                    if ( k != 0 && k != params.num_partitions_x - 1 && l != 0 && l != params.num_partitions_x - 1)
-                    {
-                        p_temp_grid[get_index(k, l)] =
-                            hpx::dataflow(
-                                hpx::launch::async,
-                                &strategy::set_pressure_on_boundary_and_obstacles,
-                                p_grid[get_index(k, l)],
-                                p_grid[get_index(k - 1, l)],
-                                p_grid[get_index(k + 1, l)],
-                                p_grid[get_index(k, l - 1)],
-                                p_grid[get_index(k, l + 1)],
-                                flag_grid[get_index(k, l)]
-                            );
-                    }
-                    else
-                        p_temp_grid[get_index(k, l)] = p_grid[get_index(k, l)];
-                }
-
-            for (uint l = 0; l < params.num_partitions_y; l++)
-                for (uint k = 0; k < params.num_partitions_x; k++)
-                {
-                    if ( k != 0 && k != params.num_partitions_x - 1 && l != 0 && l != params.num_partitions_x - 1)
-                    {
-                    p_grid[get_index(k, l)] =
-                            hpx::dataflow(
-                                hpx::launch::async,
-                                &strategy::sor_cycle,
-                                p_temp_grid[get_index(k, l)],
-                                p_grid[get_index(k - 1, l)],
-                                p_temp_grid[get_index(k + 1, l)],
-                                p_grid[get_index(k, l - 1)],
-                                p_temp_grid[get_index(k, l + 1)],
-                                rhs_grid[get_index(k, l)],
-                                flag_grid[get_index(k, l)],
-                                c.omega, params.dx, params.dy
-                            );
-                    }
-                    else
-                    {
-                        p_grid[get_index(k, l)] = p_temp_grid[get_index(k, l)];
-                    }
-                }*/
-
         for (uint l = 0; l < params.num_partitions_y; l++)
             for (uint k = 0; k < params.num_partitions_x; k++)
             {
@@ -486,12 +434,6 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
             }
 
         p_grid = p_temp_grid;
-
-        hpx::wait_all(p_grid);
-
-        // hpx::future<RealType> residual_fut = hpx::make_ready_future(10.);
-
-        //print_grid(p_grid);
         
         std::vector<hpx::future<RealType> > residuals;
 
@@ -528,8 +470,8 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
                             return sum;
                         }));
 
-        
         iter++;
+        
         if (hpx::get_locality_id() == 0)
         {
             hpx::future<std::vector<RealType> > local_residuals =

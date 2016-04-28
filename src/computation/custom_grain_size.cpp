@@ -3,6 +3,8 @@
 #include "util/helpers.hpp"
 #include "stencils.hpp"
 
+//TODO: only use get_*_neighbor where necessary
+
 namespace computation {
 
 vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
@@ -14,16 +16,14 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
         std::vector<std::bitset<5> > const& flag_data,
         boundary_data const& type,
         boundary_data const& u,
-        boundary_data const& v,
-        uint global_i, uint global_j, uint i_max, uint j_max
-    )
+        boundary_data const& v)
 {   
     //do local computation first
     hpx::future<vector_data> next_middle = 
         hpx::dataflow(
             hpx::launch::async,
             hpx::util::unwrapped(
-                [middle, flag_data, type, u, v, global_i, global_j, i_max, j_max]
+                [middle, flag_data, type, u, v]
                 (vector_data m) -> vector_data
                 {
                     uint size_x = m.size_x();
@@ -31,15 +31,14 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
 
                     for (uint j = 1; j < size_y - 1; j++)
                         for (uint i = 1; i < size_x - 1; i++)
-                            set_velocity_for_obstacle_cell(
-                                    m.get_cell_ref(i, j),
-                                    m.get_cell(i - 1, j),
-                                    m.get_cell(i + 1, j),
-                                    m.get_cell(i, j - 1),
-                                    m.get_cell(i, j + 1),
-                                    flag_data[j * size_x + i],
-                                    type, u, v, global_i, global_j, i, j,
-                                    i_max, j_max);
+                            set_velocity_for_cell(
+                                m.get_cell_ref(i, j),
+                                m.get_cell(i - 1, j),
+                                m.get_cell(i + 1, j),
+                                m.get_cell(i, j - 1),
+                                m.get_cell(i, j + 1),
+                                flag_data[j * size_x + i],
+                                type, u, v);
 
                     return m;
                 }
@@ -50,7 +49,7 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
     return hpx::dataflow(
         hpx::launch::async,
         hpx::util::unwrapped(
-            [middle, flag_data, type, u, v, global_i, global_j, i_max, j_max]
+            [middle, flag_data, type, u, v]
             (vector_data next, vector_data const& l,
             vector_data const& r, vector_data const& b, vector_data const& t)
             -> vector_partition
@@ -62,54 +61,86 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
                 for (uint j = 0; j < size_y; j++)
                 {
                     uint i = 0;
-                    set_velocity_selector((global_i == 0),
+                    set_velocity_for_cell(
                         next.get_cell_ref(i, j),
                         get_left_neighbor(next, l, i, j),
-                        get_right_neighbor(next, r, i, j),
+                        next.get_cell(i + 1, j),
                         get_bottom_neighbor(next, b, i, j),
                         get_top_neighbor(next, t, i, j),
                         flag_data[j * size_x + i],
-                        type, u, v, global_i, global_j, i, j,
-                        i_max, j_max);
-                     
-                    
+                        type, u, v);
+                              
                     i = size_x - 1;
-                    set_velocity_selector((global_i + size_x >= i_max),
+                    auto& cell_type = flag_data[j * size_x + i];
+                    
+                    set_velocity_for_cell(
                         next.get_cell_ref(i, j),
-                        get_left_neighbor(next, l, i, j),
+                        next.get_cell(i - 1, j),
                         get_right_neighbor(next, r, i, j),
                         get_bottom_neighbor(next, b, i, j),
                         get_top_neighbor(next, t, i, j),
-                        flag_data[j * size_x + i],
-                        type, u, v, global_i, global_j, i, j,
-                        i_max, j_max);
+                        cell_type,
+                        type, u, v);
+                    
+                    //special case for cells adjacent to right boundary
+                    ///since u is set in left cell
+                    if (cell_type == std::bitset<5>("01011"))
+                    {
+                        auto& left_cell = next.get_cell_ref(i - 1, j);
+                        
+                        switch((int)type.right)
+                        {
+                            case 1 : left_cell.first = 0; break;
+                            case 2 : left_cell.first = 0; break;
+                            case 3 : left_cell.first =
+                                get_left_neighbor(next, l, i - 1, j).first;
+                                break;
+                            case 4 : left_cell.first = u.right; break;
+                        }
+                    }
                 }    
                 
                 //bottom and top
                 for (uint i = 0; i < size_x; i++)
                 {
                     uint j = 0;
-                    set_velocity_selector((global_j == 0),
+                    set_velocity_for_cell(
                         next.get_cell_ref(i, j),
                         get_left_neighbor(next, l, i, j),
                         get_right_neighbor(next, r, i, j),
                         get_bottom_neighbor(next, b, i, j),
-                        get_top_neighbor(next, t, i, j),
+                        next.get_cell(i, j + 1),
                         flag_data[j * size_x + i],
-                        type, u, v, global_i, global_j, i, j,
-                        i_max, j_max);
+                        type, u, v);
                      
                     
                     j = size_y - 1;
-                    set_velocity_selector((global_j + size_y >= j_max),
+                    auto& cell_type = flag_data[j * size_x + i];
+                    
+                    set_velocity_for_cell(
                         next.get_cell_ref(i, j),
                         get_left_neighbor(next, l, i, j),
                         get_right_neighbor(next, r, i, j),
-                        get_bottom_neighbor(next, b, i, j),
+                        next.get_cell(i, j - 1),
                         get_top_neighbor(next, t, i, j),
-                        flag_data[j * size_x + i],
-                        type, u, v, global_i, global_j, i, j,
-                        i_max, j_max);
+                        cell_type,
+                        type, u, v);
+                    
+                    //special case for cells adjacent to top boundary
+                    //since v is set in bottom cell
+                    if (cell_type == std::bitset<5>("01101"))
+                    {
+                        auto& bottom_cell = next.get_cell_ref(i, j - 1);
+                        switch((int)type.top)
+                        {
+                            case 1 : bottom_cell.second = 0; break;
+                            case 2 : bottom_cell.second = 0; break;
+                            case 3 : bottom_cell.second =
+                                get_bottom_neighbor(next, b, i, j - 1).second;
+                                break;
+                            case 4 : bottom_cell.second = v.top; break;
+                        }
+                    }
                 }                     
                 
                 return vector_partition(middle.get_id(), next);
@@ -123,16 +154,15 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
     );        
 }
 
-void custom_grain_size::set_velocity_for_obstacle_cell(vector_cell& middle,
+void custom_grain_size::set_velocity_for_cell(vector_cell& middle,
     vector_cell const& left, vector_cell const& right,
     vector_cell const& bottom, vector_cell const& top,
     std::bitset<5> const& cell_type,
     boundary_data const& type,
     boundary_data const& u,
-    boundary_data const& v,
-    uint global_i, uint global_j, uint i, uint j, uint i_max, uint j_max
-    )
+    boundary_data const& v)
 {
+    //obstacles
     //north
     if (cell_type == std::bitset<5>("00001"))
     {
@@ -155,18 +185,7 @@ void custom_grain_size::set_velocity_for_obstacle_cell(vector_cell& middle,
 
     else if (cell_type.test(4) && !cell_type.test(0))
     {
-        if (global_j + j != j_max)
-            middle.second = 0;
-        
-        //special case for cell adjacent to top boundary
-        else
-            switch((int)type.top)
-            {
-                case 1 : middle.second = 0; break;
-                case 2 : middle.second = 0; break;
-                case 3 : middle.second = bottom.second; break;
-                case 4 : middle.second = v.top; break;
-            }            
+        middle.second = 0;          
     }
 
     //west
@@ -177,18 +196,7 @@ void custom_grain_size::set_velocity_for_obstacle_cell(vector_cell& middle,
 
     else if (cell_type.test(4) && !cell_type.test(3))
     {
-        if (global_i + i != i_max)
             middle.first = 0;
-        
-        //special case for cell adjacent to right boundary
-        else
-            switch((int)type.right)
-            {
-                case 1 : middle.first = 0; break;
-                case 2 : middle.first = 0; break;
-                case 3 : middle.first = left.second; break;
-                case 4 : middle.first = u.right; break;
-            }
     }
 
     //north east
@@ -218,6 +226,71 @@ void custom_grain_size::set_velocity_for_obstacle_cell(vector_cell& middle,
         middle.first = -top.first;
         middle.second = 0;
     }
+    
+    //boundary cells
+    //left
+    else if (cell_type == std::bitset<5>("00111"))
+        switch((int)type.left)
+        {
+        case 1: middle.first = 0;
+                middle.second = -right.second;
+                break;
+        case 2: middle.first = 0;
+                middle.second = right.second;
+                break;
+        case 3: middle.first = right.first;
+                middle.second = right.second;
+                break;
+        case 4: middle.first = u.left;
+                middle.second = 2*v.left - right.second;
+                break;  
+        }
+    
+    //right
+    else if (cell_type == std::bitset<5>("01011"))
+        switch((int)type.right)
+        {
+        case 1: middle.second = -left.second;
+                break;
+        case 2: middle.second = left.second;
+                break;
+        case 3: middle.second = left.second;
+                break;
+        case 4: middle.second = 2*v.right - left.second;
+                break;  
+        }      
+
+    //bottom
+    else if (cell_type == std::bitset<5>("01110"))
+        switch((int)type.bottom)
+        {
+        case 1: middle.first = -top.first;
+                middle.second = 0;
+                break;
+        case 2: middle.first = top.first;
+                middle.second = 0;
+                break;
+        case 3: middle.first = top.first;
+                middle.second = top.second;
+                break;
+        case 4: middle.first = 2*u.bottom - top.first;
+                middle.second = v.bottom;
+                break;  
+        }  
+
+    //top
+    else if (cell_type == std::bitset<5>("01101"))
+        switch((int)type.top)
+        {
+        case 1: middle.first = 2*u.top - bottom.first;
+                break;
+        case 2: middle.first = bottom.first;
+                break;
+        case 3: middle.first = bottom.first;
+                break;
+        case 4: middle.first = 2*u.top - bottom.first;
+                break;  
+        } 
 }
 
 

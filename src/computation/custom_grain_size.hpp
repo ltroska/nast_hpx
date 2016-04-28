@@ -21,9 +21,7 @@ public:
             std::vector<std::bitset<5> > const& flag_data,
             boundary_data const& boundary_data_type,
             boundary_data const& u_boundary_data,
-            boundary_data const& v_boundary_data,
-            uint global_i, uint global_j, uint i_max, uint j_max
-    );
+            boundary_data const& v_boundary_data);
     
     static scalar_partition set_temperature_for_boundary_and_obstacles(
             scalar_partition const& middle_partition,
@@ -109,26 +107,7 @@ public:
                                                 uint global_i, uint global_j, uint i_max, uint j_max, RealType re, RealType pr,
                                                 RealType dx, RealType dy);
         
-private:
-    static void set_velocity_selector(bool bnd, vector_cell& middle,
-            vector_cell const& left, vector_cell const& right,
-            vector_cell const& bottom, vector_cell const& top,
-            std::bitset<5> const& cell_type,
-            boundary_data const& type,
-            boundary_data const& u,
-            boundary_data const& v,
-            uint global_i, uint global_j, uint i, uint j, uint i_max, uint j_max
-            )
-    {
-        if (bnd)
-            set_velocity_for_boundary_cell(middle, left, right, bottom, top,
-                   type, u, v, global_i, global_j, i, j, i_max, j_max);
-        else
-            set_velocity_for_obstacle_cell(middle, left, right, bottom, top,
-                    cell_type, type, u, v, global_i, global_j, i, j, i_max, j_max);
-        
-    }
-    
+private:   
     static void set_velocity_for_boundary_cell(vector_cell& middle,
             vector_cell const& left, vector_cell const& right,
             vector_cell const& bottom, vector_cell const& top,
@@ -138,15 +117,13 @@ private:
             uint global_i, uint global_j, uint i, uint j, uint i_max, uint j_max
             );
     
-    static void set_velocity_for_obstacle_cell(vector_cell& middle,
+    static void set_velocity_for_cell(vector_cell& middle,
             vector_cell const& left, vector_cell const& right,
             vector_cell const& bottom, vector_cell const& top,
             std::bitset<5> const& cell_type,
             boundary_data const& type,
             boundary_data const& u,
-            boundary_data const& v,
-            uint global_i, uint global_j, uint i, uint j, uint i_max, uint j_max
-            );
+            boundary_data const& v);
     
     static void set_temperature_selector(bool bnd, scalar_cell& middle,
         scalar_cell const& left, scalar_cell const& right,

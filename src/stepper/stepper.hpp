@@ -30,10 +30,10 @@ struct stepper
       : base_type(std::move(id))
     {}
 
-    hpx::future<void> setup(io::config cfg)
+    hpx::future<void> setup(io::config&& cfg)
     {
         server::stepper_server::setup_action act;
-        return hpx::async(act, get_id(), cfg);
+        return hpx::async(act, get_id(), std::move(cfg));
     }
 };
 

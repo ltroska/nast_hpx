@@ -12,10 +12,9 @@ int hpx_main(int argc, char* argv[])
         exit(0);
     }
 
-    io::config config = io::config::read_config_from_file(argv[1]);
-
     stepper::stepper step;
-    step.setup(config).wait();
+    
+    step.setup(io::config::read_config_from_file(argv[1])).wait();
 
     return hpx::finalize();
 }

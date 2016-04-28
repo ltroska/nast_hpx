@@ -38,7 +38,7 @@ void stepper_server::setup(io::config&& cfg)
         num_localities_y = num_localities_x;
     }
 
-    c = cfg;
+    c = std::move(cfg);
 
   //  std::cout << "forcing to 1x1 partitions" << std::endl;
   //  c.i_res = (c.i_max + 2)/num_localities_x;
@@ -71,8 +71,13 @@ void stepper_server::initialize_parameters()
     params.num_partitions_x = ((c.i_max + 2) / num_localities_x) / c.i_res + 2;
     params.num_partitions_y = ((c.j_max + 2) / num_localities_y) / c.j_res + 2;
     
-    HPX_ASSERT((params.num_partitions_x - 2) * num_localities_x * c.i_res == c.i_max + 2);
-    HPX_ASSERT((params.num_partitions_y - 2) * num_localities_y * c.j_res == c.j_max + 2);
+    
+    std::cout << (params.num_partitions_x - 2) * num_localities_x * c.i_res << " " << c.i_max + 2 << std::endl;
+    
+    HPX_ASSERT_MSG((params.num_partitions_x - 2) * num_localities_x * c.i_res == c.i_max + 2,
+        "i_res doesn't fit the dimensions.");
+    HPX_ASSERT_MSG((params.num_partitions_y - 2) * num_localities_y * c.j_res == c.j_max + 2,
+        "j_res doesn't fit the dimensions.");
 
     params.re = c.re;
     params.pr = c.pr;
@@ -561,7 +566,8 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
                 hpx::dataflow(
                     hpx::launch::async,
                     &strategy::max_velocity,
-                    uv_grid[get_index(k, l)]
+                    uv_grid[get_index(k, l)],
+                    flag_grid[get_index(k, l)]
                 )
             );
         }

@@ -14,10 +14,31 @@
 #include "stepper/server/stepper_server.hpp"
 
 namespace io {
+        
+typedef std::vector<std::vector<grid::partition_data<scalar_cell> > >
+    scalar_out_grid_type;
 
+typedef std::vector<std::vector<grid::partition_data<vector_cell> > >
+    vector_out_grid_type;
+
+typedef std::vector<std::vector<std::bitset<5> > > bitset_grid_type;
+    
 template<typename T>
-void do_async_print(std::vector<std::vector<grid::partition_data<T> > > const& grid, std::string const message, uint partitions_x, uint partitions_y, uint cells_x, uint cells_y, boost::shared_ptr<hpx::lcos::local::promise<int> > p)
+void do_async_print(
+    std::vector<grid::partition<T> > const& grid,
+    std::string const message, uint partitions_x, uint partitions_y, uint cells_x,
+    uint cells_y, boost::shared_ptr<hpx::lcos::local::promise<int> > p)
 {
+    std::vector<std::vector<grid::partition_data<T> > > data;
+
+    data.resize(partitions_x - 2);
+
+    for (uint k = 1; k < partitions_x - 1; k++)
+    {
+        for (uint l = 1; l < partitions_y - 1; l++)
+            data[k - 1].emplace_back(grid[l * partitions_x + k].get_data(CENTER).get());
+    }
+    
     uint res_x_, res_y_;
     if (hpx::get_num_localities_sync() == 2)
     {
@@ -49,15 +70,16 @@ void do_async_print(std::vector<std::vector<grid::partition_data<T> > > const& g
     p->set_value(0);
 }
 
-void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > const& p_grid,
-                    std::vector<std::vector<grid::partition_data<vector_cell> > > const& uv_grid,
-                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& stream_grid,
-                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& vorticity_grid,
-                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& heat_grid,
-                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& temp_grid,
-                    std::vector<std::vector<std::bitset<5> > > const& flag_grid,
-                    RealType dx, RealType dy, uint step, uint i_max, uint j_max,
-                        uint partitions_x, uint partitions_y, uint cells_x, uint cells_y, boost::shared_ptr<hpx::lcos::local::promise<int> > p)
+void do_write_vtk(scalar_out_grid_type const& p_grid,
+    vector_out_grid_type const& uv_grid,
+    scalar_out_grid_type const& stream_grid,
+    scalar_out_grid_type const& vorticity_grid,
+    scalar_out_grid_type const& heat_grid,
+    scalar_out_grid_type const& temp_grid,
+    bitset_grid_type const& flag_grid,
+    RealType dx, RealType dy, uint step, uint i_max, uint j_max,
+    uint partitions_x, uint partitions_y, uint cells_x, uint cells_y,
+    boost::shared_ptr<hpx::lcos::local::promise<int> > p)
 {
     uint res_x, res_y;
     if (hpx::get_num_localities_sync() == 2)
@@ -413,15 +435,16 @@ void do_write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > 
 }
 
 // This function will be executed by an HPX thread
-hpx::lcos::future<int> write_vtk_worker(std::vector<std::vector<grid::partition_data<scalar_cell> > > const& p_grid,
-                    std::vector<std::vector<grid::partition_data<vector_cell> > > const& uv_grid,
-                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& stream_grid,
-                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& vorticity_grid,
-                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& heat_grid,
-                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& temp_grid,
-                    std::vector<std::vector<std::bitset<5> > > const& flag_grid,
-                    RealType dx, RealType dy, uint step, uint i_max, uint j_max,
-                        uint partitions_x, uint partitions_y, uint cells_x, uint cells_y)
+hpx::lcos::future<int> write_vtk_worker(
+        scalar_out_grid_type const& p_grid,
+        vector_out_grid_type const& uv_grid,
+        scalar_out_grid_type const& stream_grid,
+        scalar_out_grid_type const& vorticity_grid,
+        scalar_out_grid_type const& heat_grid,
+        scalar_out_grid_type const& temp_grid,
+        bitset_grid_type const& flag_grid,
+        RealType dx, RealType dy, uint step, uint i_max, uint j_max,
+        uint partitions_x, uint partitions_y, uint cells_x, uint cells_y)
 {
     boost::shared_ptr<hpx::lcos::local::promise<int> > p =
         boost::make_shared<hpx::lcos::local::promise<int> >();
@@ -435,17 +458,105 @@ hpx::lcos::future<int> write_vtk_worker(std::vector<std::vector<grid::partition_
     return p->get_future();
 }
 
-int write_vtk(std::vector<std::vector<grid::partition_data<scalar_cell> > > const& p_grid,
-                    std::vector<std::vector<grid::partition_data<vector_cell> > > const& uv_grid,
-                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& stream_grid,
-                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& vorticity_grid,
-                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& heat_grid,
-                    std::vector<std::vector<grid::partition_data<scalar_cell> > > const& temp_grid,
-                    std::vector<std::vector<std::bitset<5> > > const& flag_grid,
-                    RealType dx, RealType dy, uint step, uint i_max, uint j_max,
-                        uint partitions_x, uint partitions_y, uint cells_x, uint cells_y)
+int write_vtk(scalar_grid_type const& p_grid,
+                vector_grid_type const& uv_grid,
+                scalar_grid_type const& stream_grid,
+                scalar_grid_type const& vorticity_grid,
+                scalar_grid_type const& heat_grid,
+                scalar_grid_type const& temp_grid,
+                bitset_grid_type const& flag_grid,
+                RealType dx, RealType dy, uint step, uint i_max, uint j_max,
+                uint partitions_x, uint partitions_y, uint cells_x, uint cells_y)
 {
-    hpx::lcos::future<int> f = write_vtk_worker(p_grid, uv_grid, stream_grid, vorticity_grid, heat_grid, temp_grid, flag_grid, dx, dy, step, i_max, j_max, partitions_x, partitions_y, cells_x, cells_y);
+    std::vector<std::vector<scalar_data> > p_data;
+
+    p_data.resize(partitions_x);
+
+    for (uint k = 0; k < partitions_x; k++)
+    {
+        p_data[k].resize(partitions_y);
+        for (uint l = 0; l < partitions_y; l++)
+        {
+            scalar_data base = p_grid[l * partitions_x + k].get_data(CENTER).get();
+            p_data[k][l] = scalar_data(base);
+        }
+    }
+
+    std::vector<std::vector<vector_data> > uv_data;
+
+    uv_data.resize(partitions_x);
+
+    for (uint k = 0; k < partitions_x; k++)
+    {
+        uv_data[k].resize(partitions_y);
+        for (uint l = 0; l < partitions_y; l++)
+        {
+            vector_data base = uv_grid[l * partitions_x + k].get_data(CENTER).get();
+            uv_data[k][l] = vector_data(base);
+        }
+    }
+
+    std::vector<std::vector<scalar_data> > stream_data;
+
+    stream_data.resize(partitions_x);
+
+    for (uint k = 0; k < partitions_x; k++)
+    {
+        stream_data[k].resize(partitions_y);
+        for (uint l = 0; l < partitions_y; l++)
+        {
+            scalar_data base = stream_grid[l * partitions_x + k].get_data(CENTER).get();
+            stream_data[k][l] = scalar_data(base);
+        }
+    }
+
+    std::vector<std::vector<scalar_data> > vorticity_data;
+
+    vorticity_data.resize(partitions_x);
+
+    for (uint k = 0; k < partitions_x; k++)
+    {
+        vorticity_data[k].resize(partitions_y);
+        for (uint l = 0; l < partitions_y; l++)
+        {
+            scalar_data base = vorticity_grid[l * partitions_x + k].get_data(CENTER).get();
+            vorticity_data[k][l] = scalar_data(base);
+        }
+    }
+
+    std::vector<std::vector<scalar_data> > heat_data;
+
+    heat_data.resize(partitions_x);
+
+    for (uint k = 0; k < partitions_x; k++)
+    {
+        heat_data[k].resize(partitions_y);
+        for (uint l = 0; l < partitions_y; l++)
+        {
+            scalar_data base = heat_grid[l * partitions_x + k].get_data(CENTER).get();
+            heat_data[k][l] = scalar_data(base);
+        }
+    }
+
+    std::vector<std::vector<scalar_data> > temp_data;
+
+    temp_data.resize(partitions_x);
+
+    for (uint k = 0; k < partitions_x; k++)
+    {
+        temp_data[k].resize(partitions_y);
+        for (uint l = 0; l < partitions_y; l++)
+        {
+            scalar_data base = temp_grid[l * partitions_x + k].get_data(CENTER).get();
+            temp_data[k][l] = scalar_data(base);
+        }
+    }
+    
+    hpx::lcos::future<int> f =
+        write_vtk_worker(p_data, uv_data, stream_data, vorticity_data, heat_data,
+            temp_data, flag_grid, dx, dy, step, i_max, j_max, partitions_x,
+            partitions_y, cells_x, cells_y);
+    
     return f.get();
 }
 

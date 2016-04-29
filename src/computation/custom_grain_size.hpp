@@ -97,12 +97,15 @@ public:
        vector_partition const& middle_fg, std::vector<std::bitset<5> > const& flag_data,
        RealType dx, RealType dy, RealType dt);
        
-    static void compute_stream_vorticity_heat(
-        scalar_data& stream_center, scalar_data& vorticity_center, scalar_data& heat_center,
-        scalar_data const& stream_bottom, scalar_data const& heat_bottom,
-        vector_data const& uv_center, vector_data const& uv_right, vector_data const& uv_top,
-        scalar_data const& temp_center, scalar_data const& temp_right,
-        std::vector<std::bitset<5> > const& flag_data,
+    static hpx::future<std::tuple<scalar_partition, scalar_partition, scalar_partition> >
+    compute_stream_vorticity_heat(
+        scalar_partition const& middle_stream, scalar_partition const& bottom_stream,
+        scalar_partition const& middle_vorticity, scalar_partition const& middle_heat,
+        scalar_partition const& bottom_heat, vector_partition const& middle_uv,
+        vector_partition const& right_uv, vector_partition const& top_uv,
+        scalar_partition const& middle_temperature,
+        scalar_partition const& right_temperature,
+        std::vector<std::bitset<5> > const& flag_data, 
         uint global_i, uint global_j, uint i_max, uint j_max, RealType re, RealType pr,
         RealType dx, RealType dy);
         

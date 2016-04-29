@@ -1471,56 +1471,91 @@ void custom_grain_size::update_velocity_for_cell(vector_cell& middle_uv,
     }
 }
 
-void custom_grain_size::compute_stream_vorticity_heat(scalar_data& stream_center, scalar_data& vorticity_center, scalar_data& heat_center,
-                                                    scalar_data const& stream_bottom, scalar_data const& heat_bottom,
-                                                    vector_data const& uv_center, vector_data const& uv_right, vector_data const& uv_top,
-                                                    scalar_data const& temp_center, scalar_data const& temp_right,
-                                                    std::vector<std::bitset<5> > const& flag_data,
-                                                    uint global_i, uint global_j, uint i_max, uint j_max, RealType re, RealType pr,
-                                                    RealType dx, RealType dy)
+hpx::future<std::tuple<scalar_partition, scalar_partition, scalar_partition> >
+custom_grain_size::compute_stream_vorticity_heat(
+        scalar_partition const& middle_stream, scalar_partition const& bottom_stream,
+        scalar_partition const& middle_vorticity, scalar_partition const& middle_heat,
+        scalar_partition const& bottom_heat, vector_partition const& middle_uv,
+        vector_partition const& right_uv, vector_partition const& top_uv,
+        scalar_partition const& middle_temperature,
+        scalar_partition const& right_temperature,
+        std::vector<std::bitset<5> > const& flag_data, 
+        uint global_i, uint global_j, uint i_max, uint j_max, RealType re, RealType pr,
+        RealType dx, RealType dy)
 {
-    uint size_x = stream_center.size_x();
-    uint size_y = stream_center.size_y();
-
-    for (uint j = 0; j < size_y; j++)
-        for (uint i = 0; i < size_x; i++)
+    return hpx::dataflow(
+        hpx::launch::async,
+        hpx::util::unwrapped(
+        [middle_stream, flag_data, global_i, global_j, i_max, j_max, re, pr, dx, dy]
+        (scalar_data stream_center, scalar_data const& stream_bottom, scalar_data vorticity_center,
+            scalar_data heat_center, scalar_data const& heat_bottom,
+            vector_data const& uv_center, vector_data const& uv_right, vector_data const& uv_top,
+            scalar_data const& temp_center, scalar_data const& temp_right)
+        -> std::tuple<scalar_partition, scalar_partition, scalar_partition>
         {
-            std::bitset<5> cell_type = flag_data[j*size_x + i];
+            uint size_x = stream_center.size_x();
+            uint size_y = stream_center.size_y();
+
+            for (uint j = 0; j < size_y; j++)
+                for (uint i = 0; i < size_x; i++)
+                {
+                    std::bitset<5> const& cell_type = flag_data[j*size_x + i];
 
 
-            if (in_range(0, i_max, 1, j_max, global_i + i, global_j + j))
-            {
-                if (cell_type.test(4) || global_i + i == 0)
-                {
-                    stream_center.get_cell_ref(i, j).value = get_bottom_neighbor(stream_center, stream_bottom, i, j).value + uv_center.get_cell(i, j).first*dy;
-                    heat_center.get_cell_ref(i, j).value = get_bottom_neighbor(heat_center, heat_bottom, i, j).value
-                                                            + dy * (re * pr * uv_center.get_cell(i, j).first
-                                                                        * (get_right_neighbor(temp_center, temp_right, i, j).value + temp_center.get_cell(i, j).value) / 2.
-                                                                        - (get_right_neighbor(temp_center, temp_right, i, j).value - temp_center.get_cell(i, j).value) / dx
-                                                                    );
-                }
-                else
-                {
-                     stream_center.get_cell_ref(i, j).value = get_bottom_neighbor(stream_center, stream_bottom, i, j).value;
-                     heat_center.get_cell_ref(i, j).value = get_bottom_neighbor(heat_center, heat_bottom, i, j).value;
-                }
-            }
+                    if (in_range(0, i_max, 1, j_max, global_i + i, global_j + j))
+                    {
+                        if (cell_type.test(4) || global_i + i == 0)
+                        {
+                            stream_center.get_cell_ref(i, j).value =
+                                get_bottom_neighbor(stream_center, stream_bottom, i, j).value
+                                + uv_center.get_cell(i, j).first*dy;
+                            heat_center.get_cell_ref(i, j).value =
+                                get_bottom_neighbor(heat_center, heat_bottom, i, j).value
+                                + dy * (re * pr * uv_center.get_cell(i, j).first
+                                * (get_right_neighbor(temp_center, temp_right, i, j).value
+                                    + temp_center.get_cell(i, j).value) / 2.
+                                - (get_right_neighbor(temp_center, temp_right, i, j).value
+                                    - temp_center.get_cell(i, j).value) / dx);
+                        }
+                        else
+                        {
+                             stream_center.get_cell_ref(i, j).value =
+                                 get_bottom_neighbor(stream_center, stream_bottom, i, j).value;
+                             heat_center.get_cell_ref(i, j).value =
+                                 get_bottom_neighbor(heat_center, heat_bottom, i, j).value;
+                        }
+                    }
 
-            if (in_range(1, i_max - 1, 1, j_max - 1, global_i + i, global_j + j))
-            {
-                if (cell_type.test(4))
-                {
-                    vector_cell const curr_cell = uv_center.get_cell(i, j);
-                    vorticity_center.get_cell_ref(i, j).value = (get_top_neighbor(uv_center, uv_top, i, j).first - curr_cell.first)/dy
-                                                                - (get_right_neighbor(uv_center, uv_right, i, j).second - curr_cell.second)/dx;
+                    if (in_range(1, i_max - 1, 1, j_max - 1, global_i + i, global_j + j))
+                    {
+                        if (cell_type.test(4))
+                        {
+                            vector_cell const curr_cell = uv_center.get_cell(i, j);
+                            vorticity_center.get_cell_ref(i, j).value =
+                                (get_top_neighbor(uv_center, uv_top, i, j).first - curr_cell.first)/dy
+                                - (get_right_neighbor(uv_center, uv_right, i, j).second - curr_cell.second)/dx;
+                        }
+                        else
+                        {
+                            vorticity_center.get_cell_ref(i, j).value = 0;
+                        }
+                    }
                 }
-                else
-                {
-                    vorticity_center.get_cell_ref(i, j).value = 0;
-                }
-            }
-        }
+            
+            return std::make_tuple(scalar_partition(middle_stream.get_id(), stream_center),
+                    scalar_partition(middle_stream.get_id(), vorticity_center),
+                    scalar_partition(middle_stream.get_id(), heat_center));
+        }),
+        middle_stream.get_data(CENTER),
+        bottom_stream.get_data(BOTTOM),
+        middle_vorticity.get_data(CENTER),
+        middle_heat.get_data(CENTER),
+        bottom_heat.get_data(BOTTOM),
+        middle_uv.get_data(CENTER),
+        right_uv.get_data(RIGHT),
+        top_uv.get_data(TOP),
+        middle_temperature.get_data(CENTER),
+        right_temperature.get_data(RIGHT));
 }
-
 }//computation
 

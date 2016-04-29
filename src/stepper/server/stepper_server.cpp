@@ -788,22 +788,12 @@ vector_partition stepper_server::receive_uv_from_neighbor(uint t, direction dir)
 template<typename T>
 void stepper_server::print_grid(std::vector<grid::partition<T> > const& grid, const std::string message) const
 {
-    std::vector<std::vector<grid::partition_data<T> > > data;
-
-    data.resize(params.num_partitions_x - 2);
-
-    for (uint k = 1; k < params.num_partitions_x - 1; k++)
-    {
-        data[k - 1].resize(params.num_partitions_y - 2);
-        for (uint l = 1; l < params.num_partitions_y - 1; l++)
-        {
-            grid::partition_data<T> base = grid[get_index(k, l)].get_data(CENTER).get();
-            data[k - 1][l - 1] = grid::partition_data<T>(base);
-        }
-    }
-
-    boost::shared_ptr<hpx::lcos::local::promise<int> > p = boost::make_shared<hpx::lcos::local::promise<int> >();
-    io::do_async_print(data, message, params.num_partitions_x - 2, params.num_partitions_y - 2, params.num_cells_per_partition_x, params.num_cells_per_partition_y, p);
+    boost::shared_ptr<hpx::lcos::local::promise<int> > p =
+        boost::make_shared<hpx::lcos::local::promise<int> >();
+    
+    io::do_async_print(grid, message, params.num_partitions_x - 2,
+        params.num_partitions_y - 2, params.num_cells_per_partition_x,
+        params.num_cells_per_partition_y, p);
 }
 
 void stepper_server::write_vtk(uint step)
@@ -814,121 +804,55 @@ void stepper_server::write_vtk(uint step)
             uint global_i = index_grid[get_index(k, l)].first;
             uint global_j = index_grid[get_index(k, l)].second;
 
-            scalar_data stream_center = stream_grid[get_index(k, l)].get_data(CENTER).get();
-            scalar_data stream_bottom = stream_grid[get_index(k, l - 1)].get_data(BOTTOM).get();
-
-            scalar_data heat_center = heat_grid[get_index(k, l)].get_data(CENTER).get();
-            scalar_data heat_bottom = heat_grid[get_index(k, l - 1)].get_data(BOTTOM).get();
-
-            scalar_data vorticity_center = vorticity_grid[get_index(k, l)].get_data(CENTER).get();
-
-            vector_data uv_center = uv_grid[get_index(k, l)].get_data(CENTER).get();
-            vector_data uv_right = uv_grid[get_index(k + 1, l)].get_data(RIGHT).get();
-            vector_data uv_top = uv_grid[get_index(k, l + 1)].get_data(TOP).get();
-
-            scalar_data temp_center = temperature_grid[get_index(k, l)].get_data(CENTER).get();
-            scalar_data temp_right = temperature_grid[get_index(k + 1, l)].get_data(RIGHT).get();
-
-            strategy::compute_stream_vorticity_heat(stream_center, vorticity_center, heat_center, stream_bottom, heat_bottom, uv_center,
-                uv_right, uv_top, temp_center, temp_right, flag_grid[get_index(k, l)],
-                global_i, global_j, params.i_max,
-                params.j_max, c.re, c.pr, params.dx, params.dy);
-
-            stream_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), stream_center);
-            vorticity_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), vorticity_center);
-            heat_grid[get_index(k, l)] = scalar_partition(hpx::find_here(), heat_center);
+            hpx::future<std::tuple<scalar_partition, scalar_partition, scalar_partition> > f =
+                hpx::dataflow(
+                    hpx::launch::async,
+                    &strategy::compute_stream_vorticity_heat,
+                    stream_grid[get_index(k, l)],
+                    stream_grid[get_index(k, l - 1)],
+                    vorticity_grid[get_index(k, l)],
+                    heat_grid[get_index(k, l)],
+                    heat_grid[get_index(k, l - 1)],
+                    uv_grid[get_index(k, l)],
+                    uv_grid[get_index(k + 1, l)],
+                    uv_grid[get_index(k, l +1)],
+                    temperature_grid[get_index(k, l)],
+                    temperature_grid[get_index(k + 1, l)],
+                    flag_grid[get_index(k, l)],
+                    global_i, global_j, params.i_max,
+                    params.j_max, c.re, c.pr, params.dx, params.dy);
+            
+            hpx::lcos::local::promise<scalar_partition> outer_p1;
+            hpx::lcos::local::promise<scalar_partition> outer_p2;
+            
+            stream_grid[get_index(k, l)] = f.then(
+                [outer_p1 = std::move(outer_p1), outer_p2 = std::move(outer_p2)]
+                (auto fut) mutable -> scalar_partition
+                {
+                    std::tuple<scalar_partition, scalar_partition, scalar_partition> p =
+                        fut.get();
+                    
+                    outer_p1.set_value(std::get<1>(p));
+                    outer_p2.set_value(std::get<2>(p));
+                    
+                    return std::get<0>(p);
+                });
         }
-
-    std::vector<std::vector<scalar_data> > p_data;
-
-    p_data.resize(params.num_partitions_x);
-
-    for (uint k = 0; k < params.num_partitions_x; k++)
-    {
-        p_data[k].resize(params.num_partitions_y);
-        for (uint l = 0; l < params.num_partitions_y; l++)
-        {
-            scalar_data base = p_grid[get_index(k, l)].get_data(CENTER).get();
-            p_data[k][l] = scalar_data(base);
-        }
-    }
-
-    std::vector<std::vector<vector_data> > uv_data;
-
-    uv_data.resize(params.num_partitions_x);
-
-    for (uint k = 0; k < params.num_partitions_x; k++)
-    {
-        uv_data[k].resize(params.num_partitions_y);
-        for (uint l = 0; l < params.num_partitions_y; l++)
-        {
-            vector_data base = uv_grid[get_index(k, l)].get_data(CENTER).get();
-            uv_data[k][l] = vector_data(base);
-        }
-    }
-
-    std::vector<std::vector<scalar_data> > stream_data;
-
-    stream_data.resize(params.num_partitions_x);
-
-    for (uint k = 0; k < params.num_partitions_x; k++)
-    {
-        stream_data[k].resize(params.num_partitions_y);
-        for (uint l = 0; l < params.num_partitions_y; l++)
-        {
-            scalar_data base = stream_grid[get_index(k, l)].get_data(CENTER).get();
-            stream_data[k][l] = scalar_data(base);
-        }
-    }
-
-    std::vector<std::vector<scalar_data> > vorticity_data;
-
-    vorticity_data.resize(params.num_partitions_x);
-
-    for (uint k = 0; k < params.num_partitions_x; k++)
-    {
-        vorticity_data[k].resize(params.num_partitions_y);
-        for (uint l = 0; l < params.num_partitions_y; l++)
-        {
-            scalar_data base = vorticity_grid[get_index(k, l)].get_data(CENTER).get();
-            vorticity_data[k][l] = scalar_data(base);
-        }
-    }
-
-    std::vector<std::vector<scalar_data> > heat_data;
-
-    heat_data.resize(params.num_partitions_x);
-
-    for (uint k = 0; k < params.num_partitions_x; k++)
-    {
-        heat_data[k].resize(params.num_partitions_y);
-        for (uint l = 0; l < params.num_partitions_y; l++)
-        {
-            scalar_data base = heat_grid[get_index(k, l)].get_data(CENTER).get();
-            heat_data[k][l] = scalar_data(base);
-        }
-    }
-
-    std::vector<std::vector<scalar_data> > temp_data;
-
-    temp_data.resize(params.num_partitions_x);
-
-    for (uint k = 0; k < params.num_partitions_x; k++)
-    {
-        temp_data[k].resize(params.num_partitions_y);
-        for (uint l = 0; l < params.num_partitions_y; l++)
-        {
-            scalar_data base = temperature_grid[get_index(k, l)].get_data(CENTER).get();
-            temp_data[k][l] = scalar_data(base);
-        }
-    }
+    
+    hpx::wait_all(stream_grid);
 
     //  hpx::async(write_vtk_action(), hpx::find_here(), p_data, uv_data, stream_data, vorticity_data, heat_data, temp_data, params.dx, params.dy, step, params.i_max, params.j_max, params.num_partitions_x - 2,
     //                                       params.num_partitions_y - 2, params.num_cells_per_partition_x, params.num_cells_per_partition_y);
-    boost::shared_ptr<hpx::lcos::local::promise<int> > p = boost::make_shared<hpx::lcos::local::promise<int> >();
+   // boost::shared_ptr<hpx::lcos::local::promise<int> > p = boost::make_shared<hpx::lcos::local::promise<int> >();
 
-    io::do_write_vtk(p_data, uv_data, stream_data, vorticity_data, heat_data, temp_data, flag_grid, params.dx, params.dy, step, params.i_max, params.j_max, params.num_partitions_x,
-        params.num_partitions_y, params.num_cells_per_partition_x, params.num_cells_per_partition_y, p);
+    hpx::dataflow(
+        hpx::launch::async,
+        &io::write_vtk,
+        p_grid, uv_grid, stream_grid, vorticity_grid, heat_grid,
+        temperature_grid, flag_grid, params.dx, params.dy, step, params.i_max,
+        params.j_max, params.num_partitions_x,
+        params.num_partitions_y, params.num_cells_per_partition_x,
+        params.num_cells_per_partition_y);
 
 }
 

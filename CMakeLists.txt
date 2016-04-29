@@ -31,8 +31,8 @@ add_hpx_component(
 
 add_hpx_component(
     stepper_server
-    SOURCES src/stepper/server/stepper_server.cpp src/computation/custom_grain_size.cpp
-    HEADERS src/stepper/server/stepper_server.hpp src/computation/custom_grain_size.hpp
+    SOURCES src/stepper/server/stepper_server.cpp src/computation/custom_grain_size.cpp src/computation/cell_operations.cpp
+    HEADERS src/stepper/server/stepper_server.hpp src/computation/custom_grain_size.hpp src/computation/cell_operations.hpp
     COMPILE_FLAGS -DCUSTOM_GRAIN_SIZE
     COMPONENT_DEPENDENCIES iostreams partition_server)
 

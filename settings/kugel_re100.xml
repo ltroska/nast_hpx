@@ -2,8 +2,8 @@
 <SimulationConfig>
 	<iMax value="200"/>
 	<jMax value="40"/>
-	<iRes value="101"/>
-	<jRes value="21"/>
+	<iRes value="202"/>
+	<jRes value="42"/>
 	<xLength value="20.0"/>
 	<yLength value="4.0"/>
 	<Re value="100"/>
@@ -16,8 +16,8 @@
 	<tEnd value="20"/>
 	<GX value="0"/>
 	<GY value="0"/>
-	<outputSkipSize value="0"/>
-	<deltaVec value="0.2"/>
+	<outputSkipSize value="1"/>
+	<deltaVec value="0"/>
 	<vtk value="1"/>
 	<WR value="3"/>
 	<WL value="4"/>

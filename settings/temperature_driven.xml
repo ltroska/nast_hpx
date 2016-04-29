@@ -14,7 +14,7 @@
 	<alpha value="0.9"/>
 	<iterMax value="500"/>
 	<dt value="0.03"/>
-	<tEnd value="500"/>
+	<tEnd value="100"/>
 	<GX value="0"/>
 	<GY value="-9.706e-2"/>
 	<TI value="0"/>
@@ -29,7 +29,7 @@
 	<TR value="0"/>
 	<outputSkipSize value="0"/>
 	<deltaVec value="2"/>
-	<vtk value="1"/>
+	<vtk value="0"/>
 	<subIterations value="1"/>
 	<withForEach value="0"/>
 	<gridFile value="../settings/temperature_driven_geometrie.csv"/>

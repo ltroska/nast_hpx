@@ -2,8 +2,8 @@
 <SimulationConfig>
 	<iMax value="64"/>
 	<jMax value="64"/>
-	<iRes value="32"/>
-	<jRes value="32"/>
+	<iRes value="102"/>
+	<jRes value="22"/>
 	<xLength value="10.0"/>
 	<yLength value="2.0"/>
 	<Re value="100"/>
@@ -26,5 +26,4 @@
 	<withForEach value="0"/>
 	<gridFile value="../settings/stufe_geometrie.csv"/>
 	<initialUVFile value="../settings/stufe_initial_uv.csv"/>
-
 </SimulationConfig>

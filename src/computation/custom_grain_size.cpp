@@ -291,83 +291,7 @@ void custom_grain_size::set_velocity_for_cell(vector_cell& middle,
         case 4: middle.first = 2*u.top - bottom.first;
                 break;  
         } 
-}
-
-
-void custom_grain_size::set_velocity_for_boundary_cell(vector_cell& middle,
-        vector_cell const& left, vector_cell const& right,
-        vector_cell const& bottom, vector_cell const& top,
-        boundary_data const& type,
-        boundary_data const& u,
-        boundary_data const& v,
-        uint global_i, uint global_j, uint i, uint j, uint i_max, uint j_max
-        )
-{
-    //left
-    if (in_range(0, 0, 1, j_max, global_i + i, global_j + j))
-        switch((int)type.left)
-        {
-        case 1: middle.first = 0;
-                middle.second = -right.second;
-                break;
-        case 2: middle.first = 0;
-                middle.second = right.second;
-                break;
-        case 3: middle.first = right.first;
-                middle.second = right.second;
-                break;
-        case 4: middle.first = u.left;
-                middle.second = 2*v.left - right.second;
-                break;  
-        }
-
-    //right
-    else if (in_range(i_max + 1, i_max + 1, 1, j_max, global_i + i, global_j + j))
-        switch((int)type.right)
-        {
-        case 1: middle.second = -left.second;
-                break;
-        case 2: middle.second = left.second;
-                break;
-        case 3: middle.second = left.second;
-                break;
-        case 4: middle.second = 2*v.right - left.second;
-                break;  
-        }      
-
-    //bottom
-    else if (in_range(1, i_max, 0, 0, global_i + i, global_j + j))
-        switch((int)type.bottom)
-        {
-        case 1: middle.first = -top.first;
-                middle.second = 0;
-                break;
-        case 2: middle.first = top.first;
-                middle.second = 0;
-                break;
-        case 3: middle.first = top.first;
-                middle.second = top.second;
-                break;
-        case 4: middle.first = 2*u.bottom - top.first;
-                middle.second = v.bottom;
-                break;  
-        }  
-
-    //top
-    else if (in_range(1, i_max, j_max + 1, j_max + 1, global_i + i, global_j + j))
-        switch((int)type.top)
-        {
-        case 1: middle.first = 2*u.top - bottom.first;
-                break;
-        case 2: middle.first = bottom.first;
-                break;
-        case 3: middle.first = bottom.first;
-                break;
-        case 4: middle.first = 2*u.top - bottom.first;
-                break;  
-        } 
-}
-    
+}  
 
 scalar_partition custom_grain_size::set_temperature_for_boundary_and_obstacles(
         scalar_partition const& middle,
@@ -378,109 +302,75 @@ scalar_partition custom_grain_size::set_temperature_for_boundary_and_obstacles(
         std::vector<std::bitset<5> > const& flag_data,
         boundary_data const& boundary_data_type,
         boundary_data const& temperature_boundary_data,
-        uint global_i, uint global_j, uint i_max, uint j_max,
-        RealType dx, RealType dy
-)
+        RealType dx, RealType dy)
 {
-    hpx::shared_future<scalar_data> middle_data =
-        middle.get_data(CENTER);
-        
-    //TODO: implement temperature for obstacles
-    //do local computation first
-   /* hpx::future<vector_data> next_middle = middle_data.then(
-        hpx::util::unwrapped(
-            [middle, flag_data, type, u, v, global_i, global_j, i_max, j_max]
-            (vector_data const& m) -> vector_data
-            {
-                uint size_x = m.size_x();
-                uint size_y = m.size_y();
-                
-                vector_data next(size_x, size_y);
-
-                for (uint j = 1; j < size_y - 1; j++)
-                    for (uint i = 1; i < size_x - 1; i++)
-                        set_velocity_for_obstacle_cell(
-                                next.get_cell_ref(i, j),
-                                m.get_cell(i - 1, j),
-                                m.get_cell(i + 1, j),
-                                m.get_cell(i, j - 1),
-                                m.get_cell(i, j + 1),
-                                flag_data[j * size_x + i],
-                                type, u, v, global_i, global_j, i, j,
-                                i_max, j_max);
-
-                return next;
-            }
-        )
-    );*/
-
+    //TODO: add temperature for obstacle cells
     return hpx::dataflow(
         hpx::launch::async,
         hpx::util::unwrapped(
             [middle, flag_data, boundary_data_type, temperature_boundary_data,
-                global_i, global_j, i_max, j_max, dx, dy]
-            (scalar_data next, scalar_data const& m, scalar_data const& l,
+             dx, dy]
+            (scalar_data next, scalar_data const& l,
             scalar_data const& r, scalar_data const& b, scalar_data const& t)
             -> scalar_partition
             {
-                uint size_x = m.size_x();
-                uint size_y = m.size_y();
-                                
+                uint size_x = next.size_x();
+                uint size_y = next.size_y();
+             
                 //left and right
                 for (uint j = 0; j < size_y; j++)
                 {
                     uint i = 0;
-                    set_temperature_selector((global_i == 0),
+                    set_temperature_for_cell(
                         next.get_cell_ref(i, j),
-                        get_left_neighbor(m, l, i, j),
-                        get_right_neighbor(m, r, i, j),
-                        get_bottom_neighbor(m, b, i, j),
-                        get_top_neighbor(m, t, i, j),
+                        get_left_neighbor(next, l, i, j),
+                        get_right_neighbor(next, r, i, j),
+                        get_bottom_neighbor(next, b, i, j),
+                        get_top_neighbor(next, t, i, j),
                         boundary_data_type, temperature_boundary_data,
-                        global_i, global_j, i, j, i_max, j_max, dx, dy);
+                        flag_data[j * size_x + i], i, j,dx, dy);
                      
                     
                     i = size_x - 1;
-                    set_temperature_selector((global_i + size_x >= i_max),
+                    set_temperature_for_cell(
                         next.get_cell_ref(i, j),
-                        get_left_neighbor(m, l, i, j),
-                        get_right_neighbor(m, r, i, j),
-                        get_bottom_neighbor(m, b, i, j),
-                        get_top_neighbor(m, t, i, j),
+                        get_left_neighbor(next, l, i, j),
+                        get_right_neighbor(next, r, i, j),
+                        get_bottom_neighbor(next, b, i, j),
+                        get_top_neighbor(next, t, i, j),
                         boundary_data_type, temperature_boundary_data,
-                        global_i, global_j, i, j, i_max, j_max, dx, dy);
+                        flag_data[j * size_x + i],i, j, dx, dy);
                 }    
                 
                 //bottom and top
                 for (uint i = 0; i < size_x; i++)
                 {
                     uint j = 0;
-                    set_temperature_selector((global_j == 0),
+                    set_temperature_for_cell(
                         next.get_cell_ref(i, j),
-                        get_left_neighbor(m, l, i, j),
-                        get_right_neighbor(m, r, i, j),
-                        get_bottom_neighbor(m, b, i, j),
-                        get_top_neighbor(m, t, i, j),
+                        get_left_neighbor(next, l, i, j),
+                        get_right_neighbor(next, r, i, j),
+                        get_bottom_neighbor(next, b, i, j),
+                        get_top_neighbor(next, t, i, j),
                         boundary_data_type, temperature_boundary_data,
-                        global_i, global_j, i, j, i_max, j_max, dx, dy);
+                        flag_data[j * size_x + i], i, j,dx, dy);
                      
                     
                     j = size_y - 1;
-                    set_temperature_selector((global_j + size_y >= j_max),
+                    set_temperature_for_cell(
                         next.get_cell_ref(i, j),
-                        get_left_neighbor(m, l, i, j),
-                        get_right_neighbor(m, r, i, j),
-                        get_bottom_neighbor(m, b, i, j),
-                        get_top_neighbor(m, t, i, j),
+                        get_left_neighbor(next, l, i, j),
+                        get_right_neighbor(next, r, i, j),
+                        get_bottom_neighbor(next, b, i, j),
+                        get_top_neighbor(next, t, i, j),
                         boundary_data_type, temperature_boundary_data,
-                        global_i, global_j, i, j, i_max, j_max, dx, dy);
+                        flag_data[j * size_x + i], i, j,dx, dy);
                 }                     
                 
                 return scalar_partition(middle.get_id(), next);
             }
         ),
-        std::move(middle_data),
-        middle_data,
+        middle.get_data(CENTER),
         left.get_data(LEFT),
         right.get_data(RIGHT),
         bottom.get_data(BOTTOM),
@@ -488,45 +378,46 @@ scalar_partition custom_grain_size::set_temperature_for_boundary_and_obstacles(
     );        
 }
 
-void custom_grain_size::set_temperature_for_boundary_cell(scalar_cell& middle,
+void custom_grain_size::set_temperature_for_cell(scalar_cell& middle,
         scalar_cell const& left, scalar_cell const& right,
         scalar_cell const& bottom, scalar_cell const& top,
         boundary_data const& boundary_data_type,
         boundary_data const& temperature_boundary_data,
-        uint global_i, uint global_j, uint i, uint j, uint i_max, uint j_max,
+        std::bitset<5> const& cell_type,
+        uint i, uint j,
         RealType dx, RealType dy
         )
 {
-    if (in_range(0, 0, 1, j_max, global_i + i, global_j + j))
+    //left
+    if (cell_type == std::bitset<5>("00111"))
         switch((int)boundary_data_type.left)
         {
         case 1: middle.value = 2*temperature_boundary_data.left - right.value; break;            
-        case 2: middle.value = right.value + dx*temperature_boundary_data.left; break;
+        case 2: middle.value = right.value + dx*temperature_boundary_data.left*((j-0.5)*dy); break;
         }
     
-
     //right
-    if (in_range(i_max + 1, i_max + 1, 1, j_max, global_i + i, global_j + j))
+    if (cell_type == std::bitset<5>("01011"))
         switch((int)boundary_data_type.right)
         {
         case 1: middle.value = 2*temperature_boundary_data.right - left.value; break;            
-        case 2: middle.value = left.value + dx*temperature_boundary_data.right; break;
+        case 2: middle.value = left.value + dx*temperature_boundary_data.right*((j-0.5)*dy); break;
         }
 
     //bottom
-    if (in_range(1, i_max, 0, 0, global_i + i, global_j + j))
+    if (cell_type == std::bitset<5>("01110"))
         switch((int)boundary_data_type.bottom)
         {
         case 1: middle.value = 2*temperature_boundary_data.bottom - top.value; break;            
-        case 2: middle.value = top.value + dy*temperature_boundary_data.bottom; break;
+        case 2: middle.value = top.value + dy*temperature_boundary_data.bottom*((i-0.5)*dx); break;
         }
 
     //top
-    if (in_range(1, i_max, j_max + 1, j_max + 1, global_i + i, global_j + j))
+    if (cell_type == std::bitset<5>("01101"))
         switch((int)boundary_data_type.top)
         {
         case 1: middle.value = 2*temperature_boundary_data.top - bottom.value; break;            
-        case 2: middle.value = bottom.value + dy*temperature_boundary_data.top; break;
+        case 2: middle.value = bottom.value + dy*temperature_boundary_data.top*((i-0.5)*dx); break;
         }    
 }
 
@@ -769,7 +660,7 @@ scalar_partition custom_grain_size::compute_temperature_on_fluid_cells(
     hpx::shared_future<vector_data> middle_uv_data =
         middle_uv.get_data(CENTER);
     
-    //do local computation first
+   /* //do local computation first
      hpx::future<scalar_data> next_temperature_middle = 
         hpx::dataflow(
             hpx::launch::async,
@@ -803,22 +694,39 @@ scalar_partition custom_grain_size::compute_temperature_on_fluid_cells(
             ),
             middle_temperature_data,
             middle_uv_data
-        );
+        );*/
 
+            
     return hpx::dataflow(
         hpx::launch::async,
         hpx::util::unwrapped(
             [middle_temperature, flag_data, re, pr, dx, dy, dt, alpha]
-            (scalar_data next, scalar_data const& m_temp, scalar_data const& l_temp,
+            (/*scalar_data next,*/ scalar_data const& m_temp, scalar_data const& l_temp,
             scalar_data const& r_temp, scalar_data const& b_temp, scalar_data const& t_temp,
             vector_data const& m_uv, vector_data const& l_uv,
             vector_data const& b_uv)
             -> scalar_partition
             {
-                uint size_x = next.size_x();
-                uint size_y = next.size_y();
-                                
-                //left and right
+                uint size_x = m_temp.size_x();
+                uint size_y = m_temp.size_y();
+                   
+                scalar_data next(m_temp);
+
+                    for (uint j = 0; j < size_y; j++)
+                        for (uint i = 0; i < size_x; i++)
+                            compute_temperature_for_cell(
+                                next.get_cell_ref(i, j),
+                                m_temp.get_cell(i, j),
+                                get_left_neighbor(m_temp, l_temp, i, j),
+                                get_right_neighbor(m_temp, r_temp, i, j),
+                                get_bottom_neighbor(m_temp, b_temp, i, j),
+                                get_top_neighbor(m_temp, t_temp, i, j),
+                                m_uv.get_cell(i, j),
+                                get_left_neighbor(m_uv, l_uv, i, j),
+                                get_bottom_neighbor(m_uv, b_uv, i, j),
+                                flag_data[j * size_x + i],
+                                re, pr, dx, dy, dt, alpha);              
+               /* //left and right
                 for (uint j = 0; j < size_y; j++)
                 {
                     uint i = 0;                     
@@ -882,12 +790,13 @@ scalar_partition custom_grain_size::compute_temperature_on_fluid_cells(
                         get_bottom_neighbor(m_uv, b_uv, i, j),
                         flag_data[j * size_x + i],
                         re, pr, dx, dy, dt, alpha);
-                }                     
-                
+                }                     */
+                          
+
                 return scalar_partition(middle_temperature.get_id(), next);
             }
         ),
-        std::move(next_temperature_middle),
+        //std::move(next_temperature_middle),
         middle_temperature_data,
         left_temperature.get_data(LEFT),
         right_temperature.get_data(RIGHT),
@@ -1115,7 +1024,7 @@ scalar_partition custom_grain_size::set_pressure_on_boundary_and_obstacles(
                 }    
                 
                 //bottom and top
-                for (uint i = 0; i < size_x; i++)
+                for (uint i = 1; i < size_x - 1; i++)
                 {
                     uint j = 0;
                     set_pressure_for_cell(
@@ -1154,19 +1063,19 @@ void custom_grain_size::set_pressure_for_cell(scalar_cell& middle_p,
     std::bitset<5> const& type)
 {
     //east
-    if (type == std::bitset<5>("01000"))
+    if (type == std::bitset<5>("01000") || type == std::bitset<5>("00111"))
         middle_p.value = right_p.value;
 
     //west
-    else if (type == std::bitset<5>("00100"))
+    else if (type == std::bitset<5>("00100") || type == std::bitset<5>("01011"))
         middle_p.value = left_p.value;
 
     //south
-    else if (type == std::bitset<5>("00010"))
+    else if (type == std::bitset<5>("00010") || type == std::bitset<5>("01101"))
         middle_p.value = bottom_p.value;
 
     //north
-    else if (type == std::bitset<5>("00001"))
+    else if (type == std::bitset<5>("00001") || type == std::bitset<5>("01110"))
         middle_p.value = top_p.value;
 
     //NE
@@ -1183,7 +1092,9 @@ void custom_grain_size::set_pressure_for_cell(scalar_cell& middle_p,
 
     //NW
     else if (type == std::bitset<5>("00101"))
-        middle_p.value = (top_p.value + left_p.value) / 2.;
+        middle_p.value = (top_p.value + left_p.value) / 2.; 
+     
+    
 }
 
 scalar_partition custom_grain_size::sor_cycle(scalar_partition const& middle_p,
@@ -1218,7 +1129,7 @@ scalar_partition custom_grain_size::sor_cycle(scalar_partition const& middle_p,
                             flag_data[(j + 1) * size_x + i];
                         auto& right_type =
                             flag_data[j * size_x + i + 1];
-
+                     
                         auto& type = flag_data[j * size_x + i];
 
                         //top is obstacle or boundary cell
@@ -1279,7 +1190,7 @@ scalar_partition custom_grain_size::sor_cycle(scalar_partition const& middle_p,
                 }
                 
                 //top
-                uint j = size_x - 1;
+                uint j = size_y - 1;
                 for (i = 0; i < size_x; i++)
                 {                                       
                     do_sor_cycle_for_cell(
@@ -1290,18 +1201,18 @@ scalar_partition custom_grain_size::sor_cycle(scalar_partition const& middle_p,
                         get_top_neighbor(m_p, t_p, i, j),
                         m_rhs.get_cell(i, j),
                         flag_data[j * size_x + i],
-                        dx_sq, dy_sq, part1, part2);
-                }
-                
+                        dx_sq, dy_sq, part1, part2);                  
+                    }                
+               
                 i = size_x - 1;
-                j = size_x - 1;
+                j = size_y - 1;
                 
                 set_pressure_for_cell(
                                 m_p.get_cell_ref(i, j),
-                                get_left_neighbor(m_p, l_p, i, j),
-                                m_p.get_cell(i + 1, j),
-                                get_bottom_neighbor(m_p, b_p, i, j),
-                                m_p.get_cell(i, j + 1),
+                                m_p.get_cell(i - 1, j),
+                                get_right_neighbor(m_p, r_p, i, j),
+                                m_p.get_cell(i, j - 1),
+                                get_top_neighbor(m_p, t_p, i, j),
                                 flag_data[j * size_x + i]);
                 
                 return scalar_partition(middle_p.get_id(), m_p);
@@ -1508,7 +1419,7 @@ custom_grain_size::update_velocities(
                 }
                 
                 //top
-                for (uint i = 0; i < size_x; i++)
+                for (uint i = 0; i < size_x -1; i++)
                 {
                     uint j = size_y - 1;
                     auto& type = flag_data[j * size_x + i];

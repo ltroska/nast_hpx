@@ -202,6 +202,7 @@ private:
     uint index(uint idx, uint idy) const
     {
         uint id = idy*size_x_ + idx;
+        
         HPX_ASSERT(id >= 0 && id < size_);
         return id;
     }

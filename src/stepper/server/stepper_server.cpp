@@ -26,7 +26,7 @@ namespace server
 
 stepper_server::stepper_server(uint nl)
 : num_localities(nl)
-{
+{    
 }
 
 void stepper_server::setup(io::config&& cfg)
@@ -75,13 +75,13 @@ void stepper_server::initialize_parameters()
     params.num_partitions_x = ((c.i_max + 2) / num_localities_x) / c.i_res + 2;
     params.num_partitions_y = ((c.j_max + 2) / num_localities_y) / c.j_res + 2;
 
-
-    std::cout << (params.num_partitions_x - 2) * num_localities_x * c.i_res << " " << c.i_max + 2 << std::endl;
-
-    HPX_ASSERT_MSG((params.num_partitions_x - 2) * num_localities_x * c.i_res == c.i_max + 2,
-        "i_res doesn't fit the dimensions.");
-    HPX_ASSERT_MSG((params.num_partitions_y - 2) * num_localities_y * c.j_res == c.j_max + 2,
-        "j_res doesn't fit the dimensions.");
+    if ((params.num_partitions_x - 2) * num_localities_x * c.i_res != c.i_max + 2
+        || (params.num_partitions_y - 2) * num_localities_y * c.j_res != c.j_max + 2)
+    {
+        std::cerr << "i_res and/or j_res doesn't fit the dimensions of the problem." 
+            << std::endl;
+        exit(0);
+    }
 
     params.re = c.re;
     params.pr = c.pr;
@@ -122,8 +122,8 @@ void stepper_server::initialize_grids()
 
     flag_grid.resize(params.num_partitions_x * params.num_partitions_y);
 
-    scalar_dummy = scalar_partition(hpx::find_here(), 1, 1);
-    vector_dummy = vector_partition(hpx::find_here(), 1, 1);
+    scalar_dummy = scalar_partition(hpx::find_here(), params.num_cells_per_partition_x, params.num_cells_per_partition_y);
+    vector_dummy = vector_partition(hpx::find_here(), params.num_cells_per_partition_x, params.num_cells_per_partition_y);
 
     for (uint l = 0; l < params.num_partitions_y; l++)
         for (uint k = 0; k < params.num_partitions_x; k++)
@@ -254,9 +254,6 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
         {
             if (k != 0 && k != params.num_partitions_x - 1 && l != 0 && l != params.num_partitions_x - 1)
             {
-                uint global_i = index_grid[get_index(k, l)].first;
-                uint global_j = index_grid[get_index(k, l)].second;
-
                 uv_temp_grid[get_index(k, l)] =
                     hpx::dataflow(
                     hpx::launch::async,
@@ -284,10 +281,6 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
                     flag_grid[get_index(k, l)],
                     c.temp_data_type,
                     c.temp_bnd,
-                    global_i,
-                    global_j,
-                    params.i_max,
-                    params.j_max,
                     params.dx,
                     params.dy
                     );
@@ -305,7 +298,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
     
     if (c.pr != 0)
         temperature_grid = temperature_temp_grid;
-    //print_grid(temperature_grid);
+   // print_grid(temperature_grid);
     // print_grid(uv_grid);
     // print_grid(temperature_grid);
 
@@ -401,13 +394,35 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
 
     RealType t1_elapsed = t1.elapsed();
 
-
     hpx::util::high_resolution_timer t2;
     uint iter = 0;
     RealType res = 0;
 
     do
     {
+        /*for (uint l = 0; l < params.num_partitions_y; l++)
+            for (uint k = 0; k < params.num_partitions_x; k++)
+            {
+                if (k != 0 && k != params.num_partitions_x - 1 && l != 0 && l != params.num_partitions_x - 1)
+                {
+                    p_temp_grid[get_index(k, l)] =
+                        hpx::dataflow(
+                        hpx::launch::async,
+                        &strategy::set_pressure_on_boundary_and_obstacles,
+                        p_grid[get_index(k, l)],
+                        p_grid[get_index(k - 1, l)],
+                        p_grid[get_index(k + 1, l)],
+                        p_grid[get_index(k, l - 1)],
+                        p_grid[get_index(k, l + 1)],
+                        flag_grid[get_index(k, l)]
+                        );
+                }
+                else
+                {
+                    p_temp_grid[get_index(k, l)] = p_grid[get_index(k, l)];
+                }
+            } */ 
+                 
         for (uint l = 0; l < params.num_partitions_y; l++)
             for (uint k = 0; k < params.num_partitions_x; k++)
             {
@@ -432,7 +447,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
                     p_temp_grid[get_index(k, l)] = p_grid[get_index(k, l)];
                 }
             }
-
+         
         p_grid = p_temp_grid;
         
         std::vector<hpx::future<RealType> > residuals;
@@ -500,8 +515,6 @@ std::pair<RealType, RealType> stepper_server::do_timestep(uint step, RealType dt
     }
     while (keep_running.receive(step * c.iter_max + iter).get());
     RealType t2_elapsed = t2.elapsed();
-
-   // print_grid(uv_grid);
 
     hpx::util::high_resolution_timer t3;
 

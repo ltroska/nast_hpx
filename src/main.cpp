@@ -13,7 +13,7 @@ int hpx_main(int argc, char* argv[])
     }
 
     stepper::stepper step;
-    
+        
     step.setup(io::config::read_config_from_file(argv[1])).wait();
 
     return hpx::finalize();

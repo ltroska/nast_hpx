@@ -33,37 +33,31 @@ void do_async_print(
 {
     std::vector<std::vector<grid::partition_data<T> > > data;
 
-    data.resize(partitions_x - 2);
+    data.resize(partitions_x);
 
-    for (uint k = 1; k < partitions_x - 1; k++)
+    for (uint k = 0; k < partitions_x - 1; k++)
     {
-        for (uint l = 1; l < partitions_y - 1; l++)
-            data[k - 1].emplace_back(grid[l * partitions_x + k]
-                                        .get_data(CENTER).get());
+        data[k].resize(partitions_y);
+        
+        for (uint l = 0; l < partitions_y; l++)
+        {
+            grid::partition_data<T> base = grid[l * partitions_x + k].get_data(CENTER).get();
+
+            data[k][l] = grid::partition_data<T>(base);
+        }
     }
     
-    uint res_x_, res_y_;
-    if (hpx::get_num_localities_sync() == 2)
-    {
-        res_x_ = 2;
-        res_y_ = 1;
-    }
-    else
-    {
-        res_x_ = static_cast<uint>(sqrt(hpx::get_num_localities_sync()));
-        res_y_ = res_x_;
-    }
-
+    
     std::cout << message  << std::endl;
-    for (uint j = partitions_y - 1; j <= partitions_y; --j)
+    for (uint j = partitions_y - 2; j >= 1; --j)
     {
         for (uint row = cells_y - 1 ; row <= cells_y; --row)
         {
-            for (uint i = 0; i < partitions_x; ++i)
+            for (uint i = 1; i < partitions_x - 1; ++i)
             {
                 for (uint col = 0; col <  cells_x; col++)
                 {
-                    std::cout << grid[i][j].get_cell(col, row) << " ";
+                    std::cout << data[i][j].get_cell(col, row) << " ";
                 }
             }
             std::cout << std::endl;
@@ -504,15 +498,15 @@ hpx::lcos::future<int> write_vtk_worker(
     hpx::threads::executors::io_pool_executor scheduler;
 
     // ... and schedule the handler to run on one of its OS-threads.
-    scheduler.add(hpx::util::bind(
-                                &do_write_vtk, p_grid, uv_grid, stream_grid,
+   // scheduler.add(hpx::util::bind(
+                                do_write_vtk(p_grid, uv_grid, stream_grid,
                                 vorticity_grid, heat_grid, temp_grid,
                                 flag_grid, dx, dy, step, i_max, j_max,
                                 partitions_x, partitions_y, cells_x, cells_y,
                                 hpx::get_locality_id(),
                                 hpx::get_num_localities_sync(), p
-                                )
-                            );
+                                );
+                           // );
 
     return p->get_future();
 }

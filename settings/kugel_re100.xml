@@ -2,8 +2,8 @@
 <SimulationConfig>
 	<iMax value="200"/>
 	<jMax value="40"/>
-	<iRes value="202"/>
-	<jRes value="42"/>
+	<iRes value="101"/>
+	<jRes value="21"/>
 	<xLength value="20.0"/>
 	<yLength value="4.0"/>
 	<Re value="100"/>

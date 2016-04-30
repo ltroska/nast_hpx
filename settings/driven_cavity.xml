@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <SimulationConfig>
-	<iMax value="50"/>
-	<jMax value="50"/>
-	<iRes value="4"/>
-	<jRes value="4"/>
+	<iMax value="126"/>
+	<jMax value="126"/>
+	<iRes value="64"/>
+	<jRes value="64"/>
 	<xLength value="1"/>
 	<yLength value="1"/>
 	<Re value="1000"/>

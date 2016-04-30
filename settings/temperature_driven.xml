@@ -29,7 +29,7 @@
 	<TR value="0"/>
 	<outputSkipSize value="0"/>
 	<deltaVec value="2"/>
-	<vtk value="0"/>
+	<vtk value="1"/>
 	<subIterations value="1"/>
 	<withForEach value="0"/>
 	<gridFile value="../settings/temperature_driven_geometrie.csv"/>

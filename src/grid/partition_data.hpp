@@ -9,7 +9,7 @@
 
 namespace grid {
 
-//partition_data
+/// This class represents a block of a grid.
 template<typename T = RealType>
 struct partition_data
 {
@@ -62,6 +62,8 @@ public:
 
     }
 
+    // When sending to a neighboring locality, only send the data that locality
+    // needs, depending on direction
     partition_data(partition_data const& base, direction type)
     {
         if (base.size() == 0)
@@ -71,7 +73,6 @@ public:
             size_ = 0;
         }
         else
-        //return only needed data, depending on who asks for it.
         switch (type)
         {
             case TOP_LEFT:
@@ -227,7 +228,7 @@ private:
         return os;
     }
 
-    //for accessing an element conveniently
+    // Method for accessing an element conveniently
     uint index(uint idx, uint idy) const
     {
         uint id = idy*size_x_ + idx;

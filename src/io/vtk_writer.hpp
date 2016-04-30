@@ -22,7 +22,8 @@ typedef std::vector<std::vector<grid::partition_data<vector_cell> > >
     vector_out_grid_type;
 
 typedef std::vector<std::vector<std::bitset<5> > > bitset_grid_type;
-    
+
+/// Method prints the given grid on std::cout.
 template<typename T>
 void do_async_print(
     std::vector<grid::partition<T> > const& grid,
@@ -72,6 +73,7 @@ void do_async_print(
     p->set_value(0);
 }
 
+/// Method does the actual IO operation. Writes all data to a vtk file.
 void do_write_vtk(scalar_out_grid_type const& p_grid,
     vector_out_grid_type const& uv_grid,
     scalar_out_grid_type const& stream_grid,
@@ -488,7 +490,7 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
     p->set_value(0);
 }
 
-// This function will be executed by an HPX thread
+/// Method that schedules the IO operation on an OS-thread.
 hpx::lcos::future<int> write_vtk_worker(
     scalar_out_grid_type const& p_grid, vector_out_grid_type const& uv_grid,
     scalar_out_grid_type const& stream_grid, scalar_out_grid_type const& vorticity_grid,
@@ -515,6 +517,9 @@ hpx::lcos::future<int> write_vtk_worker(
     return p->get_future();
 }
 
+
+/// Action that is called, when the grids are ready. Extracts the data of each
+/// grid and executes the IO worker asynchronously.
 int write_vtk(
     scalar_grid_type const& p_grid, vector_grid_type const& uv_grid,
     scalar_grid_type const& stream_grid, scalar_grid_type const& vorticity_grid,

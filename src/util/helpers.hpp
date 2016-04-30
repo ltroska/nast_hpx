@@ -3,7 +3,7 @@
 
 #include "typedefs.hpp"
 
-//finding id of neighboring localities
+/// Method that finds the id of the neighboring locality
 uint inline get_neighbor_id(uint id, direction dir, uint num_localities)
 {
     uint res_x, res_y;
@@ -65,13 +65,15 @@ uint inline get_neighbor_id(uint id, direction dir, uint num_localities)
     }
 }
 
-//check if point is in global id range
+/// Method to check if cell is in global index range
 bool inline in_range(uint start_i, uint end_i, uint start_j, uint end_j, uint i,
                         uint j)
 {
     return !(i < start_i || i > end_i || j < start_j || j > end_j);
 }
 
+/// Method extracts the left neighbor of the given cell from the provided
+/// partitions.
 template<typename T>
 T get_left_neighbor(grid::partition_data<T> const& center,
                         grid::partition_data<T> const& left, uint i, uint j)
@@ -82,6 +84,8 @@ T get_left_neighbor(grid::partition_data<T> const& center,
         return left.get_cell(j, 0);
 }
 
+/// Method extracts the right neighbor of the given cell from the provided
+/// partitions
 template<typename T>
 T get_right_neighbor(grid::partition_data<T> const& center,
                         grid::partition_data<T> const& right, uint i, uint j)
@@ -92,6 +96,8 @@ T get_right_neighbor(grid::partition_data<T> const& center,
         return right.get_cell(j, 0);
 }
 
+/// Method extracts the bottom neighbor of the given cell from the provided
+/// partitions
 template<typename T>
 T get_bottom_neighbor(grid::partition_data<T> const& center,
                         grid::partition_data<T> const& bottom, uint i, uint j)
@@ -102,6 +108,8 @@ T get_bottom_neighbor(grid::partition_data<T> const& center,
         return bottom.get_cell(i, 0);
 }
 
+/// Method extracts the top neighbor of the given cell from the provided
+/// partitions
 template<typename T>
 T get_top_neighbor(grid::partition_data<T> const& center,
                     grid::partition_data<T> const& top, uint i, uint j)
@@ -112,6 +120,8 @@ T get_top_neighbor(grid::partition_data<T> const& center,
         return top.get_cell(i, 0);
 }
 
+/// Method extracts the bottom right neighbor of the given cell from the
+/// provided partitions
 template<typename T>
 T get_bottomright_neighbor(grid::partition_data<T> const& center, 
         grid::partition_data<T> const& bottom,
@@ -128,6 +138,8 @@ T get_bottomright_neighbor(grid::partition_data<T> const& center,
         return bottomright.get_cell(0, 0);
 }
 
+/// Method extracts the top left neighbor of the given cell from the
+/// provided partitions
 template<typename T>
 T get_topleft_neighbor(grid::partition_data<T> const& center,
         grid::partition_data<T> const& top,

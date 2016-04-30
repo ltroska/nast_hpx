@@ -10,6 +10,8 @@
 
 namespace io {
 
+/// This class represents the configuration of the simulation provided by the
+/// csv file passed in as an argument to the executable.
 struct config
 {
         uint i_max;

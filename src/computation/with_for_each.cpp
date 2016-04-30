@@ -35,6 +35,9 @@ vector_partition with_for_each::set_velocity_for_boundary_and_obstacles(
                 auto range =
                     boost::irange(static_cast<uint>(0), size_x * size_y);
 
+                // special case for the parallel algorithms: the top right most
+                // cell is set wrongly, so we store the cell and set it manually
+                // at the end
                 vector_cell const topright_cell =
                     next.get_cell(size_x - 2, size_y - 2);
 
@@ -45,17 +48,55 @@ vector_partition with_for_each::set_velocity_for_boundary_and_obstacles(
                         uint const i = cnt%size_x;
                         uint const j = cnt/size_x;
                         
+                        auto& cell_type = flag_data[j*size_x + i];
+                        
                         set_velocity_for_cell(
                             next.get_cell_ref(i, j),
                             get_left_neighbor(next, l, i, j),
                             get_right_neighbor(next, r, i, j),
                             get_bottom_neighbor(next, b, i, j),
                             get_top_neighbor(next, t, i, j),
-                            flag_data[j*size_x + i],
-                            type, u, v);             
+                            cell_type,
+                            type, u, v);
+                        
+                        // special case for cells adjacent to right boundary
+                        // since u is not set in the boundary cell
+                        // but one cell to the left
+                        if (cell_type == std::bitset<5>("01011"))
+                        {
+                            auto& left_cell = next.get_cell_ref(i - 1, j);
+
+                            switch(static_cast<int>(type.right))
+                            {
+                                case 1 : left_cell.first = 0; break;
+                                case 2 : left_cell.first = 0; break;
+                                case 3 : left_cell.first =
+                                    get_left_neighbor(next, l, i - 1, j).first;
+                                    break;
+                                case 4 : left_cell.first = u.right; break;
+                            }
+                        }
+                        
+                        //special case for cells adjacent to top boundary
+                        //since v is set in bottom cell
+                        if (cell_type == std::bitset<5>("01101"))
+                        {
+                            auto& bottom_cell = next.get_cell_ref(i, j - 1);
+                            switch(static_cast<int>(type.top))
+                            {
+                                case 1 : bottom_cell.second = 0; break;
+                                case 2 : bottom_cell.second = 0; break;
+                                case 3 : bottom_cell.second =
+                                    get_bottom_neighbor(next, b, i, j - 1).second;
+                                    break;
+                                case 4 : bottom_cell.second = v.top; break;
+                            }
+                        }
                     }
                 );
 
+                // restore correct value for top right cell if this partition 
+                // is the top right most partition
                 if (flag_data[(size_y - 1) * size_x + size_x - 2] ==
                         std::bitset<5>("01110")
                     && flag_data[(size_y - 2) * size_x + size_x - 1] ==
@@ -533,6 +574,9 @@ with_for_each::update_velocities(
                 auto range =
                     boost::irange(static_cast<uint>(0), size_x * size_y);   
                 
+                // we transform the velocity cells first ( = update them to the
+                // new values) and then reduce to retrieve the maximal
+                // velocities
                 vector_cell max_uv = hpx::parallel::transform_reduce(
                     hpx::parallel::par, boost::begin(range), boost::end(range),
                     [&](uint cnt)
@@ -607,6 +651,7 @@ with_for_each::compute_stream_vorticity_heat(
             uint size_x = stream_center.size_x();
             uint size_y = stream_center.size_y();
 
+            //TODO: use parallel algorithm here            
             for (uint j = 0; j < size_y; j++)
                 for (uint i = 0; i < size_x; i++)
                 {

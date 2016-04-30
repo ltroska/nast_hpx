@@ -77,13 +77,14 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
                         cell_type,
                         type, u, v);
                     
-                    //special case for cells adjacent to right boundary
-                    ///since u is set in left cell
+                    // special case for cells adjacent to right boundary
+                    // since u is not set in the boundary cell
+                    // but one cell to the left
                     if (cell_type == std::bitset<5>("01011"))
                     {
                         auto& left_cell = next.get_cell_ref(i - 1, j);
                         
-                        switch((int)type.right)
+                        switch(static_cast<int>(type.right))
                         {
                             case 1 : left_cell.first = 0; break;
                             case 2 : left_cell.first = 0; break;
@@ -126,7 +127,7 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
                     if (cell_type == std::bitset<5>("01101"))
                     {
                         auto& bottom_cell = next.get_cell_ref(i, j - 1);
-                        switch((int)type.top)
+                        switch(static_cast<int>(type.top))
                         {
                             case 1 : bottom_cell.second = 0; break;
                             case 2 : bottom_cell.second = 0; break;

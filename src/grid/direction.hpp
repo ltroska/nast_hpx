@@ -1,7 +1,7 @@
 #ifndef GRID_DIRECTION_HPP
 #define GRID_DIRECTION_HPP
 
-//directions for neighbor relations
+/// This enum represents all directions needed for 2D neighbor relations
 enum direction
 {
     LEFT = 0,

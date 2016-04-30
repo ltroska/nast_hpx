@@ -9,12 +9,8 @@
 
 namespace io
 {
-    //! Method to read the simulation parameters from an XML file and store it in the data object
-    /*!
-     * @param path the path including the filename
-     * @return The struct with the simulation data filled with the data from the
-     *                 file.
-     */
+    /// Methods reads the simulation configuration from the given file
+    /// and returns a corresponding config object.
     config config::read_config_from_file(const char *path)
     {
         pugi::xml_document doc;

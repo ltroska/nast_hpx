@@ -1,3 +1,8 @@
+/** Strategy that implements the algorithm on the grid using a division
+ *  into smaller sub blocks of specified size, with heavy use of dataflow
+ *  to chain the computation together.
+ */
+
 #ifndef CUSTOM_GRAIN_SIZE_HPP
 #define CUSTOM_GRAIN_SIZE_HPP
 

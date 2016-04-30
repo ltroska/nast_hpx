@@ -5,6 +5,8 @@
 
 namespace grid {
 
+/// This class is a client for the partition_server component, simplifying
+/// access.
 template <typename T=RealType>
 struct partition
     : hpx::components::client_base<partition<T>, server::partition_server<T> >
@@ -53,6 +55,7 @@ struct partition
     {
     }
 
+    // Get the sliced data from the component.
     hpx::future<partition_data<T> > get_data(direction type) const
     {
         typename server_type::get_data_action act;

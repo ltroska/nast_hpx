@@ -12,6 +12,7 @@
 
 namespace grid { namespace server {
 
+/// component encapsulates partition_data, making it remotely available
 template<typename T>
 struct HPX_COMPONENT_EXPORT partition_server
     : public hpx::components::locking_hook<
@@ -19,6 +20,9 @@ struct HPX_COMPONENT_EXPORT partition_server
 {
     partition_server() {}
 
+    /// construct partition from given data.
+    /// note: this does not copy, data_ will only point to the given data,
+    /// since partition_data is essentially a shared_array
     partition_server(partition_data<T> const& data)
     : data_(data)
     {}
@@ -27,6 +31,7 @@ struct HPX_COMPONENT_EXPORT partition_server
     : data_(size_x, size_y, initial_value)
     {}
 
+    /// return the sliced data appropriate for given direction
     partition_data<T> get_data(direction type) const
     {
         if (type == CENTER)
@@ -44,6 +49,8 @@ private:
 
 }//namespace server
 }//namespace grid
+
+// boilerplate needed for a templated component
 
 #define HPX_REGISTER_PARTITION_SERVER_DECLARATION(...)                          \
     HPX_REGISTER_PARTITION_SERVER_DECLARATION_(__VA_ARGS__)                     \

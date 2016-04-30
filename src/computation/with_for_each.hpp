@@ -1,3 +1,7 @@
+/** Strategy implements the algorithm using the parallel algorithms already
+ * implemented in HPX.
+ */
+
 #ifndef WITH_FOR_EACH_HPP
 #define WITH_FOR_EACH_HPP
 

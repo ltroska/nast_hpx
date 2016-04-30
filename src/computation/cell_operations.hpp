@@ -1,3 +1,6 @@
+/** Header that declares all the necessary methods for computation on the grids
+ */
+
 #ifndef CELL_OPERATIONS_HPP
 #define CELL_OPERATIONS_HPP
 
@@ -6,7 +9,6 @@
 #include "grid/types.hpp"
 #include "util/typedefs.hpp"
 #include "util/boundary_data.hpp"
-
 
 namespace computation
 {    

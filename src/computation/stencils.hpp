@@ -1,3 +1,5 @@
+/** All stencils are provided in this header as inline methods
+ */
 #ifndef COMPUTATION_STENCILS_HPP
 #define COMPUTATION_STENCILS_HPP
 

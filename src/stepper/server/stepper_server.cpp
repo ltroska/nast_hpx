@@ -972,9 +972,8 @@ void stepper_server::communicate_uv_grid(uint step)
 
 void stepper_server::receive_uv_action_(
     uint t, vector_partition uv, direction to_dir)
-{
-    std::cout << "received " << t << " from " << NUM_DIRECTIONS - to_dir - 1 << " on " << hpx::get_locality_id() << std::endl;
-    
+
+{   
     //we need to negate the direction to put the data into the correct buffer
     uv_recv_buffs_[NUM_DIRECTIONS - to_dir - 1].store_received(t,
                                                                 std::move(uv));
@@ -985,9 +984,6 @@ void stepper_server::send_uv_to_neighbor(
 {
     if (has_neighbor[dir])
     {
-         std::cout << "sending " << t << " to " << dir << " on " << hpx::get_locality_id() << std::endl;
-
-        
         receive_uv_action act;
         hpx::async(act, neighbor_steppers_[dir].get(), t, uv, dir);
     }

@@ -465,7 +465,8 @@ namespace io
 
             uint i_max = 0;
             uint j_max = 0;
-
+            
+            cfg.num_fluid_cells = 0;
 
             while (true)
             {
@@ -482,9 +483,13 @@ namespace io
                 {
                     std::string cell_val;
                     std::getline(iss, cell_val, ',');
+                    
+                    std::bitset<5> flag(std::stoi(cell_val));
 
-                    cfg.flag_grid.push_back(
-                        std::bitset<5>(std::stoi(cell_val)));
+                    if (flag.test(4))
+                        cfg.num_fluid_cells++;
+                    
+                    cfg.flag_grid.emplace_back(flag);
                     
                     i_max++;
 

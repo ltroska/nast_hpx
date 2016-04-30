@@ -71,7 +71,7 @@ void stepper_server::setup(io::config&& cfg)
         std::cout << "MODE: WITH_FOR_EACH" << std::endl;
 #endif
 
-    //communicate_uv_grid(0);
+    communicate_uv_grid(0);
 
     // print out initial grids
     if ((c.output_skip_size != 0 || c.delta_vec != 0) && c.vtk)
@@ -372,13 +372,13 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
     uint step, RealType dt)
 {
     hpx::util::high_resolution_timer t1;
-    
+        
     // set the boundary and obstacle data for each partition
     for (uint l = 0; l < params.num_partitions_y; l++)
         for (uint k = 0; k < params.num_partitions_x; k++)
         {
             if (k != 0 && k != params.num_partitions_x - 1
-                && l != 0 && l != params.num_partitions_x - 1)
+                && l != 0 && l != params.num_partitions_y - 1)
             {
                 uv_temp_grid[get_index(k, l)] =
                     hpx::dataflow(
@@ -426,11 +426,11 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
 
     // note: this does not block (it is essentially moving on a future)
     uv_grid = uv_temp_grid;
-    
+  
     if (c.pr != 0)
         temperature_grid = temperature_temp_grid;
 
-    // communicate_uv_grid(step);
+    communicate_uv_grid(step);
 
     // compute temperature on fluid cells if we have a temperature driven flow
     if (c.pr != 0)
@@ -439,7 +439,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
             for (uint k = 0; k < params.num_partitions_x; k++)
             {
                 if (k != 0 && k != params.num_partitions_x - 1 && l != 0
-                    && l != params.num_partitions_x - 1)
+                    && l != params.num_partitions_y - 1)
                 {
                     temperature_temp_grid[get_index(k, l)] =
                         hpx::dataflow(
@@ -489,7 +489,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
                 );
         }
 
-    // communicate_fg_grid(step);
+   // communicate_fg_grid(step);
 
     // compute the right hand side for the Poisson equation of the pressure
     for (uint l = 1; l < params.num_partitions_y - 1; l++)
@@ -524,7 +524,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
             for (uint k = 0; k < params.num_partitions_x; k++)
             {
                 if (k != 0 && k != params.num_partitions_x - 1 && l != 0
-                    && l != params.num_partitions_x - 1)
+                    && l != params.num_partitions_y - 1)
                 {
                     p_temp_grid[get_index(k, l)] =
                         hpx::dataflow(
@@ -550,7 +550,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
             for (uint k = 0; k < params.num_partitions_x; k++)
             {
                 if (k != 0 && k != params.num_partitions_x - 1 && l != 0
-                    && l != params.num_partitions_x - 1)
+                    && l != params.num_partitions_y - 1)
                 {
                     p_temp_grid[get_index(k, l)] =
                         hpx::dataflow(
@@ -572,7 +572,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
             for (uint k = 0; k < params.num_partitions_x; k++)
             {
                 if (k != 0 && k != params.num_partitions_x - 1 && l != 0
-                    && l != params.num_partitions_x - 1)
+                    && l != params.num_partitions_y - 1)
                 {
                     p_grid[get_index(k, l)] =
                         hpx::dataflow(
@@ -592,6 +592,8 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
                     p_grid[get_index(k, l)] = p_temp_grid[get_index(k, l)];
             }
 #endif
+        
+        communicate_p_grid(step * c.iter_max + iter);
           
         std::vector<hpx::future<RealType> > residuals;
 
@@ -653,6 +655,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
                         return result;
                     });
 
+            //TODO: only devide by #fluid cells
             res = residual.get() / (params.i_max * params.j_max);
             
             // decide if SOR should keep running or not
@@ -970,6 +973,8 @@ void stepper_server::communicate_uv_grid(uint step)
 void stepper_server::receive_uv_action_(
     uint t, vector_partition uv, direction to_dir)
 {
+    std::cout << "received " << t << " from " << NUM_DIRECTIONS - to_dir - 1 << " on " << hpx::get_locality_id() << std::endl;
+    
     //we need to negate the direction to put the data into the correct buffer
     uv_recv_buffs_[NUM_DIRECTIONS - to_dir - 1].store_received(t,
                                                                 std::move(uv));
@@ -980,6 +985,9 @@ void stepper_server::send_uv_to_neighbor(
 {
     if (has_neighbor[dir])
     {
+         std::cout << "sending " << t << " to " << dir << " on " << hpx::get_locality_id() << std::endl;
+
+        
         receive_uv_action act;
         hpx::async(act, neighbor_steppers_[dir].get(), t, uv, dir);
     }

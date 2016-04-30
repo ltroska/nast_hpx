@@ -34,31 +34,33 @@ struct HPX_COMPONENT_EXPORT stepper_server
         void do_work();
 
         std::pair<RealType, RealType> do_timestep(uint step, RealType dt);
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_timestep, do_timestep_action);
-
-        void do_sor_cycle();
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_sor_cycle, do_sor_cycle_action);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_timestep,
+                                    do_timestep_action);
 
         void set_keep_running(uint iter, bool kr);
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_keep_running, set_keep_running_action);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_keep_running,
+                                        set_keep_running_action);
 
         void receive_p_action_(uint t, scalar_partition p, direction to_dir);
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, receive_p_action_, receive_p_action);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, receive_p_action_,
+                                        receive_p_action);
 
         void receive_fg_action_(uint t, vector_partition fg, direction to_dir);
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, receive_fg_action_, receive_fg_action);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, receive_fg_action_,
+                                        receive_fg_action);
 
         void receive_uv_action_(uint t, vector_partition uv, direction to_dir);
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, receive_uv_action_, receive_uv_action);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, receive_uv_action_,
+                                        receive_uv_action);
 
     protected:
         template<typename T>
-        void print_grid(std::vector<grid::partition<T> > const& grid, const std::string message = "") const;
+        void print_grid(std::vector<grid::partition<T> > const& grid,
+                const std::string message = "") const;
+        
         void write_vtk(uint step);
 
         uint get_index(uint k, uint l) const;
-
-        void sor();
 
         void send_p_to_neighbor(uint t, scalar_partition p, direction dir);
         scalar_partition receive_p_from_neighbor(uint t, direction dir);
@@ -77,17 +79,19 @@ struct HPX_COMPONENT_EXPORT stepper_server
         void initialize_grids();
         void initialize_communication();
 
-        RealType compute_new_dt(std::pair<RealType, RealType>) const;
-
         io::config c;
         
         struct {
-            uint i_max, j_max, num_partitions_x, num_partitions_y, num_cells_per_partition_x, num_cells_per_partition_y;
+            uint i_max, j_max, num_partitions_x, num_partitions_y,
+                num_cells_per_partition_x, num_cells_per_partition_y;
+            
             RealType re, pr, omega, alpha, beta, dx, dy;
         } params;
         
 #ifdef CUSTOM_GRAIN_SIZE
         typedef computation::custom_grain_size strategy;
+#else
+        typedef computation::with_for_each strategy;
 #endif
 
         uint num_localities, num_localities_x, num_localities_y;
@@ -97,7 +101,8 @@ struct HPX_COMPONENT_EXPORT stepper_server
         vector_grid_type uv_grid, fg_grid;
         vector_grid_type uv_temp_grid, fg_temp_grid;
 
-        scalar_grid_type p_grid, rhs_grid, temperature_grid, stream_grid, vorticity_grid, heat_grid;
+        scalar_grid_type p_grid, rhs_grid, temperature_grid, stream_grid,
+            vorticity_grid, heat_grid;
         scalar_grid_type p_temp_grid, temperature_temp_grid;
 
         flag_grid_type flag_grid;
@@ -107,9 +112,16 @@ struct HPX_COMPONENT_EXPORT stepper_server
 
         bool has_neighbor[NUM_DIRECTIONS];
         hpx::shared_future<hpx::id_type> neighbor_steppers_[NUM_DIRECTIONS];
-        hpx::lcos::local::receive_buffer<scalar_partition> p_recv_buffs_[NUM_DIRECTIONS];
-        hpx::lcos::local::receive_buffer<vector_partition> fg_recv_buffs_[NUM_DIRECTIONS];
-        hpx::lcos::local::receive_buffer<vector_partition> uv_recv_buffs_[NUM_DIRECTIONS];
+        
+        hpx::lcos::local::receive_buffer<scalar_partition>
+            p_recv_buffs_[NUM_DIRECTIONS];
+        
+        hpx::lcos::local::receive_buffer<vector_partition>
+            fg_recv_buffs_[NUM_DIRECTIONS];
+        
+        hpx::lcos::local::receive_buffer<vector_partition>
+            uv_recv_buffs_[NUM_DIRECTIONS];
+        
         hpx::lcos::local::receive_buffer<bool> keep_running;
 
         scalar_partition scalar_dummy;
@@ -119,6 +131,7 @@ struct HPX_COMPONENT_EXPORT stepper_server
 }//namespace server
 }//namespace stepper
 
-HPX_REGISTER_ACTION_DECLARATION(stepper::server::stepper_server::setup_action, stepper_server_setup_action);
+HPX_REGISTER_ACTION_DECLARATION(stepper::server::stepper_server::setup_action,
+                                    stepper_server_setup_action);
 
 #endif

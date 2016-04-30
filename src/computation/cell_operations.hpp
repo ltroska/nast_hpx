@@ -44,8 +44,7 @@ void compute_temperature_for_cell(scalar_cell& middle_temperature,
     vector_cell const& middle_uv, vector_cell const& left_uv,
     vector_cell const& bottom_uv, std::bitset<5> const& type,
     RealType re, RealType pr, RealType dx, RealType dy, RealType dt,
-    RealType alpha
-    );
+    RealType alpha);
 
 void compute_rhs_for_cell(scalar_cell& middle_rhs,
     vector_cell const& middle_fg, vector_cell const& left_fg,
@@ -72,7 +71,8 @@ RealType compute_residual_for_cell(scalar_cell const& middle_p,
 void update_velocity_for_cell(vector_cell& middle_uv,
     scalar_cell const& middle_p, scalar_cell const& right_p,
     scalar_cell const& top_p, vector_cell const& middle_fg,
-    std::bitset<5> const& type, RealType over_dx, RealType over_dy, RealType dt);
+    std::bitset<5> const& type, RealType over_dx, RealType over_dy,
+    RealType dt);
 }//end namespace computation
 
 #endif /* CELL_OPERATIONS_HPP */

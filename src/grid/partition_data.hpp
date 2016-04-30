@@ -43,14 +43,16 @@ public:
     {}
 
     partition_data(uint size_x, uint size_y)
-    : data_(new T[size_x*size_y], size_x * size_y, buffer_type::take, array_deleter()),
+    : data_(new T[size_x*size_y], size_x * size_y, buffer_type::take,
+        array_deleter()),
       size_x_(size_x),
       size_y_(size_y),
       size_(size_x * size_y)
     {}
 
     partition_data(uint size_x, uint size_y, RealType initial_value)
-    : data_(new T[size_x*size_y], size_x * size_y, buffer_type::take, array_deleter()),
+    : data_(new T[size_x*size_y], size_x * size_y, buffer_type::take,
+        array_deleter()),
       size_x_(size_x),
       size_y_(size_y),
       size_(size_x * size_y)
@@ -74,7 +76,10 @@ public:
         {
             case TOP_LEFT:
             {
-                data_ = buffer_type(base.data_.data()+base.size_x()-1, 1, buffer_type::reference, hold_reference(base.data_));
+                data_ =
+                    buffer_type(base.data_.data() + base.size_x() - 1, 1,
+                                    buffer_type::reference,
+                                    hold_reference(base.data_));
                 size_x_ = 1;
                 size_y_ = 1;
                 size_ = 1;
@@ -83,7 +88,10 @@ public:
 
             case TOP:
             {
-                data_ = buffer_type(base.data_.data(), base.size_x(), buffer_type::reference, hold_reference(base.data_));
+                data_ =
+                    buffer_type(base.data_.data(), base.size_x(),
+                                    buffer_type::reference,
+                                    hold_reference(base.data_));
                 size_x_ = base.size_x();
                 size_y_ = 1;
                 size_ = base.size_x();
@@ -92,7 +100,10 @@ public:
 
             case TOP_RIGHT:
             {
-                data_ = buffer_type(base.data_.data(), 1, buffer_type::reference, hold_reference(base.data_));
+                data_ =
+                    buffer_type(base.data_.data(), 1,
+                                    buffer_type::reference,
+                                    hold_reference(base.data_));
                 size_x_ = 1;
                 size_y_ = 1;
                 size_ = 1;
@@ -102,9 +113,12 @@ public:
             // TODO: make this not copy
             case LEFT:
             {
-                data_ = buffer_type(new T [base.size_y()], base.size_y(), buffer_type::take, array_deleter());
+                data_ =
+                    buffer_type(new T [base.size_y()], base.size_y(),
+                                    buffer_type::take, array_deleter());
+                
                 for(uint i = 0; i < base.size_y(); ++i) {
-                    data_[i] = base.get_cell(base.size_x()-1,i);
+                    data_[i] = base.get_cell(base.size_x() - 1,i);
                 }
 
                 size_x_ = 1;
@@ -115,9 +129,12 @@ public:
 
             case RIGHT:
             {
-                data_ = buffer_type(new T [base.size_y()], base.size_y(), buffer_type::take, array_deleter());
+                data_ =
+                    buffer_type(new T [base.size_y()], base.size_y(),
+                                    buffer_type::take, array_deleter());
+                
                 for(uint i = 0; i < base.size_y(); ++i) {
-                    data_[i] = base.get_cell(0,i);
+                    data_[i] = base.get_cell(0, i);
                 }
 
                 size_x_ = 1;
@@ -128,7 +145,10 @@ public:
 
             case BOTTOM_LEFT:
             {
-                data_ = buffer_type(base.data_.data()+base.size()-1, 1, buffer_type::reference, hold_reference(base.data_));
+                data_ =
+                    buffer_type(base.data_.data() + base.size() - 1, 1,
+                                    buffer_type::reference,
+                                    hold_reference(base.data_));
                 size_x_ = 1;
                 size_y_ = 1;
                 size_ = 1;
@@ -137,7 +157,10 @@ public:
 
             case BOTTOM:
             {
-                data_ = buffer_type(base.data_.data()+base.size()-base.size_x(), base.size_x(), buffer_type::reference, hold_reference(base.data_));
+                data_ =
+                    buffer_type(base.data_.data() + base.size() - base.size_x(),
+                                    base.size_x(), buffer_type::reference,
+                                    hold_reference(base.data_));
                 size_x_ = base.size_x();
                 size_y_ = 1;
                 size_ = base.size_x();
@@ -146,7 +169,10 @@ public:
 
             case BOTTOM_RIGHT:
             {
-                data_ = buffer_type(base.data_.data()+base.size()-base.size_x(), 1, buffer_type::reference, hold_reference(base.data_));
+                data_ =
+                    buffer_type(base.data_.data() + base.size() - base.size_x(),
+                                    1, buffer_type::reference,
+                                    hold_reference(base.data_));
                 size_x_ = 1;
                 size_y_ = 1;
                 size_ = 1;
@@ -155,7 +181,9 @@ public:
 
             case CENTER:
             default:
-                data_ = buffer_type(base.data_.data(), base.size(), buffer_type::reference, hold_reference(base.data_));
+                data_ =
+                    buffer_type(base.data_.data(), base.size(),
+                    buffer_type::reference, hold_reference(base.data_));
                 size_x_ = base.size_x();
                 size_y_ = base.size_y();
                 size_ = base.size();
@@ -185,7 +213,8 @@ private:
         ar & data_ & size_x_ & size_y_ & size_;
     }
 
-    friend std::ostream& operator<<(std::ostream& os, partition_data<T> const& data)
+    friend std::ostream& operator<<(std::ostream& os,
+        partition_data<T> const& data)
     {
         for (uint j = data.size_y() - 1; j < data.size_y(); j--)
         {

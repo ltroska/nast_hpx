@@ -58,9 +58,13 @@ struct config
         template <typename Archive>
         void serialize(Archive& ar, const unsigned int version)
         {
-            ar & i_max & j_max & i_res & j_res & x_length & y_length & re & pr & omega & tau & eps & eps_sq & alpha & beta
-            & t_end & dt & delta_vec & vtk & output_skip_size & sub_iterations & iter_max & wfe & gx & gy; //& u_bnd & v_bnd & data_type
-           // & temp_bnd & temp_data_type & ti & with_flag_grid & flag_grid & with_initial_uv_grid & initial_uv_grid;
+            ar & i_max & j_max & i_res & j_res & x_length & y_length & re & pr
+                & omega & tau & eps & eps_sq & alpha & beta
+                & t_end & dt & delta_vec & vtk & output_skip_size
+                & sub_iterations & iter_max & wfe & gx & gy;
+            //& u_bnd & v_bnd & data_type
+            //& temp_bnd & temp_data_type & ti & with_flag_grid & flag_grid
+            //& with_initial_uv_grid & initial_uv_grid;
         }
 
         friend std::ostream& operator<<(std::ostream& os, config const& config)

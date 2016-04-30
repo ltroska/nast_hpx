@@ -34,7 +34,8 @@ struct vector_cell
 
     vector_cell(RealType value) : first(value), second(value) {}
 
-    vector_cell(RealType value1, RealType value2) : first(value1), second(value2) {}
+    vector_cell(RealType value1, RealType value2)
+        : first(value1), second(value2) {}
 
     RealType first, second;
 

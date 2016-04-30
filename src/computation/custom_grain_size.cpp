@@ -1003,12 +1003,16 @@ custom_grain_size::update_velocities(
                             if (type.test(4))
                             {
                                 max_uv.first =
-                                    (std::abs(middle_cell.first) > max_uv.first)
-                                    ? std::abs(middle_cell.first) : max_uv.first;
+                                    (std::abs(middle_cell.first)
+                                        > max_uv.first)
+                                    ? std::abs(middle_cell.first)
+                                    : max_uv.first;
 
                                 max_uv.second =
-                                    (std::abs(middle_cell.second) > max_uv.second)
-                                    ? std::abs(middle_cell.second) : max_uv.second; 
+                                    (std::abs(middle_cell.second)
+                                        > max_uv.second)
+                                    ? std::abs(middle_cell.second)
+                                    : max_uv.second; 
                             }
                         }
 
@@ -1084,12 +1088,16 @@ custom_grain_size::update_velocities(
                     if (type.test(4))
                            {
                                max_uv.first =
-                                   (std::abs(middle_cell.first) > max_uv.first)
-                                    ? std::abs(middle_cell.first) : max_uv.first;
+                                   (std::abs(middle_cell.first)
+                                        > max_uv.first)
+                                    ? std::abs(middle_cell.first)
+                                    : max_uv.first;
 
                                max_uv.second =
-                                   (std::abs(middle_cell.second) > max_uv.second)
-                                    ? std::abs(middle_cell.second) : max_uv.second; 
+                                   (std::abs(middle_cell.second)
+                                        > max_uv.second)
+                                    ? std::abs(middle_cell.second)
+                                    : max_uv.second; 
                            }
                 }
                 
@@ -1107,8 +1115,10 @@ custom_grain_size::update_velocities(
 
 hpx::future<std::tuple<scalar_partition, scalar_partition, scalar_partition> >
 custom_grain_size::compute_stream_vorticity_heat(
-    scalar_partition const& middle_stream, scalar_partition const& bottom_stream,
-    scalar_partition const& middle_vorticity, scalar_partition const& middle_heat,
+    scalar_partition const& middle_stream,
+    scalar_partition const& bottom_stream,
+    scalar_partition const& middle_vorticity,
+    scalar_partition const& middle_heat,
     scalar_partition const& bottom_heat, vector_partition const& middle_uv,
     vector_partition const& right_uv, vector_partition const& top_uv,
     scalar_partition const& middle_temperature,
@@ -1136,7 +1146,8 @@ custom_grain_size::compute_stream_vorticity_heat(
                 {
                     std::bitset<5> const& cell_type = flag_data[j*size_x + i];
 
-                    if (in_range(0, i_max, 1, j_max, global_i + i, global_j + j))
+                    if (in_range(0, i_max, 1, j_max,
+                                    global_i + i, global_j + j))
                     {
                         if (cell_type.test(4) || global_i + i == 0)
                         {
@@ -1165,6 +1176,7 @@ custom_grain_size::compute_stream_vorticity_heat(
                              stream_center.get_cell_ref(i, j).value =
                                  get_bottom_neighbor(
                                     stream_center, stream_bottom, i, j).value;
+                             
                              heat_center.get_cell_ref(i, j).value =
                                  get_bottom_neighbor(
                                     heat_center, heat_bottom, i, j).value;
@@ -1180,15 +1192,16 @@ custom_grain_size::compute_stream_vorticity_heat(
                                 uv_center.get_cell(i, j);
                             vorticity_center.get_cell_ref(i, j).value =
                                 (get_top_neighbor(uv_center, uv_top, i, j).first
-                                    - curr_cell.first)/dy
+                                    - curr_cell.first
+                                )/dy
                                 -
-                                (get_right_neighbor(uv_center, uv_right, i, j).second
-                                    - curr_cell.second)/dx;
+                                (get_right_neighbor(uv_center,
+                                        uv_right, i, j).second
+                                    - curr_cell.second
+                                )/dx;
                         }
                         else
-                        {
                             vorticity_center.get_cell_ref(i, j).value = 0;
-                        }
                     }
                 }
             

@@ -45,44 +45,44 @@ private:
 }//namespace server
 }//namespace grid
 
-#define HPX_REGISTER_PARTITION_SERVER_DECLARATION(...)                      \
-    HPX_REGISTER_PARTITION_SERVER_DECLARATION_(__VA_ARGS__)                             \
+#define HPX_REGISTER_PARTITION_SERVER_DECLARATION(...)                          \
+    HPX_REGISTER_PARTITION_SERVER_DECLARATION_(__VA_ARGS__)                     \
 /**/
-#define HPX_REGISTER_PARTITION_SERVER_DECLARATION_(...)                                 \
-    HPX_UTIL_EXPAND_(BOOST_PP_CAT(                                            \
-        HPX_REGISTER_PARTITION_SERVER_DECLARATION_, HPX_UTIL_PP_NARG(__VA_ARGS__)       \
-    )(__VA_ARGS__))                                                           \
-/**/
-
-#define HPX_REGISTER_PARITION_SERVER_DECLARATION_1(type)                               \
-    HPX_REGISTER_PARTITION_DECLARATION_2(type, type)                             \
-/**/
-#define HPX_REGISTER_PARTITION_SERVER_DECLARATION_2(type, name)                         \
-    HPX_REGISTER_ACTION_DECLARATION(                                          \
-        grid::server::partition_server<type>::get_data_action,              \
-        BOOST_PP_CAT(__partition_server_get_data_action_, name));                      \
+#define HPX_REGISTER_PARTITION_SERVER_DECLARATION_(...)                         \
+    HPX_UTIL_EXPAND_(BOOST_PP_CAT(                                              \
+        HPX_REGISTER_PARTITION_SERVER_DECLARATION_, HPX_UTIL_PP_NARG(__VA_ARGS__)\
+    )(__VA_ARGS__))                                                             \
 /**/
 
-#define HPX_REGISTER_PARTITION_SERVER(...)                                  \
-    HPX_REGISTER_PARTITION_SERVER_(__VA_ARGS__)                                         \
+#define HPX_REGISTER_PARITION_SERVER_DECLARATION_1(type)                        \
+    HPX_REGISTER_PARTITION_DECLARATION_2(type, type)                            \
 /**/
-#define HPX_REGISTER_PARTITION_SERVER_(...)                                             \
-    HPX_UTIL_EXPAND_(BOOST_PP_CAT(                                            \
-        HPX_REGISTER_PARTITION_SERVER_, HPX_UTIL_PP_NARG(__VA_ARGS__)                   \
-    )(__VA_ARGS__))                                                           \
+#define HPX_REGISTER_PARTITION_SERVER_DECLARATION_2(type, name)                 \
+    HPX_REGISTER_ACTION_DECLARATION(                                            \
+        grid::server::partition_server<type>::get_data_action,                  \
+        BOOST_PP_CAT(__partition_server_get_data_action_, name));               \
 /**/
 
-#define HPX_REGISTER_PARTITION_SERVER_1(type)                                           \
-    HPX_REGISTER_PARTITION_SERVER_2(type, type)                                         \
+#define HPX_REGISTER_PARTITION_SERVER(...)                                      \
+    HPX_REGISTER_PARTITION_SERVER_(__VA_ARGS__)                                 \
 /**/
-#define HPX_REGISTER_PARTITION_SERVER_2(type, name)                                     \
-    HPX_REGISTER_ACTION(                                                      \
-        grid::server::partition_server<type>::get_data_action,            \
-        BOOST_PP_CAT(__partition_server_get_data_action_, name));                      \
-    typedef ::hpx::components::simple_component<                              \
-        grid::server::partition_server<type>                               \
-    > BOOST_PP_CAT(__partition_server_, name);                                        \
-    HPX_REGISTER_COMPONENT(BOOST_PP_CAT(__partition_server_, name))                     \
+#define HPX_REGISTER_PARTITION_SERVER_(...)                                     \
+    HPX_UTIL_EXPAND_(BOOST_PP_CAT(                                              \
+        HPX_REGISTER_PARTITION_SERVER_, HPX_UTIL_PP_NARG(__VA_ARGS__)           \
+    )(__VA_ARGS__))                                                             \
+/**/
+
+#define HPX_REGISTER_PARTITION_SERVER_1(type)                                   \
+    HPX_REGISTER_PARTITION_SERVER_2(type, type)                                 \
+/**/
+#define HPX_REGISTER_PARTITION_SERVER_2(type, name)                             \
+    HPX_REGISTER_ACTION(                                                        \
+        grid::server::partition_server<type>::get_data_action,                  \
+        BOOST_PP_CAT(__partition_server_get_data_action_, name));               \
+    typedef ::hpx::components::simple_component<                                \
+        grid::server::partition_server<type>                                    \
+    > BOOST_PP_CAT(__partition_server_, name);                                  \
+    HPX_REGISTER_COMPONENT(BOOST_PP_CAT(__partition_server_, name))             \
 /**/
 
 #endif

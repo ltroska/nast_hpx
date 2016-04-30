@@ -6,7 +6,6 @@
 #include "grid/types.hpp"
 #include "util/boundary_data.hpp"
 
-
 namespace computation {
 
 class custom_grain_size {

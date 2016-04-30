@@ -26,8 +26,9 @@ typedef std::vector<std::vector<std::bitset<5> > > bitset_grid_type;
 template<typename T>
 void do_async_print(
     std::vector<grid::partition<T> > const& grid,
-    std::string const message, uint partitions_x, uint partitions_y, uint cells_x,
-    uint cells_y, boost::shared_ptr<hpx::lcos::local::promise<int> > p)
+    std::string const message, uint partitions_x, uint partitions_y,
+    uint cells_x, uint cells_y,
+    std::shared_ptr<hpx::lcos::local::promise<int> > p)
 {
     std::vector<std::vector<grid::partition_data<T> > > data;
 
@@ -36,7 +37,8 @@ void do_async_print(
     for (uint k = 1; k < partitions_x - 1; k++)
     {
         for (uint l = 1; l < partitions_y - 1; l++)
-            data[k - 1].emplace_back(grid[l * partitions_x + k].get_data(CENTER).get());
+            data[k - 1].emplace_back(grid[l * partitions_x + k]
+                                        .get_data(CENTER).get());
     }
     
     uint res_x_, res_y_;
@@ -79,7 +81,7 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
     bitset_grid_type const& flag_grid,
     RealType dx, RealType dy, uint step, uint i_max, uint j_max,
     uint partitions_x, uint partitions_y, uint cells_x, uint cells_y,
-    boost::shared_ptr<hpx::lcos::local::promise<int> > p)
+    std::shared_ptr<hpx::lcos::local::promise<int> > p)
 {
     uint res_x, res_y;
     if (hpx::get_num_localities_sync() == 2)
@@ -114,8 +116,11 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
         std::ostream os (&fb);
 
         os  << "<?xml version=\"1.0\"?>" << std::endl
-            << "<VTKFile type=\"PRectilinearGrid\" version=\"0.1\" byte_order=\"LittleEndian\">" << std::endl
-            << "<PRectilinearGrid WholeExtent=\"1 " << i_max + 1 << " 1 " << j_max + 1 << " 0 0\" GhostLevel=\"1\">" << std::endl
+            << "<VTKFile type=\"PRectilinearGrid\" version=\"0.1\" byte_order=\"LittleEndian\">"
+                << std::endl
+            << "<PRectilinearGrid WholeExtent=\"1 " 
+                << i_max + 1 << " 1 " << j_max + 1 
+                << " 0 0\" GhostLevel=\"1\">" << std::endl
             << "<PPointData>" << std::endl
             << "<DataArray type=\"Float32\" Name=\"vorticity\" />" << std::endl
             << "<DataArray type=\"Float32\" Name=\"strom\" />" << std::endl
@@ -124,21 +129,27 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
             << "<PCellData>" << std::endl
             << "<DataArray type=\"Float32\" Name=\"pressure\" />" << std::endl
             << "<DataArray type=\"Float32\" Name=\"temperature\" />" << std::endl
-            << "<DataArray type=\"Float32\" Name=\"velocity\" NumberOfComponents=\"2\" />" << std::endl
+            << "<DataArray type=\"Float32\" Name=\"velocity\" NumberOfComponents=\"2\" />"
+                << std::endl
             << "</PCellData>" << std::endl
             << "<PCoordinates>" << std::endl
-            << "<PDataArray type=\"Float32\" Name=\"X_COORDINATES\" NumberOfComponents=\"1\"/>" << std::endl
-            << "<PDataArray type=\"Float32\" Name=\"Y_COORDINATES\" NumberOfComponents=\"1\"/>" << std::endl
-            << "<PDataArray type=\"Float32\" Name=\"Z_COORDINATES\" NumberOfComponents=\"1\"/>" << std::endl
+            << "<PDataArray type=\"Float32\" Name=\"X_COORDINATES\" NumberOfComponents=\"1\"/>"
+                << std::endl
+            << "<PDataArray type=\"Float32\" Name=\"Y_COORDINATES\" NumberOfComponents=\"1\"/>"
+                << std::endl
+            << "<PDataArray type=\"Float32\" Name=\"Z_COORDINATES\" NumberOfComponents=\"1\"/>"
+                << std::endl
             << "</PCoordinates>" << std::endl;
 
         for (uint loc = 0; loc < hpx::find_all_localities().size(); loc++)
         {
-            os  << "<Piece Extent=\"" << static_cast<int>(cells_x*partitions_x*(loc%res_x))
+            os  << "<Piece Extent=\""
+                       << static_cast<int>(cells_x*partitions_x*(loc%res_x))
                 << " " << cells_x*partitions_x*((loc%res_x)+1)
                 << " " << static_cast<int>(cells_y*partitions_y*(loc/res_x))
                 << " " << cells_y*partitions_y*((loc/res_x)+1)
-                << " 0 0\" Source=\"field_" << step << "_locality_" << loc << ".vtr\"></Piece>" << std::endl;
+                << " 0 0\" Source=\"field_" << step
+                    << "_locality_" << loc << ".vtr\"></Piece>" << std::endl;
         }
 
         os << "</PRectilinearGrid>" << std::endl
@@ -196,7 +207,8 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
     uv_stream << std::setprecision(std::numeric_limits<RealType>::digits10);
 
     std::stringstream vorticity_stream;
-    vorticity_stream << std::setprecision(std::numeric_limits<RealType>::digits10);
+    vorticity_stream
+        << std::setprecision(std::numeric_limits<RealType>::digits10);
 
     std::stringstream strom_stream;
     strom_stream << std::setprecision(std::numeric_limits<RealType>::digits10);
@@ -281,12 +293,18 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
             {
                 for (uint col = 0; col < cells_x; col++)
                 {
-                    p_stream << p_grid[i][j].get_cell(col, row).value << "\n";
-                    temp_stream << temp_grid[i][j].get_cell(col, row).value << "\n";
+                    p_stream
+                        << p_grid[i][j].get_cell(col, row).value << "\n";
+                    
+                    temp_stream
+                        << temp_grid[i][j].get_cell(col, row).value << "\n";
 
-                    if (!( (left && i == 1 && col == 0) || (bottom && j == 1 && row == 0) ))
+                    if (!( (left && i == 1 && col == 0)
+                            || (bottom && j == 1 && row == 0) ))
                     {
-                        std::bitset<5> cell_type = flag_grid[j*actual_partitions_x + i][row * cells_x + col];
+                        std::bitset<5> cell_type =
+                            flag_grid[j*actual_partitions_x + i][row * cells_x
+                                                                        + col];
 
                         if (!cell_type.test(4))
                             uv_stream << "0 0\n";
@@ -296,14 +314,28 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
                             RealType v;
 
                             if (col != 0)
-                                u = (uv_grid[i][j].get_cell(col, row).first + uv_grid[i][j].get_cell(col - 1, row).first) / 2.;
+                                u = (uv_grid[i][j].get_cell(col, row).first
+                                    + uv_grid[i][j].get_cell(col - 1, row)
+                                        .first
+                                    ) / 2.;
                             else
-                                u = (uv_grid[i - 1][j].get_cell(cells_x - 1, row).first + uv_grid[i][j].get_cell(0, row).first) / 2.;
+                                u = (uv_grid[i - 1][j]
+                                        .get_cell(cells_x - 1, row).first
+                                    + uv_grid[i][j].get_cell(0, row).first
+                                    )
+                                    / 2.;
 
                             if (row != 0)
-                                v = (uv_grid[i][j].get_cell(col, row).second + uv_grid[i][j].get_cell(col, row - 1).second) / 2.;
+                                v = (uv_grid[i][j].get_cell(col, row).second
+                                    + uv_grid[i][j].get_cell(col, row - 1)
+                                        .second)
+                                    / 2.;
                             else
-                                v = (uv_grid[i][j - 1].get_cell(col, cells_y - 1).second + uv_grid[i][j].get_cell(col, 0).second) / 2.;
+                                v = (uv_grid[i][j - 1]
+                                        .get_cell(col, cells_y - 1).second
+                                    + uv_grid[i][j].get_cell(col, 0).second
+                                    )
+                                    / 2.;
 
                             uv_stream << u << " " << v << "\n";
                         }
@@ -315,22 +347,36 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
                     }
 
 
-                    if (!( (left && i == 1 && col == 0) || (right && i == actual_partitions_x - 2 && (col == cells_x - 1 || col == cells_x - 2) )
-                            || (bottom && j == 1 && row == 0) || (top && j == actual_partitions_y - 2 && (row == cells_y - 1 || row == cells_y - 2) )
-                         )
+                    if (!( (left && i == 1 && col == 0)
+                        || (right && i == actual_partitions_x - 2
+                            && (col == cells_x - 1 || col == cells_x - 2) )
+                        || (bottom && j == 1 && row == 0)
+                        || (top && j == actual_partitions_y - 2
+                            && (row == cells_y - 1 || row == cells_y - 2) )
                         )
+                       )
                     {
-                        vorticity_stream << vorticity_grid[i][j].get_cell(col, row).value << "\n";
+                        vorticity_stream
+                            << vorticity_grid[i][j].get_cell(col, row).value
+                            << "\n";
                     }
                     else
                     {
                         vorticity_stream << "0\n";
                     }
 
-                    if (!( (right && i == actual_partitions_x - 2 && col == cells_x - 1) || (top && j == actual_partitions_y - 2 && row == cells_y - 1) ) )
+                    if (!( (right && i == actual_partitions_x - 2
+                                && col == cells_x - 1)
+                        || (top && j == actual_partitions_y - 2
+                                && row == cells_y - 1) ) )
                     {
-                        strom_stream << stream_grid[i][j].get_cell(col, row).value << "\n";
-                        heat_stream << heat_grid[i][j].get_cell(col, row).value << "\n";
+                        strom_stream
+                            << stream_grid[i][j].get_cell(col, row).value
+                            << "\n";
+                        
+                        heat_stream
+                            << heat_grid[i][j].get_cell(col, row).value
+                            << "\n";
                     }
                     else
                     {
@@ -386,12 +432,16 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
     std::string heatstring = heat_stream.str();
     std::string tempstring = temp_stream.str();
 
-    os  << std::setprecision(std::numeric_limits<RealType>::digits10) << "<?xml version=\"1.0\"?>" << std::endl
-        << "<VTKFile type=\"RectilinearGrid\" version=\"0.1\" byte_order=\"LittleEndian\">" << std::endl
-        << "<RectilinearGrid WholeExtent=\"" << start_x << " " << end_x << " " << start_y << " " << end_y
-                << " 0 0\">" << std::endl
-        << "<Piece Extent=\"" << start_x << " " << end_x << " " << start_y << " " << end_y
-                << " 0 0\">" << std::endl
+    os  << std::setprecision(std::numeric_limits<RealType>::digits10)
+        << "<?xml version=\"1.0\"?>" << std::endl
+        << "<VTKFile type=\"RectilinearGrid\" version=\"0.1\" byte_order=\"LittleEndian\">"
+            << std::endl
+        << "<RectilinearGrid WholeExtent=\""
+            << start_x << " " << end_x << " " << start_y << " " << end_y
+            << " 0 0\">" << std::endl
+        << "<Piece Extent=\""
+            << start_x << " " << end_x << " " << start_y << " " << end_y
+            << " 0 0\">" << std::endl
         << "<PointData>" << std::endl
         << "<DataArray type=\"Float32\" Name=\"vorticity\">" << std::endl
         << vorticitystring << std::endl
@@ -410,18 +460,22 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
         << "<DataArray type=\"Float32\" Name=\"temperature\">" << std::endl
         << tempstring << std::endl
         << "</DataArray>" << std::endl
-        << "<DataArray type=\"Float32\" Name=\"velocity\" NumberOfComponents=\"2\">" << std::endl
+        << "<DataArray type=\"Float32\" Name=\"velocity\" NumberOfComponents=\"2\">"
+            << std::endl
         << uvdatastring << std::endl
         << "</DataArray>" << std::endl
         << "</CellData>" << std::endl
         << "<Coordinates>" << std::endl
-        << "<DataArray type=\"Float32\" Name=\"X_COORDINATES\"  NumberOfComponents=\"1\" format=\"ascii\">" << std::endl
+        << "<DataArray type=\"Float32\" Name=\"X_COORDINATES\"  NumberOfComponents=\"1\" format=\"ascii\">"
+            << std::endl
         << coordinate_x << std::endl
         << "</DataArray>" << std::endl
-        << "<DataArray type=\"Float32\" Name=\"Y_COORDINATES\"  NumberOfComponents=\"1\" format=\"ascii\">" << std::endl
+        << "<DataArray type=\"Float32\" Name=\"Y_COORDINATES\"  NumberOfComponents=\"1\" format=\"ascii\">"
+            << std::endl
         << coordinate_y << std::endl
         << "</DataArray>" << std::endl
-        << "<DataArray type=\"Float32\" Name=\"Z_COORDINATES\"  NumberOfComponents=\"1\" format=\"ascii\">" << std::endl
+        << "<DataArray type=\"Float32\" Name=\"Z_COORDINATES\"  NumberOfComponents=\"1\" format=\"ascii\">"
+            << std::endl
         << coordinate_z << std::endl
         << "</DataArray>" << std::endl
         << "</Coordinates>" << std::endl
@@ -436,37 +490,38 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
 
 // This function will be executed by an HPX thread
 hpx::lcos::future<int> write_vtk_worker(
-        scalar_out_grid_type const& p_grid,
-        vector_out_grid_type const& uv_grid,
-        scalar_out_grid_type const& stream_grid,
-        scalar_out_grid_type const& vorticity_grid,
-        scalar_out_grid_type const& heat_grid,
-        scalar_out_grid_type const& temp_grid,
-        bitset_grid_type const& flag_grid,
-        RealType dx, RealType dy, uint step, uint i_max, uint j_max,
-        uint partitions_x, uint partitions_y, uint cells_x, uint cells_y)
+    scalar_out_grid_type const& p_grid, vector_out_grid_type const& uv_grid,
+    scalar_out_grid_type const& stream_grid, scalar_out_grid_type const& vorticity_grid,
+    scalar_out_grid_type const& heat_grid, scalar_out_grid_type const& temp_grid,
+    bitset_grid_type const& flag_grid, RealType dx, RealType dy, uint step,
+    uint i_max, uint j_max, uint partitions_x, uint partitions_y, uint cells_x,
+    uint cells_y)
 {
-    boost::shared_ptr<hpx::lcos::local::promise<int> > p =
-        boost::make_shared<hpx::lcos::local::promise<int> >();
+    std::shared_ptr<hpx::lcos::local::promise<int> > p =
+        std::make_shared<hpx::lcos::local::promise<int> >();
 
     // Get a reference to one of the IO specific HPX io_service objects ...
     hpx::threads::executors::io_pool_executor scheduler;
 
     // ... and schedule the handler to run on one of its OS-threads.
-    scheduler.add(hpx::util::bind(&do_write_vtk, p_grid, uv_grid, stream_grid, vorticity_grid, heat_grid, temp_grid, flag_grid, dx, dy, step, i_max, j_max, partitions_x, partitions_y, cells_x, cells_y, p));
+    scheduler.add(hpx::util::bind(
+                                &do_write_vtk, p_grid, uv_grid, stream_grid,
+                                vorticity_grid, heat_grid, temp_grid,
+                                flag_grid, dx, dy, step, i_max, j_max,
+                                partitions_x, partitions_y, cells_x, cells_y, p
+                                )
+                            );
 
     return p->get_future();
 }
 
-int write_vtk(scalar_grid_type const& p_grid,
-                vector_grid_type const& uv_grid,
-                scalar_grid_type const& stream_grid,
-                scalar_grid_type const& vorticity_grid,
-                scalar_grid_type const& heat_grid,
-                scalar_grid_type const& temp_grid,
-                bitset_grid_type const& flag_grid,
-                RealType dx, RealType dy, uint step, uint i_max, uint j_max,
-                uint partitions_x, uint partitions_y, uint cells_x, uint cells_y)
+int write_vtk(
+    scalar_grid_type const& p_grid, vector_grid_type const& uv_grid,
+    scalar_grid_type const& stream_grid, scalar_grid_type const& vorticity_grid,
+    scalar_grid_type const& heat_grid, scalar_grid_type const& temp_grid,
+    bitset_grid_type const& flag_grid, RealType dx, RealType dy, uint step,
+    uint i_max, uint j_max, uint partitions_x, uint partitions_y, uint cells_x,
+    uint cells_y)
 {
     std::vector<std::vector<scalar_data> > p_data;
 
@@ -477,7 +532,9 @@ int write_vtk(scalar_grid_type const& p_grid,
         p_data[k].resize(partitions_y);
         for (uint l = 0; l < partitions_y; l++)
         {
-            scalar_data base = p_grid[l * partitions_x + k].get_data(CENTER).get();
+            scalar_data base =
+                p_grid[l * partitions_x + k].get_data(CENTER).get();
+            
             p_data[k][l] = scalar_data(base);
         }
     }
@@ -491,7 +548,9 @@ int write_vtk(scalar_grid_type const& p_grid,
         uv_data[k].resize(partitions_y);
         for (uint l = 0; l < partitions_y; l++)
         {
-            vector_data base = uv_grid[l * partitions_x + k].get_data(CENTER).get();
+            vector_data base =
+                uv_grid[l * partitions_x + k].get_data(CENTER).get();
+            
             uv_data[k][l] = vector_data(base);
         }
     }
@@ -505,7 +564,9 @@ int write_vtk(scalar_grid_type const& p_grid,
         stream_data[k].resize(partitions_y);
         for (uint l = 0; l < partitions_y; l++)
         {
-            scalar_data base = stream_grid[l * partitions_x + k].get_data(CENTER).get();
+            scalar_data base =
+                stream_grid[l * partitions_x + k].get_data(CENTER).get();
+            
             stream_data[k][l] = scalar_data(base);
         }
     }
@@ -519,7 +580,9 @@ int write_vtk(scalar_grid_type const& p_grid,
         vorticity_data[k].resize(partitions_y);
         for (uint l = 0; l < partitions_y; l++)
         {
-            scalar_data base = vorticity_grid[l * partitions_x + k].get_data(CENTER).get();
+            scalar_data base =
+                vorticity_grid[l * partitions_x + k].get_data(CENTER).get();
+            
             vorticity_data[k][l] = scalar_data(base);
         }
     }
@@ -533,7 +596,9 @@ int write_vtk(scalar_grid_type const& p_grid,
         heat_data[k].resize(partitions_y);
         for (uint l = 0; l < partitions_y; l++)
         {
-            scalar_data base = heat_grid[l * partitions_x + k].get_data(CENTER).get();
+            scalar_data base =
+                heat_grid[l * partitions_x + k].get_data(CENTER).get();
+            
             heat_data[k][l] = scalar_data(base);
         }
     }
@@ -547,15 +612,17 @@ int write_vtk(scalar_grid_type const& p_grid,
         temp_data[k].resize(partitions_y);
         for (uint l = 0; l < partitions_y; l++)
         {
-            scalar_data base = temp_grid[l * partitions_x + k].get_data(CENTER).get();
+            scalar_data base =
+                temp_grid[l * partitions_x + k].get_data(CENTER).get();
+            
             temp_data[k][l] = scalar_data(base);
         }
     }
     
     hpx::lcos::future<int> f =
-        write_vtk_worker(p_data, uv_data, stream_data, vorticity_data, heat_data,
-            temp_data, flag_grid, dx, dy, step, i_max, j_max, partitions_x,
-            partitions_y, cells_x, cells_y);
+        write_vtk_worker(p_data, uv_data, stream_data, vorticity_data,
+            heat_data, temp_data, flag_grid, dx, dy, step, i_max, j_max,
+            partitions_x, partitions_y, cells_x, cells_y);
     
     return f.get();
 }

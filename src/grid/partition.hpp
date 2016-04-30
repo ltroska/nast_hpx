@@ -9,24 +9,31 @@ template <typename T=RealType>
 struct partition
     : hpx::components::client_base<partition<T>, server::partition_server<T> >
 {
-    typedef hpx::components::client_base<partition<T>, server::partition_server<T> > base_type;
+    typedef hpx::components::client_base<partition<T>,
+                                            server::partition_server<T> >
+        base_type;
+    
     typedef server::partition_server<T> server_type;
 
     partition() {}
 
-    partition(hpx::id_type where, uint size_x, uint size_y, RealType initial_value)
-        : base_type(hpx::new_<server::partition_server<T> >(where, size_x, size_y, initial_value))
+    partition(hpx::id_type where, uint size_x, uint size_y,
+                RealType initial_value)
+        : base_type(hpx::new_<server::partition_server<T> >(where, size_x,
+            size_y, initial_value))
     {}
 
     partition(hpx::id_type where, uint size_x, uint size_y)
-        : base_type(hpx::new_<server::partition_server<T> >(where, size_x, size_y, 0))
+        : base_type(hpx::new_<server::partition_server<T> >(where, size_x,
+            size_y, 0))
     {
     }
 
     // Create a new component on the locality co-located to the id 'where'. The
     // new instance will be initialized from the given partition_data.
     partition(hpx::id_type where, partition_data<T> const& data)
-      : base_type(hpx::new_<server::partition_server<T> >(hpx::colocated(where), data))
+      : base_type(hpx::new_<server::partition_server<T> >(hpx::colocated(where),
+            data))
     {
     }
 

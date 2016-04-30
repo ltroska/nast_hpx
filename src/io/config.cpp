@@ -2,6 +2,8 @@
 
 #include <sstream>
 #include <fstream>
+#include <string>
+#include <cstdlib>
 
 #include "pugixml/pugixml.hpp"
 
@@ -22,13 +24,15 @@ namespace io
 
         if (!result) {
             std::cerr << "Error loading file: " << path << std::endl;
-            exit(1);
+            std::exit(1);
         }
 
         pugi::xml_node config_node = doc.child("SimulationConfig");
         if (config_node == NULL) {
-            std::cerr << "Error: A simulation configuration must be defined!" << std::endl;
-            exit(1);
+            std::cerr 
+                << "Error: A simulation configuration must be defined!" 
+                << std::endl;
+            std::exit(1);
         }
 
         if(config_node.child("iMax") != NULL) {
@@ -36,7 +40,7 @@ namespace io
         }
         else {
             std::cerr << "Error: iMax not set!" << std::endl;
-            exit(1);
+            std::exit(1);
         }
 
         if(config_node.child("jMax") != NULL)
@@ -45,7 +49,7 @@ namespace io
         }
         else {
             std::cerr << "Error: jMax not set!" << std::endl;
-            exit(1);
+            std::exit(1);
         }
 
         if(config_node.child("iRes") != NULL)
@@ -54,7 +58,7 @@ namespace io
         }
         else {
             std::cerr << "Error: iRes not set!" << std::endl;
-            exit(1);
+            std::exit(1);
         }
 
         if(config_node.child("jRes") != NULL)
@@ -63,25 +67,27 @@ namespace io
         }
         else {
             std::cerr << "Error: jRes not set!" << std::endl;
-            exit(1);
+            std::exit(1);
         }
 
         if(config_node.child("xLength") != NULL)
         {
-            cfg.x_length = config_node.child("xLength").first_attribute().as_double();
+            cfg.x_length =
+                config_node.child("xLength").first_attribute().as_double();
         }
         else {
             std::cerr << "Error: xLength not set!" << std::endl;
-            exit(1);
+            std::exit(1);
         }
 
         if(config_node.child("yLength") != NULL)
         {
-            cfg.y_length = config_node.child("yLength").first_attribute().as_double();
+            cfg.y_length =
+                config_node.child("yLength").first_attribute().as_double();
         }
         else {
             std::cerr << "Error: yLength not set!" << std::endl;
-            exit(1);
+            std::exit(1);
         }
 
         if(config_node.child("Re") != NULL)
@@ -90,7 +96,7 @@ namespace io
         }
         else {
             std::cerr << "Error: Re not set!" << std::endl;
-            exit(1);
+            std::exit(1);
         }
            
 
@@ -105,12 +111,13 @@ namespace io
 
         if(config_node.child("omega") != NULL)
         {
-            cfg.omega = config_node.child("omega").first_attribute().as_double();
+            cfg.omega =
+                config_node.child("omega").first_attribute().as_double();
         }
         else
         {
             std::cerr << "Error: Omega not set!" << std::endl;
-            exit(1);
+            std::exit(1);
         }
         
         if(config_node.child("tau") != NULL)
@@ -130,12 +137,13 @@ namespace io
         else
         {
             std::cerr << "Error: Eps not set!" << std::endl;
-            exit(1);
+            std::exit(1);
         }
         
         if(config_node.child("alpha") != NULL)
         {
-            cfg.alpha = config_node.child("alpha").first_attribute().as_double();
+            cfg.alpha =
+                config_node.child("alpha").first_attribute().as_double();
         }
         else
         {
@@ -149,12 +157,13 @@ namespace io
 
         if(config_node.child("iterMax") != NULL)
         {
-            cfg.iter_max = config_node.child("iterMax").first_attribute().as_int();
+            cfg.iter_max =
+                config_node.child("iterMax").first_attribute().as_int();
         }
         else
         {
             std::cerr << "Error: iterMax not set!" << std::endl;
-            exit(1);
+            std::exit(1);
         }
 
         if(config_node.child("tEnd") != NULL)
@@ -164,7 +173,7 @@ namespace io
         else
         {
             std::cerr << "Error: tEnd not set!" << std::endl;
-            exit(1);
+            std::exit(1);
         }
 
         if(config_node.child("dt") != NULL)
@@ -176,7 +185,8 @@ namespace io
 
         if(config_node.child("outputSkipSize") != NULL)
         {
-            cfg.output_skip_size = config_node.child("outputSkipSize").first_attribute().as_int();
+            cfg.output_skip_size =
+                config_node.child("outputSkipSize").first_attribute().as_int();
         }
         else
         {
@@ -185,7 +195,8 @@ namespace io
 
         if(config_node.child("subIterations") != NULL)
         {
-            cfg.sub_iterations = config_node.child("subIterations").first_attribute().as_int();
+            cfg.sub_iterations =
+                config_node.child("subIterations").first_attribute().as_int();
         }
         else
         {
@@ -194,7 +205,8 @@ namespace io
 
         if(config_node.child("withForEach") != NULL)
         {
-            cfg.wfe = config_node.child("withForEach").first_attribute().as_int();
+            cfg.wfe =
+                config_node.child("withForEach").first_attribute().as_int();
         }
         else
         {
@@ -203,7 +215,8 @@ namespace io
 
         if(config_node.child("vtk") != NULL)
         {
-            cfg.vtk = (config_node.child("vtk").first_attribute().as_int() == 1);
+            cfg.vtk =
+                (config_node.child("vtk").first_attribute().as_int() == 1);
         }
         else
         {
@@ -230,7 +243,8 @@ namespace io
 
         if(config_node.child("UO") != NULL)
         {
-            cfg.u_bnd.top = config_node.child("UO").first_attribute().as_double();
+            cfg.u_bnd.top =
+                config_node.child("UO").first_attribute().as_double();
         }
         else
         {
@@ -239,7 +253,8 @@ namespace io
 
         if(config_node.child("UB") != NULL)
         {
-            cfg.u_bnd.bottom = config_node.child("UB").first_attribute().as_double();
+            cfg.u_bnd.bottom =
+                config_node.child("UB").first_attribute().as_double();
         }
         else
         {
@@ -248,7 +263,8 @@ namespace io
 
         if(config_node.child("UL") != NULL)
         {
-            cfg.u_bnd.left = config_node.child("UL").first_attribute().as_double();
+            cfg.u_bnd.left =
+                config_node.child("UL").first_attribute().as_double();
         }
         else
         {
@@ -257,7 +273,8 @@ namespace io
 
         if(config_node.child("UR") != NULL)
         {
-            cfg.u_bnd.right = config_node.child("UR").first_attribute().as_double();
+            cfg.u_bnd.right =
+                config_node.child("UR").first_attribute().as_double();
         }
         else
         {
@@ -266,7 +283,8 @@ namespace io
 
         if(config_node.child("VO") != NULL)
         {
-            cfg.v_bnd.top = config_node.child("VO").first_attribute().as_double();
+            cfg.v_bnd.top =
+                config_node.child("VO").first_attribute().as_double();
         }
         else
         {
@@ -275,7 +293,8 @@ namespace io
 
         if(config_node.child("VB") != NULL)
         {
-            cfg.v_bnd.bottom = config_node.child("VB").first_attribute().as_double();
+            cfg.v_bnd.bottom =
+                config_node.child("VB").first_attribute().as_double();
         }
         else
         {
@@ -284,7 +303,8 @@ namespace io
 
         if(config_node.child("VL") != NULL)
         {
-            cfg.v_bnd.left = config_node.child("VL").first_attribute().as_double();
+            cfg.v_bnd.left =
+                config_node.child("VL").first_attribute().as_double();
         }
         else
         {
@@ -293,7 +313,8 @@ namespace io
 
         if(config_node.child("VR") != NULL)
         {
-            cfg.v_bnd.right = config_node.child("VR").first_attribute().as_double();
+            cfg.v_bnd.right =
+                config_node.child("VR").first_attribute().as_double();
         }
         else
         {
@@ -302,7 +323,8 @@ namespace io
 
         if(config_node.child("TO") != NULL)
         {
-            cfg.temp_bnd.top = config_node.child("TO").first_attribute().as_double();
+            cfg.temp_bnd.top =
+                config_node.child("TO").first_attribute().as_double();
         }
         else
         {
@@ -311,7 +333,8 @@ namespace io
 
         if(config_node.child("TB") != NULL)
         {
-            cfg.temp_bnd.bottom = config_node.child("TB").first_attribute().as_double();
+            cfg.temp_bnd.bottom =
+                config_node.child("TB").first_attribute().as_double();
         }
         else
         {
@@ -320,7 +343,8 @@ namespace io
 
         if(config_node.child("TL") != NULL)
         {
-            cfg.temp_bnd.left = config_node.child("TL").first_attribute().as_double();
+            cfg.temp_bnd.left =
+                config_node.child("TL").first_attribute().as_double();
         }
         else
         {
@@ -329,7 +353,8 @@ namespace io
 
         if(config_node.child("TR") != NULL)
         {
-            cfg.temp_bnd.right = config_node.child("TR").first_attribute().as_double();
+            cfg.temp_bnd.right =
+                config_node.child("TR").first_attribute().as_double();
         }
         else
         {
@@ -347,7 +372,8 @@ namespace io
 
         if(config_node.child("WTL") != NULL)
         {
-            cfg.temp_data_type.left = config_node.child("WTL").first_attribute().as_double();
+            cfg.temp_data_type.left =
+                config_node.child("WTL").first_attribute().as_double();
         }
         else
         {
@@ -356,7 +382,8 @@ namespace io
 
         if(config_node.child("WTR") != NULL)
         {
-            cfg.temp_data_type.right = config_node.child("WTR").first_attribute().as_double();
+            cfg.temp_data_type.right =
+                config_node.child("WTR").first_attribute().as_double();
         }
         else
         {
@@ -365,7 +392,8 @@ namespace io
 
         if(config_node.child("WTB") != NULL)
         {
-            cfg.temp_data_type.bottom = config_node.child("WTB").first_attribute().as_double();
+            cfg.temp_data_type.bottom =
+                config_node.child("WTB").first_attribute().as_double();
         }
         else
         {
@@ -374,7 +402,8 @@ namespace io
 
         if(config_node.child("WTT") != NULL)
         {
-            cfg.temp_data_type.top = config_node.child("WTT").first_attribute().as_double();
+            cfg.temp_data_type.top =
+                config_node.child("WTT").first_attribute().as_double();
         }
         else
         {
@@ -383,7 +412,8 @@ namespace io
 
         if(config_node.child("WL") != NULL)
         {
-            cfg.data_type.left = config_node.child("WL").first_attribute().as_double();
+            cfg.data_type.left =
+                config_node.child("WL").first_attribute().as_double();
         }
         else
         {
@@ -392,7 +422,8 @@ namespace io
 
         if(config_node.child("WR") != NULL)
         {
-            cfg.data_type.right = config_node.child("WR").first_attribute().as_double();
+            cfg.data_type.right =
+                config_node.child("WR").first_attribute().as_double();
         }
         else
         {
@@ -401,7 +432,8 @@ namespace io
 
         if(config_node.child("WB") != NULL)
         {
-            cfg.data_type.bottom = config_node.child("WB").first_attribute().as_double();
+            cfg.data_type.bottom =
+                config_node.child("WB").first_attribute().as_double();
         }
         else
         {
@@ -410,7 +442,8 @@ namespace io
 
         if(config_node.child("WT") != NULL)
         {
-            cfg.data_type.top = config_node.child("WT").first_attribute().as_double();
+            cfg.data_type.top =
+                config_node.child("WT").first_attribute().as_double();
         }
         else
         {
@@ -419,7 +452,8 @@ namespace io
 
         if(config_node.child("deltaVec") != NULL)
         {
-            cfg.delta_vec = config_node.child("deltaVec").first_attribute().as_double();
+            cfg.delta_vec =
+                config_node.child("deltaVec").first_attribute().as_double();
         }
         else
         {
@@ -430,7 +464,8 @@ namespace io
         {
             cfg.with_flag_grid = true;
 
-            std::ifstream file(config_node.child("gridFile").first_attribute().as_string());
+            std::ifstream file(
+                config_node.child("gridFile").first_attribute().as_string());
 
             uint i_max = 0;
             uint j_max = 0;
@@ -452,7 +487,9 @@ namespace io
                     std::string cell_val;
                     std::getline(iss, cell_val, ',');
 
-                    cfg.flag_grid.push_back(std::bitset<5>(std::stoi(cell_val)));
+                    cfg.flag_grid.push_back(
+                        std::bitset<5>(std::stoi(cell_val)));
+                    
                     i_max++;
 
                     if (!iss.good())
@@ -469,14 +506,16 @@ namespace io
         else
         {
             std::cerr << "Error: geometry file given not set!" << std::endl;
-            exit(1);
+            std::exit(1);
         }
 
         if(config_node.child("initialUVFile") != NULL)
         {
             cfg.with_initial_uv_grid = true;
 
-            std::ifstream file(config_node.child("initialUVFile").first_attribute().as_string());
+            std::ifstream file(
+                config_node.child("initialUVFile")
+                    .first_attribute().as_string());
 
             while (true)
             {
@@ -500,7 +539,9 @@ namespace io
                     std::getline(issc, u, '/');
                     std::getline(issc, v, '/');
 
-                    cfg.initial_uv_grid.push_back(std::pair<RealType, RealType>(std::stod(u), std::stod(v)));
+                    cfg.initial_uv_grid.push_back(
+                        std::pair<RealType, RealType>(
+                            std::stod(u), std::stod(v)));
 
                     if (!iss.good())
                         break;

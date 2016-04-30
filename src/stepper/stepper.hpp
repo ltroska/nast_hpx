@@ -8,13 +8,15 @@ namespace stepper {
 struct stepper
     : hpx::components::client_base<stepper, server::stepper_server>
 {
-    typedef hpx::components::client_base<stepper, server::stepper_server> base_type;
+    typedef hpx::components::client_base<stepper, server::stepper_server>
+        base_type;
 
     stepper()
       : base_type(hpx::new_<server::stepper_server>
           (hpx::find_here(), hpx::get_num_localities_sync()))
     {
-        hpx::register_with_basename(server::stepper_basename, get_id(), hpx::get_locality_id());
+        hpx::register_with_basename(server::stepper_basename, get_id(),
+                                        hpx::get_locality_id());
     }
 
     // construct new instances/wrap existing steppers from other localities

@@ -180,9 +180,10 @@ void stepper_server::initialize_grids()
             p_grid[get_index(k, l)] =
                 scalar_partition(hpx::find_here(),
                     params.num_cells_per_partition_x,
-                    params.num_cells_per_partition_y);
-            rhs_grid[get_index(k, l)] =
-                
+                    params.num_cells_per_partition_y,
+                    0);
+            
+            rhs_grid[get_index(k, l)] =                
                 scalar_partition(hpx::find_here(),
                 params.num_cells_per_partition_x,
                 params.num_cells_per_partition_y);
@@ -507,6 +508,11 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
                     dt
                 );
    
+    /*print_grid(uv_grid, "uv");
+    print_grid(temperature_grid, "temp");
+    print_grid(fg_grid, "fg");
+    print_grid(rhs_grid, "rhs");*/
+    
     RealType t1_elapsed = t1.elapsed();
 
     hpx::util::high_resolution_timer t2;
@@ -655,8 +661,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
                         return result;
                     });
 
-            //TODO: only devide by #fluid cells
-            res = residual.get() / (params.i_max * params.j_max);
+            res = residual.get() / c.num_fluid_cells;
             
             // decide if SOR should keep running or not
             hpx::lcos::broadcast_apply<set_keep_running_action>(
@@ -669,6 +674,8 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
                                         step*c.iter_max + iter).wait();
     }
     while (keep_running.receive(step * c.iter_max + iter).get());
+    
+   // print_grid(p_grid, "p");
     
     RealType t2_elapsed = t2.elapsed();
 
@@ -716,6 +723,8 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
 
         }
 
+   // print_grid(uv_grid, "uv2");
+    
     t += dt;
 
     // compute local maximal velocities
@@ -1006,8 +1015,8 @@ const
     std::shared_ptr<hpx::lcos::local::promise<int> > p =
         std::make_shared<hpx::lcos::local::promise<int> >();
     
-    io::do_async_print(grid, message, params.num_partitions_x - 2,
-        params.num_partitions_y - 2, params.num_cells_per_partition_x,
+    io::do_async_print(grid, message, params.num_partitions_x,
+        params.num_partitions_y, params.num_cells_per_partition_x,
         params.num_cells_per_partition_y, p);
 }
 

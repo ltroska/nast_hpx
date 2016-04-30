@@ -1,6 +1,6 @@
 #################################
 #Compile nast_hpx
-#@date 2015-11
+#@date 2016-04
 #@author troska@ins.uni-bonn.de
 #################################
 
@@ -23,6 +23,9 @@ add_library(pugixml ${CMAKE_CURRENT_SOURCE_DIR}/libs/pugixml/pugixml.cpp)
 
 # --------------- MAIN --------------- #
 
+add_library(config src/io/config.cpp)
+target_link_libraries(config pugixml)
+
 add_hpx_component(
     partition_server
     SOURCES src/grid/server/partition_server.cpp
@@ -30,17 +33,23 @@ add_hpx_component(
 )
 
 add_hpx_component(
+	strategy
+	SOURCES src/computation/custom_grain_size.cpp src/computation/with_for_each.cpp src/computation/cell_operations.cpp
+	HEADERS src/computation/custom_grain_size.hpp src/computation/with_for_each.hpp src/computation/cell_operations.hpp
+	COMPONENT_DEPENDENCIES partition_server
+)
+
+add_hpx_component(
     stepper_server
-    SOURCES src/stepper/server/stepper_server.cpp src/computation/custom_grain_size.cpp src/computation/cell_operations.cpp
-    HEADERS src/stepper/server/stepper_server.hpp src/computation/custom_grain_size.hpp src/computation/cell_operations.hpp
+    SOURCES src/stepper/server/stepper_server.cpp
+    HEADERS src/stepper/server/stepper_server.hpp
     COMPILE_FLAGS -DCUSTOM_GRAIN_SIZE
-    COMPONENT_DEPENDENCIES iostreams partition_server)
+    COMPONENT_DEPENDENCIES iostreams partition_server strategy)
 
 add_hpx_executable(
     main
     ESSENTIAL
-    SOURCES src/main.cpp src/io/config.cpp#src/computation/with_for_each.cpp
-    HEADERS src/io/config.hpp
-    DEPENDENCIES pugixml
-    COMPONENT_DEPENDENCIES partition_server stepper_server
+    SOURCES src/main.cpp
+    DEPENDENCIES config
+    COMPONENT_DEPENDENCIES stepper_server
 )

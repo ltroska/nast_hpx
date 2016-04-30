@@ -83,10 +83,11 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
     bitset_grid_type const& flag_grid,
     RealType dx, RealType dy, uint step, uint i_max, uint j_max,
     uint partitions_x, uint partitions_y, uint cells_x, uint cells_y,
+    uint loc, uint num_localities,
     std::shared_ptr<hpx::lcos::local::promise<int> > p)
 {
     uint res_x, res_y;
-    if (hpx::get_num_localities_sync() == 2)
+    if (num_localities == 2)
     {
         res_x = 2;
         res_y = 1;
@@ -97,7 +98,6 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
         res_y = res_x;
     }
 
-
     uint actual_partitions_x = partitions_x;
     uint actual_partitions_y = partitions_y;
 
@@ -105,7 +105,7 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
     partitions_y -= 2;
 
     //master file
-    if (hpx::get_locality_id() == 0)
+    if (loc == 0)
     {
         std::string filename;
         filename.append ("./fields/");
@@ -143,7 +143,7 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
                 << std::endl
             << "</PCoordinates>" << std::endl;
 
-        for (uint loc = 0; loc < hpx::find_all_localities().size(); loc++)
+        for (uint loc = 0; loc < num_localities; loc++)
         {
             os  << "<Piece Extent=\""
                        << static_cast<int>(cells_x*partitions_x*(loc%res_x))
@@ -161,8 +161,6 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
     }
 
     //slave file
-    uint loc = hpx::get_locality_id();
-
     uint left = (loc%res_x == 0) ? 1 : 0;
     uint right = (loc%res_x == res_x - 1) ? 1 : 0;
     uint bottom = (loc/res_x == 0) ? 1 : 0;
@@ -510,7 +508,9 @@ hpx::lcos::future<int> write_vtk_worker(
                                 &do_write_vtk, p_grid, uv_grid, stream_grid,
                                 vorticity_grid, heat_grid, temp_grid,
                                 flag_grid, dx, dy, step, i_max, j_max,
-                                partitions_x, partitions_y, cells_x, cells_y, p
+                                partitions_x, partitions_y, cells_x, cells_y,
+                                hpx::get_locality_id(),
+                                hpx::get_num_localities_sync(), p
                                 )
                             );
 

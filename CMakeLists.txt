@@ -33,45 +33,23 @@ add_hpx_component(
 )
 
 add_hpx_component(
-	cgs_strategy
-	SOURCES src/computation/custom_grain_size.cpp src/computation/cell_operations.cpp
-	HEADERS src/computation/custom_grain_size.hpp src/computation/cell_operations.hpp
+	strategy
+	SOURCES src/computation/custom_grain_size.cpp src/computation/with_for_each.cpp src/computation/cell_operations.cpp
+	HEADERS src/computation/custom_grain_size.hpp src/computation/with_for_each.hpp src/computation/cell_operations.hpp
 	COMPONENT_DEPENDENCIES partition_server
 )
 
 add_hpx_component(
-	wfe_strategy
-	SOURCES src/computation/with_for_each.cpp src/computation/cell_operations.cpp
-	HEADERS src/computation/with_for_each.hpp src/computation/cell_operations.hpp
-	COMPONENT_DEPENDENCIES partition_server
-)
-
-add_hpx_component(
-    stepper_server_cgs
+    stepper_server
     SOURCES src/stepper/server/stepper_server.cpp
     HEADERS src/stepper/server/stepper_server.hpp
     COMPILE_FLAGS -DCUSTOM_GRAIN_SIZE
-    COMPONENT_DEPENDENCIES iostreams partition_server cgs_strategy)
-
-add_hpx_component(
-    stepper_server_wfe
-    SOURCES src/stepper/server/stepper_server.cpp
-    HEADERS src/stepper/server/stepper_server.hpp
-    COMPILE_FLAGS
-    COMPONENT_DEPENDENCIES iostreams partition_server wfe_strategy)
+    COMPONENT_DEPENDENCIES iostreams partition_server strategy)
 
 add_hpx_executable(
-    cgs
+    main
     ESSENTIAL
     SOURCES src/main.cpp
     DEPENDENCIES config
-    COMPONENT_DEPENDENCIES stepper_server_cgs
-)
-
-add_hpx_executable(
-    wfe
-    ESSENTIAL
-    SOURCES src/main.cpp
-    DEPENDENCIES config
-    COMPONENT_DEPENDENCIES stepper_server_wfe
+    COMPONENT_DEPENDENCIES stepper_server
 )

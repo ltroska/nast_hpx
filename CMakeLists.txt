@@ -12,12 +12,13 @@ project(nast_hpx CXX)
 
 find_package(HPX)
 
-#enable_testing()
+enable_testing()
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeSettings.txt)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/
-			${CMAKE_CURRENT_SOURCE_DIR}/libs)
+			${CMAKE_CURRENT_SOURCE_DIR}/libs
+			)
 
 add_library(pugixml ${CMAKE_CURRENT_SOURCE_DIR}/libs/pugixml/pugixml.cpp)
 
@@ -53,3 +54,48 @@ add_hpx_executable(
     DEPENDENCIES config
     COMPONENT_DEPENDENCIES stepper_server
 )
+
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wno-unused-parameter -pedantic -std=c++14")
+
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
+
+# partition_data
+
+add_hpx_executable(
+    test_partition_data
+    ESSENTIAL
+    SOURCES tests/test_partition_data.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(partition_data_test test_partition_data -t4)
+
+# partition
+
+add_hpx_executable(
+    test_partition
+    ESSENTIAL
+    SOURCES tests/test_partition.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(partition_test test_partition -t4)
+
+# get_neighbor_cell()
+
+add_hpx_executable(
+    test_get_neighbor_cell
+    ESSENTIAL
+    SOURCES tests/test_get_neighbor_cell.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(get_neighbor_cell test_get_neighbor_cell -t4)
+
+# cgs::set_velocity_on_boundary()
+
+add_hpx_executable(
+    test_cgs_set_velocity_on_boundary
+    ESSENTIAL
+    SOURCES tests/test_cgs_set_velocity_on_boundary.cpp src/computation/custom_grain_size.cpp src/computation/cell_operations.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(cgs_set_velocity_on_boundary_test  test_cgs_set_velocity_on_boundary -t4)
+

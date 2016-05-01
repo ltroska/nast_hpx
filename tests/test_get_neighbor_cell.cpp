@@ -2,9 +2,8 @@
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
 
-#include "grid/partition.hpp"
-#include "computation/custom_grain_size.hpp"
-#include "util/cell.hpp"
+#include "grid/types.hpp"
+#include "util/helpers.hpp"
 #include "test_helpers.hpp"
 
 void do_get_neighbor_cell_test(uint k, uint l, uint i, uint j, uint i_max, uint j_max, uint i_res, uint j_res,
@@ -16,19 +15,16 @@ void do_get_neighbor_cell_test(uint k, uint l, uint i, uint j, uint i_max, uint 
     k++;
     l++;
 
-    computation::parameters params;
-    params.num_partitions_x = num_partitions_x;
-    params.num_partitions_y = num_partitions_y;
-    params.i_max = i_max;
-    params.j_max = j_max;
-    params.num_cells_per_partition_x = ((i_max + 2) / localities_x) / i_res;
-    params.num_cells_per_partition_y = ((j_max + 2) / localities_y) / j_res;
+    uint num_cells_per_partition_x = ((i_max + 2) / localities_x) / i_res;
+    uint num_cells_per_partition_y = ((j_max + 2) / localities_y) / j_res;
 
     vector_grid_type grid;
-    grid_maker maker = grid_maker(localities_x, localities_y, locality_id, params);
+    grid_maker maker = grid_maker(localities_x, localities_y, locality_id,
+                                    num_cells_per_partition_x,
+                                    num_cells_per_partition_y,
+                                    num_partitions_x, num_partitions_y);
     maker.make_neighbor_test_grid(grid);
-
-
+    
     vector_data center_data = grid[(l) * num_partitions_y + k].get_data(CENTER).get();
     vector_data left_data = grid[(l) * num_partitions_y + k - 1].get_data(LEFT).get();
     vector_data right_data = grid[(l) * num_partitions_y + k + 1].get_data(RIGHT).get();
@@ -40,22 +36,17 @@ void do_get_neighbor_cell_test(uint k, uint l, uint i, uint j, uint i_max, uint 
     vector_data topright_data = grid[(l+1) * num_partitions_y + k+1].get_data(TOP_RIGHT).get();
 
     vector_cell& cell = center_data.get_cell_ref(i, j);
-    vector_cell left_neighbor = get_neighbor_cell(center_data, left_data, right_data, bottom_data, top_data, bottomleft_data, bottomright_data,
-                                                    topleft_data, topright_data, i, j, LEFT);
-    vector_cell right_neighbor = get_neighbor_cell(center_data, left_data, right_data, bottom_data, top_data, bottomleft_data, bottomright_data,
-                                                    topleft_data, topright_data, i, j, RIGHT);
-    vector_cell bottom_neighbor = get_neighbor_cell(center_data, left_data, right_data, bottom_data, top_data, bottomleft_data, bottomright_data,
-                                                    topleft_data, topright_data, i, j, BOTTOM);
-    vector_cell top_neighbor = get_neighbor_cell(center_data, left_data, right_data, bottom_data, top_data, bottomleft_data, bottomright_data,
-                                                    topleft_data, topright_data, i, j, TOP);
-    vector_cell bottom_left_neighbor = get_neighbor_cell(center_data, left_data, right_data, bottom_data, top_data, bottomleft_data, bottomright_data,
-                                                    topleft_data, topright_data, i, j, BOTTOM_LEFT);
-    vector_cell bottom_right_neighbor = get_neighbor_cell(center_data, left_data, right_data, bottom_data, top_data, bottomleft_data, bottomright_data,
-                                                    topleft_data, topright_data, i, j, BOTTOM_RIGHT);
-    vector_cell top_left_neighbor = get_neighbor_cell(center_data, left_data, right_data, bottom_data, top_data, bottomleft_data, bottomright_data,
-                                                    topleft_data, topright_data, i, j, TOP_LEFT);
-    vector_cell top_right_neighbor = get_neighbor_cell(center_data, left_data, right_data, bottom_data, top_data, bottomleft_data, bottomright_data,
-                                                    topleft_data, topright_data, i, j, TOP_RIGHT);
+    vector_cell left_neighbor = get_left_neighbor(center_data, left_data, i, j);
+    vector_cell right_neighbor =
+        get_right_neighbor(center_data, right_data, i, j);
+    vector_cell bottom_neighbor =
+        get_bottom_neighbor(center_data, bottom_data, i, j);
+    vector_cell top_neighbor = get_top_neighbor(center_data, top_data, i, j);
+    vector_cell bottom_right_neighbor =
+        get_bottomright_neighbor(center_data, bottom_data, right_data,
+            bottomright_data, i, j);
+    vector_cell top_left_neighbor =
+        get_left_neighbor(center_data, left_data, i, j);
 
     std::string msg = std::to_string(k) + " " + std::to_string(l) + " " + std::to_string(i) + " " + std::to_string(j);
     HPX_ASSERT_MSG(left_neighbor.first == cell.first - 1 && left_neighbor.second == cell.second,
@@ -70,17 +61,12 @@ void do_get_neighbor_cell_test(uint k, uint l, uint i, uint j, uint i_max, uint 
     HPX_ASSERT_MSG(top_neighbor.first == cell.first && top_neighbor.second == cell.second + 1,
                     ("top_neighbor failed for " + msg + expected_string(cell, top_neighbor)).c_str() );
 
-    HPX_ASSERT_MSG(bottom_left_neighbor.first == cell.first - 1 && bottom_left_neighbor.second == cell.second - 1,
-                    ("bottom_left_neighbor failed for " + msg + expected_string(cell, bottom_left_neighbor)).c_str() );
-
     HPX_ASSERT_MSG(bottom_right_neighbor.first == cell.first + 1 && bottom_right_neighbor.second == cell.second - 1,
                     ("bottom_right_neighbor failed for " + msg + expected_string(cell, bottom_right_neighbor)).c_str() );
 
     HPX_ASSERT_MSG(top_left_neighbor.first == cell.first - 1 && top_left_neighbor.second == cell.second + 1,
                     ("top_left_neighbor failed for " + msg + expected_string(cell, top_left_neighbor)).c_str() );
 
-    HPX_ASSERT_MSG(top_right_neighbor.first == cell.first + 1&& top_right_neighbor.second == cell.second + 1,
-                    ("top_right_neighbor failed for " + msg + expected_string(cell, top_right_neighbor)).c_str() );
 }
 
 

@@ -1,8 +1,7 @@
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
 
-#include "grid/partition_data.hpp"
-#include "util/cell.hpp"
+#include "grid/types.hpp"
 
 int hpx_main(int argc, char* argv[])
 {

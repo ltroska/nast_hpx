@@ -214,11 +214,11 @@ void compute_fg_for_cell(vector_cell& middle_fg,
         RealType dx, RealType dy, RealType dt, RealType alpha)
 {   
     //north
-    if (!type.test(4) && type.test(0))
+    if ((!type.test(4) && type.test(0)) || type == std::bitset<5>("01110"))
         middle_fg.second = middle_uv.second;
 
     //east
-    if (!type.test(4) && type.test(3))
+    if ((!type.test(4) && type.test(3)) || type == std::bitset<5>("00111"))
         middle_fg.first = middle_uv.first;
 
     if (type.test(4))

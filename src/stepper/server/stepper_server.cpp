@@ -18,7 +18,11 @@ HPX_REGISTER_COMPONENT(stepper_server_type, stepper_component);
 HPX_REGISTER_ACTION(stepper::server::stepper_server::setup_action,
     stepper_server_setup_action);
 
-HPX_REGISTER_GATHER(RealType, stepper_server_space_gatherer);
+typedef std::pair<RealType, RealType> vec2;
+
+HPX_REGISTER_GATHER(RealType, stepper_server_residual_gatherer);
+HPX_REGISTER_GATHER(vec2, stepper_server_velocity_gatherer);
+//HPX_REGISTER_GATHER(RealType, stepper_server_dt_gatherer);
 
 namespace stepper
 {
@@ -78,7 +82,7 @@ void stepper_server::setup(io::config&& cfg)
         write_vtk(0);
 
     // start timestepping
-    if (hpx::get_locality_id() == 0)
+   // if (hpx::get_locality_id() == 0)
         do_work();
 }
 
@@ -311,65 +315,81 @@ void stepper_server::initialize_communication()
             hpx::find_from_basename(stepper_basename, loc).get());
 }
 
+//TODO: maybe cache dx, dy squared
 void stepper_server::do_work()
 {
-    std::pair<RealType, RealType> max_uv(0, 0);
     RealType dt = c.dt;
 
     // start timestepping
     for (uint step = 1; t + dt < c.t_end; step++)
     {
-        // tell all steppers to execute a timestep, returning the local maximal
-        // velocities
-        hpx::future<std::vector<std::pair<RealType, RealType> > > max_uvs =
-            hpx::lcos::broadcast<do_timestep_action> (localities, step, dt);
+        // do a timestep
+        hpx::future<std::pair<RealType, RealType> > local_max_velocity =
+            do_timestep(step, dt);
 
-        // when each locality finished, compute the global maximal velocity
-        hpx::future<std::pair<RealType, RealType> > max_uv_fut =
-            max_uvs.then(
-            [](hpx::future<std::vector<std::pair<RealType, RealType> > > fut)
-                -> std::pair<RealType, RealType>
-            {
-                auto local_max_uvs = fut.get();
+         // if this is the root locality gather all remote residuals and sum up
+        if (hpx::get_locality_id() == 0)
+        {
+            hpx::future<std::vector<std::pair<RealType, RealType> > >
+            max_velocities =
+                hpx::lcos::gather_here(velocity_basename,
+                                        std::move(local_max_velocity),
+                                        num_localities, step);
 
-                std::pair<RealType, RealType> res(0, 0);
+            hpx::future<RealType> new_dt =
+                max_velocities.then(
+                    [this](hpx::future<std::vector<std::pair<RealType, RealType> > >
+                                    fut)
+                        -> RealType
+                    {
+                        auto local_max_uvs = fut.get();
 
-                for (auto max_uv : local_max_uvs)
-                {
-                    res.first =
-                        (max_uv.first > res.first ? max_uv.first : res.first);
-                    
-                    res.second =
-                        (max_uv.second > res.second
-                            ? max_uv.second : res.second);
-                }
+                        std::pair<RealType, RealType> global_max_uv(0, 0);
 
-                return res;
-            });
+                        for (auto& max_uv : local_max_uvs)
+                        {
+                            global_max_uv.first =
+                                (max_uv.first > global_max_uv.first
+                                    ? max_uv.first : global_max_uv.first);
+                            
+                            global_max_uv.second =
+                                (max_uv.second > global_max_uv.second
+                                    ? max_uv.second : global_max_uv.second);
+                        }
 
-        max_uv = max_uv_fut.get();
+                        RealType result =
+                            std::min(c.re / 2. * 1. / (1. / std::pow(params.dx, 2)
+                                        + 1. / std::pow(params.dy, 2))
+                                    ,
+                                    std::min(params.dx / global_max_uv.first,
+                                            params.dy / global_max_uv.second)
+                            );
 
-        // CFL conditions
-        RealType tmp =
-            std::min(c.re / 2. * 1. / (1. / std::pow(params.dx, 2)
-                        + 1. / std::pow(params.dy, 2))
-                    ,
-                    std::min(params.dx / max_uv.first,
-                            params.dy / max_uv.second)
-            );
+                        // special case for temperature driven flow
+                        if (c.pr)
+                            result = std::min(result, 
+                                            (c.re * c.pr) / 2. * 1.
+                                            / (1. / std::pow(params.dx, 2)
+                                            + 1. / std::pow(params.dy, 2)));
 
-        // special case for temperature driven flow
-        if (c.pr)
-            tmp = std::min(tmp, 
-                            (c.re * c.pr) / 2. * 1.
-                            / (1. / std::pow(params.dx, 2)
-                            + 1. / std::pow(params.dy, 2)));
+                        result *= c.tau;
 
-        dt = c.tau * tmp;
+                        return result;
+                    });
+            
+            // decide if SOR should keep running or not
+            hpx::lcos::broadcast_apply<set_dt_action>(localities, step, new_dt.get());
+        }
+        // if not root locality, send residual to root locality
+        else
+            hpx::lcos::gather_there(velocity_basename, std::move(local_max_velocity),
+                                       step).wait();
+                                                               
+        dt = dt_buffer.receive(step).get();        
     }
 }
 
-std::pair<RealType, RealType> stepper_server::do_timestep(
+hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
     uint step, RealType dt)
 {
     hpx::util::high_resolution_timer t1;
@@ -427,6 +447,9 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
 
     // note: this does not block (it is essentially moving on a future)
     uv_grid = uv_temp_grid;
+
+    //print_grid(uv_grid, "uv");
+
   
     if (c.pr != 0)
         temperature_grid = temperature_temp_grid;
@@ -643,7 +666,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
         if (hpx::get_locality_id() == 0)
         {
             hpx::future<std::vector<RealType> > local_residuals =
-                hpx::lcos::gather_here(gather_basename,
+                hpx::lcos::gather_here(residual_basename,
                                         std::move(residual_fut),
                                         num_localities, step*c.iter_max + iter);
 
@@ -670,12 +693,12 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
         }
         // if not root locality, send residual to root locality
         else
-            hpx::lcos::gather_there(gather_basename, std::move(residual_fut),
+            hpx::lcos::gather_there(residual_basename, std::move(residual_fut),
                                         step*c.iter_max + iter).wait();
     }
     while (keep_running.receive(step * c.iter_max + iter).get());
     
-   // print_grid(p_grid, "p");
+    //print_grid(p_grid, "p");
     
     RealType t2_elapsed = t2.elapsed();
 
@@ -753,7 +776,7 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
         })
     );
         
-    auto max_ = max_uv.get();
+    //auto max_ = max_uv.get();
 
     // print out local grid
     if ((c.output_skip_size != 0 && (step % c.output_skip_size == 0))
@@ -774,13 +797,13 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
                 << " | SOR = " << t2_elapsed 
                 << " average = " << t2_elapsed / iter 
                 << " | after SOR = " << t3.elapsed() 
-                << " | max uv " << max_.first << " " << max_.second
+               // << " | max uv " << max_.first << " " << max_.second
                 << std::endl;
 
         out_iter++;
     }
 
-    return max_;
+    return max_uv;
 }
 
 // ---------------------------- COMMUNICATION ------------------------------ //
@@ -788,6 +811,11 @@ std::pair<RealType, RealType> stepper_server::do_timestep(
 void stepper_server::set_keep_running(uint iter, bool kr)
 {
     keep_running.store_received(iter, std::move(kr));
+}
+
+void stepper_server::set_dt(uint step, RealType dt)
+{
+    dt_buffer.store_received(step, std::move(dt));
 }
 
 void stepper_server::communicate_p_grid(uint iter)
@@ -1009,7 +1037,7 @@ vector_partition stepper_server::receive_uv_from_neighbor(uint t, direction dir)
 
 template<typename T>
 void stepper_server::print_grid(
-    std::vector<grid::partition<T> > const& grid, const std::string message)
+    std::vector<grid::partition<T> > const& grid, std::string const& message)
 const
 {
     std::shared_ptr<hpx::lcos::local::promise<int> > p =

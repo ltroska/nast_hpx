@@ -19,7 +19,9 @@
 namespace stepper { namespace server {
 
 char const* stepper_basename = "/nast_hpx/stepper/";
-char const* gather_basename = "/nast_hpx/gather/";
+char const* residual_basename = "/nast_hpx/gather/residual";
+char const* velocity_basename = "/nast_hpx/gather/velocity";
+char const* dt_basename = "/nast_hpx/gather/dt";
 
 /// Component responsible for the timestepping and communication of data.
 struct HPX_COMPONENT_EXPORT stepper_server
@@ -37,9 +39,8 @@ struct HPX_COMPONENT_EXPORT stepper_server
         void do_work();
 
         /// Method that does a single timestep
-        std::pair<RealType, RealType> do_timestep(uint step, RealType dt);
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_timestep,
-                                    do_timestep_action);
+        hpx::future<std::pair<RealType, RealType> > do_timestep(uint step,
+                                                                RealType dt);
 
         /// Action that places the bool into a receive buffer.
         /// In iteration n the SOR loop takes the n-th value from the buffer
@@ -47,7 +48,10 @@ struct HPX_COMPONENT_EXPORT stepper_server
         /// value.
         void set_keep_running(uint iter, bool kr);
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_keep_running,
-                                        set_keep_running_action);
+                                        set_keep_running_action);        
+                                        
+        void set_dt(uint step, RealType dt);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_dt, set_dt_action);
 
         /// Action that places a component representing the pressure block of a
         /// neighboring locality into a buffer. The data was sent from that
@@ -75,7 +79,7 @@ struct HPX_COMPONENT_EXPORT stepper_server
         /// Method that prints the given grid asynchronously on std::cout.
         template<typename T>
         void print_grid(std::vector<grid::partition<T> > const& grid,
-                const std::string message = "") const;
+                std::string const& message = "") const;
         
         /// Method that writes all grids to a vtk file.
         void write_vtk(uint step);
@@ -175,6 +179,8 @@ struct HPX_COMPONENT_EXPORT stepper_server
         
         // buffer for the SOR loop
         hpx::lcos::local::receive_buffer<bool> keep_running;
+        
+        hpx::lcos::local::receive_buffer<RealType> dt_buffer;
 
         // dummies so we have a parameter for dataflow if this locality does
         // not have full amount of neighbors

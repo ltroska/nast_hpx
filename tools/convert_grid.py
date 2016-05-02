@@ -41,22 +41,28 @@ for row in range(len(in_grid)):
 			type_int = 0 + 1 + 2 + 8
 
 		else:
+			count = 0
 			#north
 			if row != 0 and in_grid[row-1][col] != "1":
 				type_int += 1
+				count += 1 - cell
 			 
 			#south
 			if row != len(in_grid) - 1 and in_grid[row+1][col] != "1":
 				type_int += 2
-
+				count += 1 - cell
 			#west
 			if col != 0 and in_grid[row][col-1] != "1":
 				type_int += 4
-
+				count += 1 - cell
 			#east
 			if col != len(in_grid[0]) - 1 and in_grid[row][col+1] != "1":
 				type_int += 8
-
+				count += 1 - cell
+			
+			if count > 2:
+				print("FAILURE (illegal grid): obstacle cell is neighbors with more than two fluid cells at index i =",col, ", j =",row, " (origin top left)!", file=sys.stderr)
+				sys.exit(0)
 
 		out_row.append(type_int)
 	

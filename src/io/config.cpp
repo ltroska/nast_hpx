@@ -150,6 +150,10 @@ namespace io
         {
             cfg.beta = config_node.child("beta").first_attribute().as_double();
         }
+        else
+        {
+            cfg.beta = 0;
+        }
 
         if(config_node.child("iterMax") != NULL)
         {

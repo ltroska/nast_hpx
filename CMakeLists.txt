@@ -20,6 +20,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/
 			${CMAKE_CURRENT_SOURCE_DIR}/libs
 			)
 
+add_compile_options(-std=c++14)
+
 add_library(pugixml ${CMAKE_CURRENT_SOURCE_DIR}/libs/pugixml/pugixml.cpp)
 
 # --------------- MAIN --------------- #
@@ -54,8 +56,6 @@ add_hpx_executable(
     DEPENDENCIES config
     COMPONENT_DEPENDENCIES stepper_server
 )
-
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wno-unused-parameter -pedantic -std=c++14")
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
 

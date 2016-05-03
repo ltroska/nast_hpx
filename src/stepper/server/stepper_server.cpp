@@ -327,7 +327,9 @@ void stepper_server::do_work()
         hpx::future<std::pair<RealType, RealType> > local_max_velocity =
             do_timestep(step, dt);
 
-         // if this is the root locality gather all remote residuals and sum up
+        local_max_velocity.get();
+
+        /* // if this is the root locality gather all remote residuals and sum up
         if (hpx::get_locality_id() == 0)
         {
             hpx::future<std::vector<std::pair<RealType, RealType> > >
@@ -385,7 +387,7 @@ void stepper_server::do_work()
             hpx::lcos::gather_there(velocity_basename, std::move(local_max_velocity),
                                        step).wait();
                                                                
-        dt = dt_buffer.receive(step).get();        
+        dt = dt_buffer.receive(step).get();      */ 
     }
 }
 
@@ -513,7 +515,7 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                 );
         }
 
-   // communicate_fg_grid(step);
+    communicate_fg_grid(step);
 
     // compute the right hand side for the Poisson equation of the pressure
     for (uint l = 1; l < params.num_partitions_y - 1; l++)
@@ -696,7 +698,7 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
             hpx::lcos::gather_there(residual_basename, std::move(residual_fut),
                                         step*c.iter_max + iter).wait();
     }
-    while (keep_running.receive(step * c.iter_max + iter).get());
+    while (iter < c.iter_max);
     
     //print_grid(p_grid, "p");
     

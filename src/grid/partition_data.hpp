@@ -119,7 +119,7 @@ public:
                                     buffer_type::take, array_deleter());
                 
                 for(uint i = 0; i < base.size_y(); ++i) {
-                    data_[i] = base.get_cell(base.size_x() - 1,i);
+                    data_[i] = base(base.size_x() - 1,i);
                 }
 
                 size_x_ = 1;
@@ -135,7 +135,7 @@ public:
                                     buffer_type::take, array_deleter());
                 
                 for(uint i = 0; i < base.size_y(); ++i) {
-                    data_[i] = base.get_cell(0, i);
+                    data_[i] = base(0, i);
                 }
 
                 size_x_ = 1;
@@ -192,15 +192,18 @@ public:
         }
     }
 
-    uint size_x() const { return size_x_;}
-    uint size_y() const { return size_y_;}
-    uint size() const { return size_;}
+    inline uint size_x() const { return size_x_;}
+    inline uint size_y() const { return size_y_;}
+    inline uint size() const { return size_;}
 
-    T get_cell(uint idx, uint idy) const { return data_[index(idx, idy)];}
-    T& get_cell_ref(uint idx, uint idy) { return data_[index(idx, idy)];}
-
-    T operator[](uint idx) const { return data_[idx];}
-    T& operator[](uint idx) { return data_[idx];}
+    inline T operator[](uint idx) const { return data_[idx];}
+    inline T& operator[](uint idx) { return data_[idx];}
+    
+    inline T& operator()(unsigned idx, unsigned idy)
+    {return data_[idy * size_x_ + idx];}
+    
+    inline T operator()(unsigned idx, unsigned idy) const
+    {return data_[idy * size_x_ + idx];}
 
     T* begin() { return data_.begin(); }
     T* end() { return data_.end(); }
@@ -220,7 +223,7 @@ private:
         for (uint j = data.size_y() - 1; j < data.size_y(); j--)
         {
             for (uint i = 0; i < data.size_x(); i++)
-                os << data.get_cell(i, j) << " ";
+                os << data(i, j) << " ";
 
             os << "\n";
         }

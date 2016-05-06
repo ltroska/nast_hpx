@@ -15,7 +15,7 @@
 
 namespace io {
         
-typedef std::vector<std::vector<grid::partition_data<scalar_cell> > >
+typedef std::vector<std::vector<grid::partition_data<RealType> > >
     scalar_out_grid_type;
 
 typedef std::vector<std::vector<grid::partition_data<vector_cell> > >
@@ -57,7 +57,7 @@ void do_async_print(
             {
                 for (uint col = 0; col <  cells_x; col++)
                 {
-                    std::cout << data[i][j].get_cell(col, row) << " ";
+                    std::cout << data[i][j](col, row) << " ";
                 }
             }
             std::cout << std::endl;
@@ -288,10 +288,10 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
                 for (uint col = 0; col < cells_x; col++)
                 {
                     p_stream
-                        << p_grid[i][j].get_cell(col, row).value << "\n";
+                        << p_grid[i][j](col, row)  << "\n";
                     
                     temp_stream
-                        << temp_grid[i][j].get_cell(col, row).value << "\n";
+                        << temp_grid[i][j](col, row)  << "\n";
 
                     if (!( (left && i == 1 && col == 0)
                             || (bottom && j == 1 && row == 0) ))
@@ -308,26 +308,26 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
                             RealType v;
 
                             if (col != 0)
-                                u = (uv_grid[i][j].get_cell(col, row).first
-                                    + uv_grid[i][j].get_cell(col - 1, row)
+                                u = (uv_grid[i][j](col, row).first
+                                    + uv_grid[i][j](col - 1, row)
                                         .first
                                     ) / 2.;
                             else
                                 u = (uv_grid[i - 1][j]
-                                        .get_cell(cells_x - 1, row).first
-                                    + uv_grid[i][j].get_cell(0, row).first
+                                        (cells_x - 1, row).first
+                                    + uv_grid[i][j](0, row).first
                                     )
                                     / 2.;
 
                             if (row != 0)
-                                v = (uv_grid[i][j].get_cell(col, row).second
-                                    + uv_grid[i][j].get_cell(col, row - 1)
+                                v = (uv_grid[i][j](col, row).second
+                                    + uv_grid[i][j](col, row - 1)
                                         .second)
                                     / 2.;
                             else
                                 v = (uv_grid[i][j - 1]
-                                        .get_cell(col, cells_y - 1).second
-                                    + uv_grid[i][j].get_cell(col, 0).second
+                                        (col, cells_y - 1).second
+                                    + uv_grid[i][j](col, 0).second
                                     )
                                     / 2.;
 
@@ -351,7 +351,7 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
                        )
                     {
                         vorticity_stream
-                            << vorticity_grid[i][j].get_cell(col, row).value
+                            << vorticity_grid[i][j](col, row) 
                             << "\n";
                     }
                     else
@@ -365,11 +365,11 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
                                 && row == cells_y - 1) ) )
                     {
                         strom_stream
-                            << stream_grid[i][j].get_cell(col, row).value
+                            << stream_grid[i][j](col, row) 
                             << "\n";
                         
                         heat_stream
-                            << heat_grid[i][j].get_cell(col, row).value
+                            << heat_grid[i][j](col, row) 
                             << "\n";
                     }
                     else

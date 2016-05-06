@@ -39,7 +39,7 @@ vector_partition with_for_each::set_velocity_for_boundary_and_obstacles(
                 // cell is set wrongly, so we store the cell and set it manually
                 // at the end
                 vector_cell const topright_cell =
-                    next.get_cell(size_x - 2, size_y - 2);
+                    next(size_x - 2, size_y - 2);
 
                 hpx::parallel::for_each(
                     hpx::parallel::par, boost::begin(range), boost::end(range),
@@ -51,7 +51,7 @@ vector_partition with_for_each::set_velocity_for_boundary_and_obstacles(
                         auto& cell_type = flag_data[j*size_x + i];
                         
                         set_velocity_for_cell(
-                            next.get_cell_ref(i, j),
+                            next(i, j),
                             get_left_neighbor(next, l, i, j),
                             get_right_neighbor(next, r, i, j),
                             get_bottom_neighbor(next, b, i, j),
@@ -64,7 +64,7 @@ vector_partition with_for_each::set_velocity_for_boundary_and_obstacles(
                         // but one cell to the left
                         if (cell_type == std::bitset<5>("01011"))
                         {
-                            auto& left_cell = next.get_cell_ref(i - 1, j);
+                            auto& left_cell = next(i - 1, j);
 
                             switch(static_cast<int>(type.right))
                             {
@@ -81,7 +81,7 @@ vector_partition with_for_each::set_velocity_for_boundary_and_obstacles(
                         //since v is set in bottom cell
                         if (cell_type == std::bitset<5>("01101"))
                         {
-                            auto& bottom_cell = next.get_cell_ref(i, j - 1);
+                            auto& bottom_cell = next(i, j - 1);
                             switch(static_cast<int>(type.top))
                             {
                                 case 1 : bottom_cell.second = 0; break;
@@ -103,19 +103,19 @@ vector_partition with_for_each::set_velocity_for_boundary_and_obstacles(
                             std::bitset<5>("00111"))
                 {
                     if (type.top == 1)
-                        next.get_cell_ref(size_x - 2, size_y - 1).first =
+                        next(size_x - 2, size_y - 1).first =
                             2*u.top - topright_cell.first;
 
                     if (type.top == 2 || type.top == 3)
-                        next.get_cell_ref(size_x - 2, size_y - 1).first =
+                        next(size_x - 2, size_y - 1).first =
                             topright_cell.first;
 
                     if (type.right == 1)
-                        next.get_cell_ref(size_x - 1, size_y - 2).second =
+                        next(size_x - 1, size_y - 2).second =
                             -topright_cell.second;
 
                     if (type.right == 2 || type.right == 3)
-                        next.get_cell_ref(size_x - 1, size_y - 2).second =
+                        next(size_x - 1, size_y - 2).second =
                             topright_cell.second;
                 }
                 
@@ -164,7 +164,7 @@ scalar_partition with_for_each::set_temperature_for_boundary_and_obstacles(
                         uint const i = cnt%size_x;
                         uint const j = cnt/size_x;
 
-                        scalar_cell& middle = next.get_cell_ref(i, j);
+                        scalar_cell& middle = next(i, j);
                         scalar_cell const left =
                             get_left_neighbor(next, l, i, j);
                         scalar_cell const right =
@@ -236,14 +236,14 @@ vector_partition with_for_each::compute_fg_on_fluid_cells(
                     uint const j = cnt/size_x;
 
                     compute_fg_for_cell(
-                        next.get_cell_ref(i, j), m_uv.get_cell(i, j),
+                        next(i, j), m_uv(i, j),
                         get_left_neighbor(m_uv, l_uv, i, j),
                         get_right_neighbor(m_uv, r_uv, i, j),
                         get_bottom_neighbor(m_uv, b_uv, i, j),
                         get_top_neighbor(m_uv, t_uv, i, j),
                         get_bottomright_neighbor(m_uv, b_uv, r_uv, br_uv, i, j),
                         get_topleft_neighbor(m_uv, t_uv, l_uv, tl_uv, i, j),
-                        m_temp.get_cell(i, j),
+                        m_temp(i, j),
                         get_right_neighbor(m_temp, r_temp, i, j),
                         get_top_neighbor(m_temp, t_temp, i, j),
                         flag_data[j * size_x + i],
@@ -307,13 +307,13 @@ scalar_partition with_for_each::compute_temperature_on_fluid_cells(
                         uint const j = cnt/size_x;
                         
                         compute_temperature_for_cell(
-                            next.get_cell_ref(i, j),
-                            m_temp.get_cell(i, j),
+                            next(i, j),
+                            m_temp(i, j),
                             get_left_neighbor(m_temp, l_temp, i, i),
                             get_right_neighbor(m_temp, r_temp, i, j),
                             get_bottom_neighbor(m_temp, b_temp, i, j),
                             get_top_neighbor(m_temp, t_temp, i, j),
-                            m_uv.get_cell(i, j),
+                            m_uv(i, j),
                             get_left_neighbor(m_uv, l_uv, i, j),
                             get_bottom_neighbor(m_uv, b_uv, i, j),
                             flag_data[j * size_x + i],
@@ -367,8 +367,8 @@ scalar_partition with_for_each::compute_right_hand_side_on_fluid_cells(
                         uint const j = cnt/size_x;
                         
                         compute_rhs_for_cell(
-                            next.get_cell_ref(i, j),
-                            m_fg.get_cell(i, j),
+                            next(i, j),
+                            m_fg(i, j),
                             get_left_neighbor(m_fg, l_fg, i, j),
                             get_bottom_neighbor(m_fg, b_fg, i, j),
                             flag_data[j * size_x + i],
@@ -414,7 +414,7 @@ scalar_partition with_for_each::set_pressure_for_boundary_and_obstacles(
                         uint const j = cnt/size_x;
 
                         set_pressure_for_cell(
-                            next.get_cell_ref(i, j),
+                            next(i, j),
                             get_left_neighbor(next, l_p, i, j),
                             get_right_neighbor(next, r_p, i, j),
                             get_bottom_neighbor(next, b_p, i, j),
@@ -470,12 +470,12 @@ scalar_partition with_for_each::sor_cycle(scalar_partition const& middle_p,
                         uint const j = cnt/size_x;
 
                         do_sor_cycle_for_cell(
-                            m_p.get_cell_ref(i, j),
+                            m_p(i, j),
                             get_left_neighbor(m_p, l_p, i, j),
                             get_right_neighbor(m_p, r_p, i, j),
                             get_bottom_neighbor(m_p, b_p, i, j),
                             get_top_neighbor(m_p, t_p, i, j),
-                            m_rhs.get_cell(i, j),
+                            m_rhs(i, j),
                             flag_data[j * size_x + i],
                             dx_sq, dy_sq, part1, part2);
                     }
@@ -526,12 +526,12 @@ hpx::future<RealType> with_for_each::compute_residual(
                         uint const j = cnt/size_x;
 
                         return compute_residual_for_cell(
-                            m_p.get_cell(i, j),
+                            m_p(i, j),
                             get_left_neighbor(m_p, l_p, i, j),
                             get_right_neighbor(m_p, r_p, i, j),
                             get_bottom_neighbor(m_p, b_p, i, j),
                             get_top_neighbor(m_p, t_p, i, j),
-                            m_rhs.get_cell(i, j),
+                            m_rhs(i, j),
                             flag_data[j * size_x + i],
                             over_dx_sq, over_dy_sq);
                     },
@@ -585,14 +585,14 @@ with_for_each::update_velocities(
                         uint const i = cnt%size_x;
                         uint const j = cnt/size_x;
 
-                        vector_cell& middle_uv = next.get_cell_ref(i, j);
+                        vector_cell& middle_uv = next(i, j);
                         
                         update_velocity_for_cell(
                             middle_uv,
-                            m_p.get_cell(i, j),
+                            m_p(i, j),
                             get_right_neighbor(m_p, r_p, i, j),
                             get_top_neighbor(m_p, t_p, i, j),
-                            m_fg.get_cell(i, j),
+                            m_fg(i, j),
                             flag_data[j * size_x + i],
                             over_dx, over_dy, dt);
                         
@@ -663,31 +663,31 @@ with_for_each::compute_stream_vorticity_heat(
                     {
                         if (cell_type.test(4) || global_i + i == 0)
                         {
-                            stream_center.get_cell_ref(i, j).value =
+                            stream_center(i, j)  =
                                 get_bottom_neighbor(stream_center,
-                                    stream_bottom, i, j).value
-                                + uv_center.get_cell(i, j).first*dy;
+                                    stream_bottom, i, j) 
+                                + uv_center(i, j).first*dy;
                             
-                            heat_center.get_cell_ref(i, j).value =
+                            heat_center(i, j)  =
                                 get_bottom_neighbor(heat_center,
-                                    heat_bottom, i, j).value
-                                + dy * (re * pr * uv_center.get_cell(i, j).first
+                                    heat_bottom, i, j) 
+                                + dy * (re * pr * uv_center(i, j).first
                                 * (get_right_neighbor(temp_center,
-                                                        temp_right, i, j).value
-                                    + temp_center.get_cell(i, j).value) / 2.
+                                                        temp_right, i, j) 
+                                    + temp_center(i, j) ) / 2.
                                 - (get_right_neighbor(temp_center,
-                                        temp_right, i, j).value
-                                    - temp_center.get_cell(i, j).value) / dx);
+                                        temp_right, i, j) 
+                                    - temp_center(i, j) ) / dx);
                         }
                         else
                         {
-                             stream_center.get_cell_ref(i, j).value =
+                             stream_center(i, j)  =
                                 get_bottom_neighbor(stream_center,
-                                    stream_bottom, i, j).value;
+                                    stream_bottom, i, j) ;
                              
-                             heat_center.get_cell_ref(i, j).value =
+                             heat_center(i, j)  =
                                 get_bottom_neighbor(heat_center,
-                                    heat_bottom, i, j).value;
+                                    heat_bottom, i, j) ;
                         }
                     }
 
@@ -697,9 +697,9 @@ with_for_each::compute_stream_vorticity_heat(
                         if (cell_type.test(4))
                         {
                             vector_cell const curr_cell =
-                            uv_center.get_cell(i, j);
+                            uv_center(i, j);
                             
-                            vorticity_center.get_cell_ref(i, j).value =
+                            vorticity_center(i, j)  =
                                 (get_top_neighbor(uv_center, uv_top, i, j).first
                                     - curr_cell.first)/dy
                                 - (get_right_neighbor(uv_center,
@@ -707,7 +707,7 @@ with_for_each::compute_stream_vorticity_heat(
                                     - curr_cell.second)/dx;
                         }
                         else
-                            vorticity_center.get_cell_ref(i, j).value = 0;
+                            vorticity_center(i, j)  = 0;
                     }
                 }
             

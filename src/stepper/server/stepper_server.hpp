@@ -159,6 +159,10 @@ struct HPX_COMPONENT_EXPORT stepper_server
 
         // grid describing the type of each cell (boundary, obstacle, fluid)
         flag_grid_type flag_grid;
+        
+        std::vector<std::vector<std::pair<uint, uint> > > obstacle;
+        std::vector<std::vector<std::vector<std::pair<uint, uint> > > > boundary;
+        std::vector<std::vector<std::pair<uint, uint> > > fluid;
 
         RealType t, next_write;
         uint out_iter;

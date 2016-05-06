@@ -23,7 +23,7 @@ struct scalar_cell
 
     friend std::ostream& operator<<(std::ostream& os, scalar_cell const& cell)
     {
-        os << "{" << cell.value << "}";
+        os << "{" << cell  << "}";
         return os;
     }
 };

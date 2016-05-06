@@ -37,8 +37,8 @@ add_hpx_component(
 
 add_hpx_component(
 	strategy
-	SOURCES src/computation/custom_grain_size.cpp src/computation/with_for_each.cpp src/computation/cell_operations.cpp
-	HEADERS src/computation/custom_grain_size.hpp src/computation/with_for_each.hpp src/computation/cell_operations.hpp
+	SOURCES src/computation/custom_grain_size.cpp
+	HEADERS src/computation/custom_grain_size.hpp
 	COMPONENT_DEPENDENCIES partition_server
 )
 
@@ -94,7 +94,7 @@ add_test(get_neighbor_cell test_get_neighbor_cell -t4)
 add_hpx_executable(
     test_cgs_set_velocity_on_boundary
     ESSENTIAL
-    SOURCES tests/test_cgs_set_velocity_on_boundary.cpp src/computation/custom_grain_size.cpp src/computation/cell_operations.cpp
+    SOURCES tests/test_cgs_set_velocity_on_boundary.cpp src/computation/custom_grain_size.cpp
     COMPONENT_DEPENDENCIES partition_server
 )
 add_test(cgs_set_velocity_on_boundary_test  test_cgs_set_velocity_on_boundary -t4)

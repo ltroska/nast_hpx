@@ -68,6 +68,8 @@ public:
         vector_partition const& middle_uv,
         vector_partition const& left_uv,
         vector_partition const& bottom_uv,
+        std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
+        std::vector<std::pair<uint, uint> > const& obstacle,
         std::vector<std::pair<uint, uint> > const& fluid,
         RealType re, RealType pr, RealType dx, RealType dy, RealType dt,
         RealType alpha);
@@ -78,10 +80,12 @@ public:
         std::vector<std::pair<uint, uint> > const& fluid,
         RealType dx, RealType dy, RealType dt);
     
-    static scalar_partition set_pressure_on_boundary_and_obstacles(
+    static scalar_partition set_pressure_for_boundary_and_obstacles(
         scalar_partition const& middle_p, scalar_partition const& left_p,
         scalar_partition const& right_p, scalar_partition const& bottom_p,
         scalar_partition const& top_p,
+        std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
+        std::vector<std::pair<uint, uint> > const& obstacle,
         std::vector<std::bitset<5> > const& flag_data);
     
     static scalar_partition sor_cycle(scalar_partition const& middle_p,

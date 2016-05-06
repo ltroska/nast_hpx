@@ -66,7 +66,7 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
                     set_velocity_for_left_boundary(
                         m(i, j),
                         m(i + 1, j),
-                        type.left, u.right, v.right);
+                        type.left, u.left, v.left);
                 }                
                 
                 //right
@@ -79,7 +79,7 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
                         m(i, j),
                         m(i - 1, j),
                         get_left_neighbor(m, l, i - 1, j),
-                        type.right, u.left, v.left);
+                        type.right, u.right, v.right);
                 }                
                 
                 //bottom
@@ -315,13 +315,16 @@ scalar_partition custom_grain_size::compute_temperature_on_fluid_cells(
     scalar_partition const& top_temperature,
     vector_partition const& middle_uv, vector_partition const& left_uv,
     vector_partition const& bottom_uv,
+    std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
+    std::vector<std::pair<uint, uint> > const& obstacle,
     std::vector<std::pair<uint, uint> > const& fluid, RealType re, RealType pr,
     RealType dx, RealType dy, RealType dt, RealType alpha)
 {                       
     return hpx::dataflow(
         hpx::launch::async,
         hpx::util::unwrapped(
-            [middle_temperature, fluid, re, pr, dx, dy, dt, alpha]
+            [middle_temperature, boundary, obstacle, fluid, re, pr, dx, dy, dt,
+                alpha]
             (scalar_data const& m_temp, scalar_data const& l_temp,
                 scalar_data const& r_temp, scalar_data const& b_temp,
                 scalar_data const& t_temp, vector_data const& m_uv,
@@ -349,8 +352,48 @@ scalar_partition custom_grain_size::compute_temperature_on_fluid_cells(
                         get_bottom_neighbor(m_uv, b_uv, i, j),
                         re, pr, dx, dy, dt, alpha);
                 }
+                
+                for (auto& idx_pair : boundary[0])
+                {
+                    uint i = idx_pair.first;
+                    uint j = idx_pair.second;
+    
+                    next(i, j) = m_temp(i, j);
+                }                  
+                
+                for (auto& idx_pair : boundary[1])
+                {
+                    uint i = idx_pair.first;
+                    uint j = idx_pair.second;
+    
+                    next(i, j) = m_temp(i, j);
+                }                  
+                
+                for (auto& idx_pair : boundary[2])
+                {
+                    uint i = idx_pair.first;
+                    uint j = idx_pair.second;
+    
+                    next(i, j) = m_temp(i, j);
+                }                  
+                
+                for (auto& idx_pair : boundary[3])
+                {
+                    uint i = idx_pair.first;
+                    uint j = idx_pair.second;
+    
+                    next(i, j) = m_temp(i, j);
+                }                  
+                
+                for (auto& idx_pair : obstacle)
+                {
+                    uint i = idx_pair.first;
+                    uint j = idx_pair.second;
+    
+                    next(i, j) = m_temp(i, j);
+                }
 
-                return middle_temperature;
+                return scalar_partition(middle_temperature.get_id(), next);
             }
         ),
         middle_temperature.get_data(CENTER),
@@ -400,104 +443,77 @@ scalar_partition custom_grain_size::compute_right_hand_side_on_fluid_cells(
     );    
 }
 
-scalar_partition custom_grain_size::set_pressure_on_boundary_and_obstacles(
+scalar_partition custom_grain_size::set_pressure_for_boundary_and_obstacles(
     scalar_partition const& middle_p, scalar_partition const& left_p,
     scalar_partition const& right_p, scalar_partition const& bottom_p,
     scalar_partition const& top_p,
+    std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
+    std::vector<std::pair<uint, uint> > const& obstacle,
     std::vector<std::bitset<5> > const& flag_data)
 { 
-    //do local computation first
-    hpx::future<scalar_data> next_p_middle = 
-        hpx::dataflow(
-            hpx::launch::async,
-            hpx::util::unwrapped(
-                [middle_p, flag_data]
-                (scalar_data m_p)
-                -> scalar_data
-                {
-                    uint size_x = m_p.size_x();
-                    uint size_y = m_p.size_y();
-
-                    //scalar_data next(size_x, size_y);
-
-                    for (uint j = 1; j < size_y - 1; j++)
-                        for (uint i = 1; i < size_x - 1; i++)
-                            set_pressure_for_cell(
-                                m_p(i, j),
-                                m_p(i - 1, j),
-                                m_p(i + 1, j),
-                                m_p(i, j - 1),
-                                m_p(i, j + 1),
-                                flag_data[j * size_x + i]);
-
-                    return m_p;
-                }
-            ),
-            middle_p.get_data(CENTER)
-        );
-   
    return hpx::dataflow(
         hpx::launch::async,
         hpx::util::unwrapped(
-            [middle_p, flag_data]
-            (scalar_data next, scalar_data const& l_p,
+            [middle_p, boundary, obstacle, flag_data]
+            (scalar_data m_p, scalar_data const& l_p,
                 scalar_data const& r_p, scalar_data const& b_p,
                 scalar_data const& t_p)
             -> scalar_partition
             {
-                uint size_x = next.size_x();
-                uint size_y = next.size_y();        
-                             
-                //left and right
-                for (uint j = 0; j < size_y; j++)
+                uint size_x = m_p.size_x();
+                uint size_y = m_p.size_y();        
+    
+               for (auto& idx_pair : boundary[0])
                 {
-                    uint i = 0;                     
-                    set_pressure_for_cell(
-                       next(i, j),
-                       get_left_neighbor(next, l_p, i, j),
-                       get_right_neighbor(next, r_p, i, j),
-                       get_bottom_neighbor(next, b_p, i, j),
-                       get_top_neighbor(next, t_p, i, j),
-                       flag_data[j * size_x + i]);
-                     
+                    uint i = idx_pair.first;
+                    uint j = idx_pair.second;
                     
-                    i = size_x - 1;
-                    set_pressure_for_cell(
-                       next(i, j),
-                       get_left_neighbor(next, l_p, i, j),
-                       get_right_neighbor(next, r_p, i, j),
-                       get_bottom_neighbor(next, b_p, i, j),
-                       get_top_neighbor(next, t_p, i, j),
-                       flag_data[j * size_x + i]);
-                }    
+                    m_p(i, j) = m_p(i + 1, j);
+                }                
                 
-                //bottom and top
-                for (uint i = 1; i < size_x - 1; i++)
+                for (auto& idx_pair : boundary[1])
                 {
-                    uint j = 0;
-                    set_pressure_for_cell(
-                       next(i, j),
-                       get_left_neighbor(next, l_p, i, j),
-                       get_right_neighbor(next, r_p, i, j),
-                       get_bottom_neighbor(next, b_p, i, j),
-                       get_top_neighbor(next, t_p, i, j),
-                       flag_data[j * size_x + i]);
-                     
+                    uint i = idx_pair.first;
+                    uint j = idx_pair.second;
                     
-                    j = size_y - 1;
-                    set_pressure_for_cell(
-                       next(i, j),
-                       get_left_neighbor(next, l_p, i, j),
-                       get_right_neighbor(next, r_p, i, j),
-                       get_bottom_neighbor(next, b_p, i, j),
-                       get_top_neighbor(next, t_p, i, j),
-                       flag_data[j * size_x + i]);
-                }                                              
+                    m_p(i, j) = m_p(i - 1, j);
+                }                
                 
-                return scalar_partition(middle_p.get_id(), next);
+                for (auto& idx_pair : boundary[2])
+                {
+                    uint i = idx_pair.first;
+                    uint j = idx_pair.second;
+                    
+                    m_p(i, j) = m_p(i, j + 1);                 
+                }                
+                
+                for (auto& idx_pair : boundary[3])
+                {
+                    uint i = idx_pair.first;
+                    uint j = idx_pair.second;
+                    
+                    m_p(i, j) = m_p(i, j - 1);                  
+                }
+
+                for (auto& idx_pair : obstacle)
+                {
+                    uint i = idx_pair.first;
+                    uint j = idx_pair.second;
+                    
+                    computation::set_pressure_for_cell(
+                                m_p(i, j),
+                                get_left_neighbor(m_p, l_p, i, j),
+                                get_right_neighbor(m_p, r_p, i, j),
+                                get_bottom_neighbor(m_p, b_p, i, j),
+                                get_top_neighbor(m_p, t_p, i, j),
+                                flag_data[j * size_x + i]);                    
+                }     
+                        
+                return middle_p;
+ 
             }
         ),
-        std::move(next_p_middle),
+        middle_p.get_data(CENTER),
         left_p.get_data(LEFT),
         right_p.get_data(RIGHT),
         bottom_p.get_data(BOTTOM),
@@ -526,76 +542,6 @@ scalar_partition custom_grain_size::sor_cycle(
             {
                 uint size_x = m_p.size_x();
                 uint size_y = m_p.size_y();
-
-                for (auto& idx_pair : boundary[0])
-                {
-                    uint i = idx_pair.first;
-                    uint j = idx_pair.second;
-                    
-                    computation::set_pressure_for_boundary(
-                                m_p(i, j),
-                                get_left_neighbor(m_p, l_p, i, j),
-                                get_right_neighbor(m_p, r_p, i, j),
-                                get_bottom_neighbor(m_p, b_p, i, j),
-                                get_top_neighbor(m_p, t_p, i, j),
-                                flag_data[j * size_x + i]);                    
-                }                
-                
-                for (auto& idx_pair : boundary[1])
-                {
-                    uint i = idx_pair.first;
-                    uint j = idx_pair.second;
-                    
-                    computation::set_pressure_for_boundary(
-                                m_p(i, j),
-                                get_left_neighbor(m_p, l_p, i, j),
-                                get_right_neighbor(m_p, r_p, i, j),
-                                get_bottom_neighbor(m_p, b_p, i, j),
-                                get_top_neighbor(m_p, t_p, i, j),
-                                flag_data[j * size_x + i]);                    
-                }                
-                
-                for (auto& idx_pair : boundary[2])
-                {
-                    uint i = idx_pair.first;
-                    uint j = idx_pair.second;
-                    
-                    computation::set_pressure_for_boundary(
-                                m_p(i, j),
-                                get_left_neighbor(m_p, l_p, i, j),
-                                get_right_neighbor(m_p, r_p, i, j),
-                                get_bottom_neighbor(m_p, b_p, i, j),
-                                get_top_neighbor(m_p, t_p, i, j),
-                                flag_data[j * size_x + i]);                    
-                }                
-                
-                for (auto& idx_pair : boundary[3])
-                {
-                    uint i = idx_pair.first;
-                    uint j = idx_pair.second;
-                    
-                    computation::set_pressure_for_boundary(
-                                m_p(i, j),
-                                get_left_neighbor(m_p, l_p, i, j),
-                                get_right_neighbor(m_p, r_p, i, j),
-                                get_bottom_neighbor(m_p, b_p, i, j),
-                                get_top_neighbor(m_p, t_p, i, j),
-                                flag_data[j * size_x + i]);                    
-                }
-                
-                for (auto& idx_pair : obstacle)
-                {
-                    uint i = idx_pair.first;
-                    uint j = idx_pair.second;
-                    
-                    computation::set_pressure_for_cell(
-                                m_p(i, j),
-                                get_left_neighbor(m_p, l_p, i, j),
-                                get_right_neighbor(m_p, r_p, i, j),
-                                get_bottom_neighbor(m_p, b_p, i, j),
-                                get_top_neighbor(m_p, t_p, i, j),
-                                flag_data[j * size_x + i]);                    
-                }      
 
                 for (auto& idx_pair : fluid)
                 {

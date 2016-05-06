@@ -489,7 +489,7 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
     // note: this does not block (it is essentially moving on a future)
     uv_grid = uv_temp_grid;
     
-    //print_grid(uv_grid, "uv");
+   // print_grid(uv_grid, "uv");
 
   
     if (c.pr != 0)
@@ -518,6 +518,8 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                             uv_grid[get_index(k, l)],
                             uv_grid[get_index(k - 1, l)],
                             uv_grid[get_index(k, l - 1)],
+                            boundary[get_index(k, l)],
+                            obstacle[get_index(k, l)],
                             fluid[get_index(k, l)],
                             params.re, c.pr, params.dx, params.dy, dt, c.alpha
                         );
@@ -577,7 +579,7 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                     dt
                 );
    
-    /*print_grid(uv_grid, "uv");
+  /*  print_grid(uv_grid, "uv");
     print_grid(temperature_grid, "temp");
     print_grid(fg_grid, "fg");
     print_grid(rhs_grid, "rhs");*/
@@ -600,22 +602,49 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
         // we need to split setting the boundary values and doing the actual
         // SOR loop into two steps, otherwise we can do it in one
         
-#ifdef CUSTOM_GRAIN_SIZE                 
+#ifdef CUSTOM_GRAIN_SIZE  
+    for (uint l = 0; l < params.num_partitions_y; l++)
+        for (uint k = 0; k < params.num_partitions_x; k++)
+        {
+            if (k != 0 && k != params.num_partitions_x - 1 && l != 0
+                && l != params.num_partitions_y - 1)
+            {
+                p_temp_grid[get_index(k, l)] =
+                    hpx::dataflow(
+                        hpx::launch::async,
+                        &strategy::set_pressure_for_boundary_and_obstacles,
+                        p_grid[get_index(k, l)],
+                        p_grid[get_index(k - 1, l)],
+                        p_grid[get_index(k + 1, l)],
+                        p_grid[get_index(k, l - 1)],
+                        p_grid[get_index(k, l + 1)],
+                        boundary[get_index(k, l)],
+                        obstacle[get_index(k, l)],
+                        flag_grid[get_index(k, l)]
+                    );
+            }
+            else
+                p_temp_grid[get_index(k, l)] = p_grid[get_index(k, l)];
+        }
+        
+      //  if (iter < 5)
+      //      print_grid(p_temp_grid, "pb");
+
       for (uint l = 0; l < params.num_partitions_y; l++)
             for (uint k = 0; k < params.num_partitions_x; k++)
             {
                 if (k != 0 && k != params.num_partitions_x - 1 && l != 0
                     && l != params.num_partitions_y - 1)
                 {
-                    p_temp_grid[get_index(k, l)] =
+                    p_grid[get_index(k, l)] =
                         hpx::dataflow(
                             hpx::launch::async,
                             &strategy::sor_cycle,
-                            p_grid[get_index(k, l)],
-                            p_temp_grid[get_index(k - 1, l)],
-                            p_grid[get_index(k + 1, l)],
-                            p_temp_grid[get_index(k, l - 1)],
-                            p_grid[get_index(k, l + 1)],
+                            p_temp_grid[get_index(k, l)],
+                            p_grid[get_index(k - 1, l)],
+                            p_temp_grid[get_index(k + 1, l)],
+                            p_grid[get_index(k, l - 1)],
+                            p_temp_grid[get_index(k, l + 1)],
                             rhs_grid[get_index(k, l)],
                             flag_grid[get_index(k, l)],
                             boundary[get_index(k, l)],
@@ -625,11 +654,10 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                         );
                 }
                 else
-                    p_temp_grid[get_index(k, l)] = p_grid[get_index(k, l)];
-            }
-        
-    p_grid = p_temp_grid;
-        
+                    p_grid[get_index(k, l)] = p_temp_grid[get_index(k, l)];
+            }        
+     //           if (iter < 5)
+      //      print_grid(p_grid, "pa");
 #else
 
         for (uint l = 0; l < params.num_partitions_y; l++)
@@ -756,6 +784,8 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                                         
     }
     while (iter < c.iter_max);
+
+   // print_grid(p_grid);
 
     RealType t2_elapsed = t2.elapsed();
 
@@ -1154,9 +1184,9 @@ void stepper_server::write_vtk(uint step)
         }
         
     // write out data once computation finishes
-    hpx::dataflow(
-        hpx::launch::async,
-        &io::write_vtk,
+    //hpx::dataflow(
+    //    hpx::launch::async,
+        io::write_vtk(
         p_grid, uv_grid, stream_grid, vorticity_grid, heat_grid,
         temperature_grid, flag_grid, params.dx, params.dy, step, params.i_max,
         params.j_max, params.num_partitions_x,

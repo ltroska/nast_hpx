@@ -23,17 +23,6 @@ private:
         }
     };
 
-    struct hold_reference
-    {
-        hold_reference(buffer_type const& data)
-          : data_(data)
-        {}
-
-        void operator()(T*) {}     // no deletion necessary
-
-        buffer_type data_;
-    };
-
 public:
 
     partition_data()
@@ -79,8 +68,7 @@ public:
             {
                 data_ =
                     buffer_type(base.data_.data() + base.size_x() - 1, 1,
-                                    buffer_type::reference,
-                                    hold_reference(base.data_));
+                                    buffer_type::reference);
                 size_x_ = 1;
                 size_y_ = 1;
                 size_ = 1;
@@ -91,8 +79,7 @@ public:
             {
                 data_ =
                     buffer_type(base.data_.data(), base.size_x(),
-                                    buffer_type::reference,
-                                    hold_reference(base.data_));
+                                    buffer_type::reference);
                 size_x_ = base.size_x();
                 size_y_ = 1;
                 size_ = base.size_x();
@@ -103,8 +90,7 @@ public:
             {
                 data_ =
                     buffer_type(base.data_.data(), 1,
-                                    buffer_type::reference,
-                                    hold_reference(base.data_));
+                                    buffer_type::reference);
                 size_x_ = 1;
                 size_y_ = 1;
                 size_ = 1;
@@ -115,32 +101,24 @@ public:
             case LEFT:
             {
                 data_ =
-                    buffer_type(new T [base.size_y()], base.size_y(),
-                                    buffer_type::take, array_deleter());
-                
-                for(uint i = 0; i < base.size_y(); ++i) {
-                    data_[i] = base(base.size_x() - 1,i);
-                }
+                    buffer_type(base.data_.data(), base.size(),
+                                    buffer_type::reference);
 
-                size_x_ = 1;
+                size_x_ = base.size_x();
                 size_y_ = base.size_y();
-                size_ = base.size_y();
+                size_ = base.size();
                 break;
             }
 
             case RIGHT:
             {
                 data_ =
-                    buffer_type(new T [base.size_y()], base.size_y(),
-                                    buffer_type::take, array_deleter());
+                     buffer_type(base.data_.data(), base.size(),
+                                    buffer_type::reference);
                 
-                for(uint i = 0; i < base.size_y(); ++i) {
-                    data_[i] = base(0, i);
-                }
-
-                size_x_ = 1;
+                size_x_ = base.size_x();
                 size_y_ = base.size_y();
-                size_ = base.size_y();
+                size_ = base.size();
                 break;
             }
 
@@ -148,8 +126,7 @@ public:
             {
                 data_ =
                     buffer_type(base.data_.data() + base.size() - 1, 1,
-                                    buffer_type::reference,
-                                    hold_reference(base.data_));
+                                    buffer_type::reference);
                 size_x_ = 1;
                 size_y_ = 1;
                 size_ = 1;
@@ -160,8 +137,7 @@ public:
             {
                 data_ =
                     buffer_type(base.data_.data() + base.size() - base.size_x(),
-                                    base.size_x(), buffer_type::reference,
-                                    hold_reference(base.data_));
+                                    base.size_x(), buffer_type::reference);
                 size_x_ = base.size_x();
                 size_y_ = 1;
                 size_ = base.size_x();
@@ -172,8 +148,7 @@ public:
             {
                 data_ =
                     buffer_type(base.data_.data() + base.size() - base.size_x(),
-                                    1, buffer_type::reference,
-                                    hold_reference(base.data_));
+                                    1, buffer_type::reference);
                 size_x_ = 1;
                 size_y_ = 1;
                 size_ = 1;
@@ -184,7 +159,7 @@ public:
             default:
                 data_ =
                     buffer_type(base.data_.data(), base.size(),
-                    buffer_type::reference, hold_reference(base.data_));
+                    buffer_type::reference);
                 size_x_ = base.size_x();
                 size_y_ = base.size_y();
                 size_ = base.size();

@@ -452,7 +452,6 @@ scalar_partition custom_grain_size::set_pressure_for_boundary_and_obstacles(
     std::vector<std::bitset<5> > const& flag_data)
 { 
    return hpx::dataflow(
-        hpx::launch::async,
         hpx::util::unwrapped(
             [middle_p, boundary, obstacle, flag_data]
             (scalar_data m_p, scalar_data const& l_p,
@@ -463,7 +462,7 @@ scalar_partition custom_grain_size::set_pressure_for_boundary_and_obstacles(
                 uint size_x = m_p.size_x();
                 uint size_y = m_p.size_y();        
     
-               for (auto& idx_pair : boundary[0])
+                for (auto& idx_pair : boundary[0])
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
@@ -532,7 +531,6 @@ scalar_partition custom_grain_size::sor_cycle(
     RealType dx_sq, RealType dy_sq, RealType part1, RealType part2)
 {                
     return hpx::dataflow(
-        hpx::launch::async,
         hpx::util::unwrapped(
             [middle_p, flag_data, boundary, obstacle, fluid, dx_sq, dy_sq, part1, part2]
             (scalar_data m_p, scalar_data const& l_p, scalar_data const& r_p,
@@ -581,7 +579,6 @@ hpx::future<RealType> custom_grain_size::compute_residual(
     RealType const over_dy_sq = 1./std::pow(dy, 2);
    
     return hpx::dataflow(
-        hpx::launch::async,
         hpx::util::unwrapped(
             [fluid, over_dx_sq, over_dy_sq]
             (scalar_data const& m_p, scalar_data const& l_p,

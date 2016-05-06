@@ -81,7 +81,7 @@ inline T get_left_neighbor(grid::partition_data<T> const& center,
     if (i > 0)
         return center(i-1, j);
     else
-        return left[j];
+        return left(left.size_x() - 1, j);
 }
 
 /// Method extracts the right neighbor of the given cell from the provided
@@ -93,7 +93,7 @@ inline T get_right_neighbor(grid::partition_data<T> const& center,
     if (i+1 < center.size_x())
         return center(i+1, j);
     else
-        return right[j];
+        return right(0, j);
 }
 
 /// Method extracts the bottom neighbor of the given cell from the provided
@@ -105,7 +105,7 @@ inline T get_bottom_neighbor(grid::partition_data<T> const& center,
     if (j > 0)
         return center(i, j-1);
     else
-        return bottom[i];
+        return bottom(i, bottom.size_y() - 1);
 }
 
 /// Method extracts the top neighbor of the given cell from the provided
@@ -117,7 +117,7 @@ inline T get_top_neighbor(grid::partition_data<T> const& center,
     if (j+1 < center.size_y())
         return center(i, j+1);
     else
-        return top[i];
+        return top(i, 0);
 }
 
 /// Method extracts the bottom right neighbor of the given cell from the

@@ -57,45 +57,4 @@ add_hpx_executable(
     COMPONENT_DEPENDENCIES stepper_server
 )
 
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
-
-# partition_data
-
-add_hpx_executable(
-    test_partition_data
-    ESSENTIAL
-    SOURCES tests/test_partition_data.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(partition_data_test test_partition_data -t4)
-
-# partition
-
-add_hpx_executable(
-    test_partition
-    ESSENTIAL
-    SOURCES tests/test_partition.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(partition_test test_partition -t4)
-
-# get_neighbor_cell()
-
-add_hpx_executable(
-    test_get_neighbor_cell
-    ESSENTIAL
-    SOURCES tests/test_get_neighbor_cell.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(get_neighbor_cell test_get_neighbor_cell -t4)
-
-# cgs::set_velocity_on_boundary()
-
-add_hpx_executable(
-    test_cgs_set_velocity_on_boundary
-    ESSENTIAL
-    SOURCES tests/test_cgs_set_velocity_on_boundary.cpp src/computation/custom_grain_size.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(cgs_set_velocity_on_boundary_test  test_cgs_set_velocity_on_boundary -t4)
 

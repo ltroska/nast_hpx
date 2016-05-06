@@ -591,18 +591,18 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
 
     RealType const dx_sq = std::pow(params.dx, 2);
     RealType const dy_sq = std::pow(params.dy, 2);
+    RealType const over_dx_sq = 1./std::pow(params.dx, 2);
+    RealType const over_dy_sq = 1./std::pow(params.dy, 2);
     RealType const part1 = 1. - c.omega;
     RealType const part2 = c.omega * dx_sq * dy_sq / (2. * (dx_sq + dy_sq));
+        
+    uint k = 1;
+    uint l = 1;
         
     uint iter = 0;
     RealType res = 0;
     do
-    {
-        // if we were compiled with the hpx::parallel algorithm strategy,
-        // we need to split setting the boundary values and doing the actual
-        // SOR loop into two steps, otherwise we can do it in one
-        
-#ifdef CUSTOM_GRAIN_SIZE  
+    {  
     for (uint l = 0; l < params.num_partitions_y; l++)
         for (uint k = 0; k < params.num_partitions_x; k++)
         {
@@ -658,54 +658,6 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
             }        
      //           if (iter < 5)
       //      print_grid(p_grid, "pa");
-#else
-
-        for (uint l = 0; l < params.num_partitions_y; l++)
-            for (uint k = 0; k < params.num_partitions_x; k++)
-            {
-                if (k != 0 && k != params.num_partitions_x - 1 && l != 0
-                    && l != params.num_partitions_y - 1)
-                {
-                    p_temp_grid[get_index(k, l)] =
-                        hpx::dataflow(
-                            hpx::launch::async,
-                            &strategy::set_pressure_for_boundary_and_obstacles,
-                            p_grid[get_index(k, l)],
-                            p_grid[get_index(k - 1, l)],
-                            p_grid[get_index(k + 1, l)],
-                            p_grid[get_index(k, l - 1)],
-                            p_grid[get_index(k, l + 1)],
-                            flag_grid[get_index(k, l)]
-                        );
-                }
-                else
-                    p_temp_grid[get_index(k, l)] = p_grid[get_index(k, l)];
-            }
-        
-        for (uint l = 0; l < params.num_partitions_y; l++)
-            for (uint k = 0; k < params.num_partitions_x; k++)
-            {
-                if (k != 0 && k != params.num_partitions_x - 1 && l != 0
-                    && l != params.num_partitions_y - 1)
-                {
-                    p_grid[get_index(k, l)] =
-                        hpx::dataflow(
-                            hpx::launch::async,
-                            &strategy::sor_cycle,
-                            p_temp_grid[get_index(k, l)],
-                            p_grid[get_index(k - 1, l)],
-                            p_temp_grid[get_index(k + 1, l)],
-                            p_grid[get_index(k, l - 1)],
-                            p_temp_grid[get_index(k, l + 1)],
-                            rhs_grid[get_index(k, l)],
-                            flag_grid[get_index(k, l)],
-                            c.omega, params.dx, params.dy
-                        );
-                }
-                else
-                    p_grid[get_index(k, l)] = p_temp_grid[get_index(k, l)];
-            }
-#endif
         
         communicate_p_grid(step * c.iter_max + iter);
           
@@ -747,7 +699,7 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
 
         iter++;
         
-        // if this is the root locality gather all remote residuals and sum up
+        /*// if this is the root locality gather all remote residuals and sum up
         if (hpx::get_locality_id() == 0)
         {
             hpx::future<std::vector<RealType> > local_residuals =
@@ -775,11 +727,11 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
             hpx::lcos::broadcast_apply<set_keep_running_action>(
                 localities, step * c.iter_max + iter,
                 (iter < c.iter_max && res > c.eps_sq));*/
-        }
+      /*  }
         // if not root locality, send residual to root locality
         else
             hpx::lcos::gather_there(residual_basename, std::move(residual_fut),
-                                        step*c.iter_max + iter).wait();
+                                        step*c.iter_max + iter).wait();*/
                                         
                                         
     }

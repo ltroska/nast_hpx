@@ -16,8 +16,8 @@
 	<tEnd value="2"/>
 	<GX value="0"/>
 	<GY value="0"/>
-	<outputSkipSize value="0"/>
-	<deltaVec value="0.2"/>
+	<outputSkipSize value="1"/>
+	<deltaVec value="0"/>
 	<vtk value="1"/>
 	<UO value="1"/>
 	<subIterations value="1"/>

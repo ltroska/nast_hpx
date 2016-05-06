@@ -4,3 +4,7 @@ build
 *.layout
 *.txt
 nbproject
+
+.codelite/
+*.project
+settings/

@@ -22,6 +22,9 @@ public:
             vector_partition const& right_partition,
             vector_partition const& bottom_partition,
             vector_partition const& top_partition,
+            std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
+            std::vector<std::pair<uint, uint> > const& obstacle,
+            std::vector<std::pair<uint, uint> > const& fluid,
             std::vector<std::bitset<5> > const& flag_data,
             boundary_data const& boundary_data_type,
             boundary_data const& u_boundary_data,
@@ -33,13 +36,14 @@ public:
             scalar_partition const& right_partition,
             scalar_partition const& bottom_partition,
             scalar_partition const& top_partition,
-            std::vector<std::bitset<5> > const& flag_data,
+            std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
             boundary_data const& boundary_data_type,
             boundary_data const& temperature_boundary_data,
             uint global_i, uint global_j,
             RealType dx, RealType dy);
     
     static vector_partition compute_fg_on_fluid_cells(
+        vector_partition const& middle_fg,
         vector_partition const& middle_uv,
         vector_partition const& left_uv, vector_partition const& right_uv,
         vector_partition const& bottom_uv, vector_partition const& top_uv,
@@ -48,6 +52,9 @@ public:
         scalar_partition const& middle_temperature,
         scalar_partition const& right_temperature,
         scalar_partition const& top_temperature,
+        std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
+        std::vector<std::pair<uint, uint> > const& obstacle,
+        std::vector<std::pair<uint, uint> > const& fluid,
         std::vector<std::bitset<5> > const& flag_data,
         RealType re, RealType gx, RealType gy, RealType beta,
         RealType dx, RealType dy, RealType dt, RealType alpha);
@@ -61,14 +68,14 @@ public:
         vector_partition const& middle_uv,
         vector_partition const& left_uv,
         vector_partition const& bottom_uv,
-        std::vector<std::bitset<5> > const& flag_data,
+        std::vector<std::pair<uint, uint> > const& fluid,
         RealType re, RealType pr, RealType dx, RealType dy, RealType dt,
         RealType alpha);
     
     static scalar_partition compute_right_hand_side_on_fluid_cells(
-        vector_partition const& middle_fg, vector_partition const& left_fg,
-        vector_partition const& bottom_fg,
-        std::vector<std::bitset<5> > const& flag_data,
+        scalar_partition const& middle_rhs, vector_partition const& middle_fg,
+        vector_partition const& left_fg, vector_partition const& bottom_fg,
+        std::vector<std::pair<uint, uint> > const& fluid,
         RealType dx, RealType dy, RealType dt);
     
     static scalar_partition set_pressure_on_boundary_and_obstacles(
@@ -82,15 +89,17 @@ public:
         scalar_partition const& bottom_p, scalar_partition const& top_p,
         scalar_partition const& middle_rhs, 
         std::vector<std::bitset<5> > const& flag_data,
-        RealType omega, RealType dx, RealType dy);
+        std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
+        std::vector<std::pair<uint, uint> > const& obstacle,
+        std::vector<std::pair<uint, uint> > const& fluid,
+        RealType dx_sq, RealType dy_sq, RealType part1, RealType part2);
     
-  
     static hpx::future<RealType> compute_residual(
         scalar_partition const& middle_p, scalar_partition const& left_p,
         scalar_partition const& right_p, scalar_partition const& bottom_p,
         scalar_partition const& top_p, scalar_partition const& middle_rhs,
-        std::vector<std::bitset<5> > const& flag_data, RealType dx,
-        RealType dy);
+        std::vector<std::pair<uint, uint> > const& fluid,
+        RealType dx, RealType dy);
     
     static hpx::future<
             std::pair<vector_partition, std::pair<RealType, RealType> >
@@ -100,6 +109,7 @@ public:
        scalar_partition const& right_p, scalar_partition const& top_p, 
        vector_partition const& middle_fg,
        std::vector<std::bitset<5> > const& flag_data,
+        std::vector<std::pair<uint, uint> > const& fluid,
        RealType dx, RealType dy, RealType dt);
        
     static hpx::future<

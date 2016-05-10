@@ -92,9 +92,6 @@ public:
         scalar_partition const& left_p, scalar_partition const& right_p,
         scalar_partition const& bottom_p, scalar_partition const& top_p,
         scalar_partition const& middle_rhs, 
-        std::vector<std::bitset<5> > const& flag_data,
-        std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
-        std::vector<std::pair<uint, uint> > const& obstacle,
         std::vector<std::pair<uint, uint> > const& fluid,
         RealType dx_sq, RealType dy_sq, RealType part1, RealType part2);
     

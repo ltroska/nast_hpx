@@ -453,10 +453,13 @@ scalar_partition custom_grain_size::set_pressure_for_boundary_and_obstacles(
 { 
    return hpx::dataflow(
         hpx::util::unwrapped(
-            [middle_p, boundary, obstacle, flag_data]
+            [middle_p]
             (scalar_data m_p, scalar_data const& l_p,
                 scalar_data const& r_p, scalar_data const& b_p,
-                scalar_data const& t_p)
+                scalar_data const& t_p,
+                std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
+                std::vector<std::pair<uint, uint> > const& obstacle,
+                std::vector<std::bitset<5> > const& flag_data)
             -> scalar_partition
             {
                 uint size_x = m_p.size_x();
@@ -516,7 +519,10 @@ scalar_partition custom_grain_size::set_pressure_for_boundary_and_obstacles(
         left_p.get_data(LEFT),
         right_p.get_data(RIGHT),
         bottom_p.get_data(BOTTOM),
-        top_p.get_data(TOP)
+        top_p.get_data(TOP),
+        hpx::make_ready_future(boundary),
+        hpx::make_ready_future(obstacle),
+        hpx::make_ready_future(flag_data)
     );
 }
 
@@ -524,18 +530,16 @@ scalar_partition custom_grain_size::sor_cycle(
     scalar_partition const& middle_p, scalar_partition const& left_p,
     scalar_partition const& right_p, scalar_partition const& bottom_p,
     scalar_partition const& top_p, scalar_partition const& middle_rhs, 
-    std::vector<std::bitset<5> > const& flag_data,
-    std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
-    std::vector<std::pair<uint, uint> > const& obstacle,
     std::vector<std::pair<uint, uint> > const& fluid,
     RealType dx_sq, RealType dy_sq, RealType part1, RealType part2)
 {                
     return hpx::dataflow(
         hpx::util::unwrapped(
-            [middle_p, flag_data, boundary, obstacle, fluid, dx_sq, dy_sq, part1, part2]
+            [middle_p, dx_sq, dy_sq, part1, part2]
             (scalar_data m_p, scalar_data const& l_p, scalar_data const& r_p,
                 scalar_data const& b_p, scalar_data const& t_p,
-                scalar_data const& m_rhs)
+                scalar_data const& m_rhs,
+                std::vector<std::pair<uint, uint> > const& fluid)
             -> scalar_partition
             {
                 uint size_x = m_p.size_x();
@@ -564,7 +568,8 @@ scalar_partition custom_grain_size::sor_cycle(
         right_p.get_data(RIGHT),
         bottom_p.get_data(BOTTOM),
         top_p.get_data(TOP),
-        middle_rhs.get_data(CENTER)
+        middle_rhs.get_data(CENTER),
+        hpx::make_ready_future(fluid)
     ); 
 }
 
@@ -580,10 +585,11 @@ hpx::future<RealType> custom_grain_size::compute_residual(
    
     return hpx::dataflow(
         hpx::util::unwrapped(
-            [fluid, over_dx_sq, over_dy_sq]
+            [over_dx_sq, over_dy_sq]
             (scalar_data const& m_p, scalar_data const& l_p,
                 scalar_data const& r_p, scalar_data const& b_p,
-                scalar_data const& t_p, scalar_data const& m_rhs)
+                scalar_data const& t_p, scalar_data const& m_rhs,
+                std::vector<std::pair<uint, uint> > const& fluid)
             -> RealType
             {
                 uint size_x = m_p.size_x();
@@ -613,7 +619,8 @@ hpx::future<RealType> custom_grain_size::compute_residual(
         right_p.get_data(RIGHT),
         bottom_p.get_data(BOTTOM),
         top_p.get_data(TOP),
-        middle_rhs.get_data(CENTER)
+        middle_rhs.get_data(CENTER),
+        hpx::make_ready_future(fluid)
     );   
 }
 

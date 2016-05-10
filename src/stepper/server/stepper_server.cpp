@@ -637,18 +637,17 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                     && l != params.num_partitions_y - 1)
                 {
                     p_grid[get_index(k, l)] =
+                        //commenting the dataflow and making this sor_cycle(...)
+                        //cuts time for each iteration of the loop in half
                         hpx::dataflow(
                             hpx::launch::async,
-                            &strategy::sor_cycle,
+                            strategy::sor_cycle,
                             p_temp_grid[get_index(k, l)],
                             p_grid[get_index(k - 1, l)],
                             p_temp_grid[get_index(k + 1, l)],
                             p_grid[get_index(k, l - 1)],
                             p_temp_grid[get_index(k, l + 1)],
                             rhs_grid[get_index(k, l)],
-                            flag_grid[get_index(k, l)],
-                            boundary[get_index(k, l)],
-                            obstacle[get_index(k, l)],
                             fluid[get_index(k, l)],
                             dx_sq, dy_sq, part1,  part2
                         );

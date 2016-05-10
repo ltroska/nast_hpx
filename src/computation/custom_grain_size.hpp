@@ -80,25 +80,26 @@ public:
         std::vector<std::pair<uint, uint> > const& fluid,
         RealType dx, RealType dy, RealType dt);
     
-    static scalar_partition set_pressure_for_boundary_and_obstacles(
-        scalar_partition const& middle_p, scalar_partition const& left_p,
-        scalar_partition const& right_p, scalar_partition const& bottom_p,
-        scalar_partition const& top_p,
+    static scalar_data set_pressure_for_boundary_and_obstacles(
+       hpx::shared_future<scalar_data> middle_p,
+        hpx::shared_future<scalar_data> left_p, hpx::shared_future<scalar_data> right_p,
+        hpx::shared_future<scalar_data> bottom_p, hpx::shared_future<scalar_data> top_p,
         std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
         std::vector<std::pair<uint, uint> > const& obstacle,
         std::vector<std::bitset<5> > const& flag_data);
     
-    static scalar_partition sor_cycle(scalar_partition const& middle_p,
-        scalar_partition const& left_p, scalar_partition const& right_p,
-        scalar_partition const& bottom_p, scalar_partition const& top_p,
-        scalar_partition const& middle_rhs, 
+    static scalar_data sor_cycle(hpx::shared_future<scalar_data> middle_p,
+        hpx::shared_future<scalar_data> left_p, hpx::shared_future<scalar_data> right_p,
+        hpx::shared_future<scalar_data> bottom_p, hpx::shared_future<scalar_data> top_p,
+        hpx::shared_future<scalar_data> middle_rhs, 
         std::vector<std::pair<uint, uint> > const& fluid,
         RealType dx_sq, RealType dy_sq, RealType part1, RealType part2);
     
-    static hpx::future<RealType> compute_residual(
-        scalar_partition const& middle_p, scalar_partition const& left_p,
-        scalar_partition const& right_p, scalar_partition const& bottom_p,
-        scalar_partition const& top_p, scalar_partition const& middle_rhs,
+    static RealType compute_residual(
+       hpx::shared_future<scalar_data> middle_p,
+        hpx::shared_future<scalar_data> left_p, hpx::shared_future<scalar_data> right_p,
+        hpx::shared_future<scalar_data> bottom_p, hpx::shared_future<scalar_data> top_p,
+        hpx::shared_future<scalar_data> middle_rhs,
         std::vector<std::pair<uint, uint> > const& fluid,
         RealType dx, RealType dy);
     

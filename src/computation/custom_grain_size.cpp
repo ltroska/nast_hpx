@@ -443,25 +443,26 @@ scalar_partition custom_grain_size::compute_right_hand_side_on_fluid_cells(
     );    
 }
 
-scalar_partition custom_grain_size::set_pressure_for_boundary_and_obstacles(
-    scalar_partition const& middle_p, scalar_partition const& left_p,
-    scalar_partition const& right_p, scalar_partition const& bottom_p,
-    scalar_partition const& top_p,
+scalar_data custom_grain_size::set_pressure_for_boundary_and_obstacles(
+    hpx::shared_future<scalar_data> middle_p, hpx::shared_future<scalar_data>  left_p,
+    hpx::shared_future<scalar_data> right_p, hpx::shared_future<scalar_data>  bottom_p,
+    hpx::shared_future<scalar_data> top_p,
     std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
     std::vector<std::pair<uint, uint> > const& obstacle,
     std::vector<std::bitset<5> > const& flag_data)
 { 
-   return hpx::dataflow(
-        hpx::util::unwrapped(
-            [middle_p]
-            (scalar_data m_p, scalar_data const& l_p,
-                scalar_data const& r_p, scalar_data const& b_p,
-                scalar_data const& t_p,
-                std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
-                std::vector<std::pair<uint, uint> > const& obstacle,
-                std::vector<std::bitset<5> > const& flag_data)
-            -> scalar_partition
-            {
+  /*  hpx::util::high_resolution_timer t;
+    
+    
+    std::cout << "pressure" << std::endl;
+    while(true)
+        if (t.elapsed() > 2)
+            break;*/
+    auto m_p = middle_p.get();
+            auto l_p = left_p.get();
+            auto r_p = right_p.get();
+            auto b_p = bottom_p.get();
+            auto t_p = top_p.get();
                 uint size_x = m_p.size_x();
                 uint size_y = m_p.size_y();        
     
@@ -510,118 +511,99 @@ scalar_partition custom_grain_size::set_pressure_for_boundary_and_obstacles(
                                 get_top_neighbor(m_p, t_p, i, j),
                                 flag_data[j * size_x + i]);                    
                 }     
+                
+             /*  hpx::util::high_resolution_timer t;
+    
+    
+            std::cout << "inside pressure" << std::endl;
+            while(true)
+                if (t.elapsed() > 2)
+                    break;*/
                         
-                return middle_p;
+                return m_p;
  
-            }
-        ),
-        middle_p.get_data(CENTER),
-        left_p.get_data(LEFT),
-        right_p.get_data(RIGHT),
-        bottom_p.get_data(BOTTOM),
-        top_p.get_data(TOP),
-        hpx::make_ready_future(boundary),
-        hpx::make_ready_future(obstacle),
-        hpx::make_ready_future(flag_data)
-    );
+
 }
 
-scalar_partition custom_grain_size::sor_cycle(
-    scalar_partition const& middle_p, scalar_partition const& left_p,
-    scalar_partition const& right_p, scalar_partition const& bottom_p,
-    scalar_partition const& top_p, scalar_partition const& middle_rhs, 
+scalar_data custom_grain_size::sor_cycle(
+    hpx::shared_future<scalar_data> middle_p, hpx::shared_future<scalar_data>  left_p,
+    hpx::shared_future<scalar_data> right_p, hpx::shared_future<scalar_data>  bottom_p,
+    hpx::shared_future<scalar_data> top_p, hpx::shared_future<scalar_data>  middle_rhs, 
     std::vector<std::pair<uint, uint> > const& fluid,
     RealType dx_sq, RealType dy_sq, RealType part1, RealType part2)
-{                
-    return hpx::dataflow(
-        hpx::util::unwrapped(
-            [middle_p, dx_sq, dy_sq, part1, part2]
-            (scalar_data m_p, scalar_data const& l_p, scalar_data const& r_p,
-                scalar_data const& b_p, scalar_data const& t_p,
-                scalar_data const& m_rhs,
-                std::vector<std::pair<uint, uint> > const& fluid)
-            -> scalar_partition
-            {
-                uint size_x = m_p.size_x();
-                uint size_y = m_p.size_y();
+{       
+    //std::cout << "SOR" << std::endl;
+         
+    auto m_p = middle_p.get();
+    auto l_p = left_p.get();
+    auto r_p = right_p.get();
+    auto b_p = bottom_p.get();
+    auto t_p = top_p.get();
+    auto m_rhs = middle_rhs.get();
 
-                for (auto& idx_pair : fluid)
-                {
-                    uint i = idx_pair.first;
-                    uint j = idx_pair.second;
-                    
-                    m_p(i, j)  = computation::do_sor_cycle_for_cell(
-                                m_p(i, j),
-                                get_left_neighbor(m_p, l_p, i, j),
-                                get_right_neighbor(m_p, r_p, i, j),
-                                get_bottom_neighbor(m_p, b_p, i, j),
-                                get_top_neighbor(m_p, t_p, i, j),
-                                m_rhs[j * size_x + i ],
-                                dx_sq, dy_sq, part1, part2);                   
-                }
-                
-                return middle_p;
-            }
-        ),
-        middle_p.get_data(CENTER),
-        left_p.get_data(LEFT),
-        right_p.get_data(RIGHT),
-        bottom_p.get_data(BOTTOM),
-        top_p.get_data(TOP),
-        middle_rhs.get_data(CENTER),
-        hpx::make_ready_future(fluid)
-    ); 
+    uint size_x = m_p.size_x();
+    uint size_y = m_p.size_y();
+
+    for (auto& idx_pair : fluid)
+    {
+        uint i = idx_pair.first;
+        uint j = idx_pair.second;
+        
+        m_p(i, j)  = computation::do_sor_cycle_for_cell(
+                    m_p(i, j),
+                    get_left_neighbor(m_p, l_p, i, j),
+                    get_right_neighbor(m_p, r_p, i, j),
+                    get_bottom_neighbor(m_p, b_p, i, j),
+                    get_top_neighbor(m_p, t_p, i, j),
+                    m_rhs[j * size_x + i ],
+                    dx_sq, dy_sq, part1, part2);                   
+    }
+    
+                //    std::cout << "inside SOR" << std::endl;
+
+    
+    return m_p;
+
 }
 
-hpx::future<RealType> custom_grain_size::compute_residual(
-    scalar_partition const& middle_p, scalar_partition const& left_p,
-    scalar_partition const& right_p, scalar_partition const& bottom_p,
-    scalar_partition const& top_p, scalar_partition const& middle_rhs,
+RealType custom_grain_size::compute_residual(
+    hpx::shared_future<scalar_data> middle_p, hpx::shared_future<scalar_data>  left_p,
+    hpx::shared_future<scalar_data> right_p, hpx::shared_future<scalar_data>  bottom_p,
+    hpx::shared_future<scalar_data> top_p, hpx::shared_future<scalar_data>  middle_rhs, 
     std::vector<std::pair<uint, uint> > const& fluid,
     RealType dx, RealType dy)
 {
     RealType const over_dx_sq = 1./std::pow(dx, 2);
     RealType const over_dy_sq = 1./std::pow(dy, 2);
-   
-    return hpx::dataflow(
-        hpx::util::unwrapped(
-            [over_dx_sq, over_dy_sq]
-            (scalar_data const& m_p, scalar_data const& l_p,
-                scalar_data const& r_p, scalar_data const& b_p,
-                scalar_data const& t_p, scalar_data const& m_rhs,
-                std::vector<std::pair<uint, uint> > const& fluid)
-            -> RealType
-            {
-                uint size_x = m_p.size_x();
-                uint size_y = m_p.size_y();
-                
-                RealType local_residual = 0;
-                
-                for (auto& idx_pair : fluid)
-                {
-                    uint i = idx_pair.first;
-                    uint j = idx_pair.second;
-                    
-                    local_residual += compute_residual_for_cell(
-                        m_p(i, j),
-                        get_left_neighbor(m_p, l_p, i, j),
-                        get_right_neighbor(m_p, r_p, i, j),
-                        get_bottom_neighbor(m_p, b_p, i, j),
-                        get_top_neighbor(m_p, t_p, i, j),
-                        m_rhs(i, j), over_dx_sq, over_dy_sq);
-                }
-                
-                return local_residual;
-            }
-        ),
-        middle_p.get_data(CENTER),
-        left_p.get_data(LEFT),
-        right_p.get_data(RIGHT),
-        bottom_p.get_data(BOTTOM),
-        top_p.get_data(TOP),
-        middle_rhs.get_data(CENTER),
-        hpx::make_ready_future(fluid)
-    );   
+    auto m_p = middle_p.get();
+    auto l_p = left_p.get();
+    auto r_p = right_p.get();
+    auto b_p = bottom_p.get();
+    auto t_p = top_p.get();
+    auto m_rhs = middle_rhs.get();
+    uint size_x = m_p.size_x();
+    uint size_y = m_p.size_y();
+    
+
+
+    RealType local_residual = 0;
+    
+    for (auto& idx_pair : fluid)
+    {
+        uint i = idx_pair.first;
+        uint j = idx_pair.second;
+        
+        local_residual += compute_residual_for_cell(
+            m_p(i, j),
+            get_left_neighbor(m_p, l_p, i, j),
+            get_right_neighbor(m_p, r_p, i, j),
+            get_bottom_neighbor(m_p, b_p, i, j),
+            get_top_neighbor(m_p, t_p, i, j),
+            m_rhs(i, j), over_dx_sq, over_dy_sq);
+    }
+    
+    return local_residual;
+
 }
 
 hpx::future<std::pair<vector_partition, std::pair<RealType, RealType> > > 

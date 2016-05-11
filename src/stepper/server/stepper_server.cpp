@@ -638,6 +638,28 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
     RealType res = 0;
     do
     {  
+         communicate_p_grid(step * c.iter_max + iter);
+        for (uint l = 0; l < params.num_partitions_y; l++)
+        for (uint k = 0; k < params.num_partitions_x; k++)
+        {
+            if (k == 0)
+            {
+                pdata[get_index(k, l)] = p_grid[get_index(k, l)].get_data(LEFT);
+            }
+            else if (k == params.num_partitions_x - 1)
+            {
+                pdata[get_index(k, l)] = p_grid[get_index(k, l)].get_data(RIGHT);
+            }
+            else if (l == 0)
+            {
+                pdata[get_index(k, l)] = p_grid[get_index(k, l)].get_data(BOTTOM);
+            }
+            else if (l == params.num_partitions_y - 1)
+            {
+                pdata[get_index(k, l)] = p_grid[get_index(k, l)].get_data(TOP);
+            }
+        }
+        
     for (uint l = 0; l < params.num_partitions_y; l++)
         for (uint k = 0; k < params.num_partitions_x; k++)
         {
@@ -694,8 +716,7 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
      //           if (iter < 5)
       //      print_grid(p_grid, "pa");
         
-        communicate_p_grid(step * c.iter_max + iter);
-          
+  
         std::vector<hpx::future<RealType> > residuals;
 
         for (uint l = 1; l < params.num_partitions_y - 1; l++)

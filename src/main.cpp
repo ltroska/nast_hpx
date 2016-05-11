@@ -4,34 +4,30 @@
 #include "io/config.hpp"
 #include "stepper/stepper.hpp"
 
-int hpx_main(int argc, char* argv[])
+int hpx_main(boost::program_options::variables_map& vm)
 {
-    if (argc != 2)
-    {
-        std::cerr << "Usage: ./main <input.xml>" << std::endl;
-        exit(0);
-    }
-
-    auto a1 = scalar_cell(1);
-    auto a2 = 1.;
-    
-    a1 = 3;
-    
-    auto b1 = vector_cell(1., 1.);
-    auto b2 = std::make_pair(1., 1.);
-    
-    std::cout << sizeof(a1) << " " << sizeof(a2) << std::endl;
-    std::cout << sizeof(b1) << " " << sizeof(b2) << std::endl;
-    std::cout << sizeof(grid::partition_data<std::bitset<5> >) << " " << sizeof(std::vector<std::bitset<5> >) << std::endl;
-
     stepper::stepper step;
         
-    step.setup(io::config::read_config_from_file(argv[1])).wait();
+    const auto cfg_path = vm["cfg"].as<std::string>();
+        
+    step.setup(io::config::read_config_from_file(cfg_path.c_str())).wait();
 
     return hpx::finalize();
 }
 
 int main(int argc, char* argv[])
 {
-    return hpx::init(argc, argv);
+    using namespace boost::program_options;
+
+    options_description desc_commandline;
+    
+    desc_commandline.add_options()
+    ("cfg", value<std::string>()->required(),
+         "path to config xml");
+    
+    std::vector<std::string> cfg;
+    cfg.push_back("hpx.run_hpx_main!=1");
+
+    
+    return hpx::init(desc_commandline, argc, argv, cfg);
 }

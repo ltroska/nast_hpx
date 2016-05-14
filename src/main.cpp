@@ -22,7 +22,7 @@ int main(int argc, char* argv[])
     options_description desc_commandline;
     
     desc_commandline.add_options()
-    ("cfg", value<std::string>()->required(),
+    ("cfg", value<std::string>()->default_value("../settings/driven_cavity.xml"),
          "path to config xml");
     
     std::vector<std::string> cfg;

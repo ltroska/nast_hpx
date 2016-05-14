@@ -634,6 +634,11 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
             }
         }
         
+    /* .get-ing the clients beforehand and then executing the three functions
+     * serially in the following loop makes the code run ~5 times as fast (serially 
+     * around ~0.03 per timestep, with dataflow ~0.15s)
+     */
+        
     uint iter = 0;
     RealType res = 0;
     do
@@ -695,8 +700,6 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                     && l != params.num_partitions_y - 1)
                 {
                     pdata[get_index(k, l)] =
-                        //commenting the dataflow and making this sor_cycle(...)
-                        //cuts time for each iteration of the loop in half
                         hpx::dataflow(
                             hpx::launch::async,
                             &strategy::sor_cycle,

@@ -599,6 +599,9 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
     uint k = 1;
     uint l = 1;
         
+    //this is just a dirty version, will move this later.
+    //It still illustrates the problem
+
     std::vector<hpx::shared_future<scalar_data> > pdata;
     std::vector<hpx::shared_future<scalar_data> > pdata_temp;
     std::vector<hpx::shared_future<scalar_data> > rhsdata;
@@ -635,15 +638,25 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
         }
         
     /* .get-ing the clients beforehand and then executing the three functions
-     * serially in the following loop makes the code run ~5 times as fast (serially 
-     * around ~0.03 per timestep, with dataflow ~0.15s)
+     * serially in the following loop makes the code run ~2 times as fast (serially 
+     * around ~0.075 per timestep, with dataflow ~0.15s)
      */
-        
+     
+#ifndef SLOW
+    //get the data beforehand
+    std::vector<scalar_data> p_data;
+    p_data.resize(params.num_partitions_x * params.num_partitions_y);
+    
+    for (auto idx = 0; idx < p_data.size(); ++idx)
+        p_data[idx] = pdata[idx].get();
+#endif
+
     uint iter = 0;
     RealType res = 0;
     do
     {  
-         communicate_p_grid(step * c.iter_max + iter);
+#ifdef SLOW
+        communicate_p_grid(step * c.iter_max + iter);
         for (uint l = 0; l < params.num_partitions_y; l++)
         for (uint k = 0; k < params.num_partitions_x; k++)
         {
@@ -689,10 +702,6 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                 pdata_temp[get_index(k, l)] = pdata[get_index(k, l)];
         }
         
-        
-      //  if (iter < 5)
-      //      print_grid(p_temp_grid, "pb");
-
       for (uint l = 0; l < params.num_partitions_y; l++)
             for (uint k = 0; k < params.num_partitions_x; k++)
             {
@@ -716,10 +725,7 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                 else
                     pdata[get_index(k, l)] = pdata_temp[get_index(k, l)];
             }        
-     //           if (iter < 5)
-      //      print_grid(p_grid, "pa");
-        
-  
+
         std::vector<hpx::future<RealType> > residuals;
 
         for (uint l = 1; l < params.num_partitions_y - 1; l++)
@@ -755,6 +761,86 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                     }
                 )
             );
+            
+#else
+        communicate_p_grid(step * c.iter_max + iter);        
+    for (uint l = 0; l < params.num_partitions_y; l++)
+        for (uint k = 0; k < params.num_partitions_x; k++)
+        {
+            if (k != 0 && k != params.num_partitions_x - 1 && l != 0
+                && l != params.num_partitions_y - 1)
+            {     
+                strategy::set_pressure_for_boundary_and_obstacles(
+                        hpx::make_ready_future(p_data[get_index(k, l)]),
+                        hpx::make_ready_future(p_data[get_index(k - 1, l)]),
+                        hpx::make_ready_future(p_data[get_index(k + 1, l)]),
+                        hpx::make_ready_future(p_data[get_index(k, l - 1)]),
+                        hpx::make_ready_future(p_data[get_index(k, l + 1)]),
+                        boundary[get_index(k, l)],
+                        obstacle[get_index(k, l)],
+                        flag_grid[get_index(k, l)]
+                    );
+            }
+        }
+        
+
+      for (uint l = 0; l < params.num_partitions_y; l++)
+            for (uint k = 0; k < params.num_partitions_x; k++)
+            {
+                if (k != 0 && k != params.num_partitions_x - 1 && l != 0
+                    && l != params.num_partitions_y - 1)
+                {
+                        strategy::sor_cycle(
+                            hpx::make_ready_future(p_data[get_index(k, l)]),
+                            hpx::make_ready_future(p_data[get_index(k - 1, l)]),
+                            hpx::make_ready_future(p_data[get_index(k + 1, l)]),
+                            hpx::make_ready_future(p_data[get_index(k, l - 1)]),
+                            hpx::make_ready_future(p_data[get_index(k, l + 1)]),
+                            rhsdata[get_index(k, l)],
+                            fluid[get_index(k, l)],
+                            dx_sq, dy_sq, part1,  part2
+                        );
+                }
+            }        
+
+  
+        std::vector<hpx::future<RealType> > residuals;
+
+        for (uint l = 1; l < params.num_partitions_y - 1; l++)
+            for (uint k = 1; k < params.num_partitions_x - 1; k++)
+                residuals.push_back(
+                            hpx::make_ready_future(strategy::compute_residual(
+                            hpx::make_ready_future(pdata[get_index(k, l)]),
+                            hpx::make_ready_future(pdata[get_index(k - 1, l)]),
+                            hpx::make_ready_future(pdata[get_index(k + 1, l)]),
+                            hpx::make_ready_future(pdata[get_index(k, l - 1)]),
+                            hpx::make_ready_future(pdata[get_index(k, l + 1)]),
+                            rhsdata[get_index(k, l)],
+                            fluid[get_index(k, l)],
+                            params.dx, params.dy
+                        ))
+                );
+
+        // sum up all local residuals
+        hpx::future<RealType> residual_fut =
+            hpx::when_all(residuals).then(
+                hpx::util::unwrapped(
+                    [](std::vector< hpx::future<RealType> > residuals)
+                    -> RealType
+                    {
+                        RealType sum = 0;
+
+                        for (auto& r : residuals)
+                            sum += r.get();
+
+                        return sum;
+                    }
+                )
+            );
+    
+    
+#endif
+        
 
         iter++;
         

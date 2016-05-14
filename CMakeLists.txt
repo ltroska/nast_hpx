@@ -14,7 +14,7 @@ find_package(HPX)
 
 enable_testing()
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeSettings.txt)
+#include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeSettings.txt)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/
 			${CMAKE_CURRENT_SOURCE_DIR}/libs

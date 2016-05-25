@@ -16,7 +16,7 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
     std::vector<std::pair<uint, uint> > const& fluid,
     std::vector<std::bitset<5> > const& flag_data,
     boundary_data const& type, boundary_data const& u, boundary_data const& v)
-{   
+{
     return hpx::dataflow(
         hpx::launch::async,
         hpx::util::unwrapped(
@@ -27,12 +27,12 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
             {
                 auto size_x = m.size_x();
                 auto size_y = m.size_y();
-                
+
                 for (auto& idx_pair : obstacle)
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-                    
+
                     set_velocity_for_obstacle(
                         m(i, j),
                         get_left_neighbor(m, l, i, j),
@@ -40,13 +40,13 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
                         get_bottom_neighbor(m, b, i, j),
                         get_top_neighbor(m, t, i, j),
                         flag_data[j * size_x + i]);
-                }                
-                
+                }
+
                 for (auto& idx_pair : fluid)
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-                    
+
                     set_velocity_for_fluid(
                         m(i, j),
                         get_left_neighbor(m, l, i, j),
@@ -55,20 +55,20 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
                         get_top_neighbor(m, t, i, j),
                         flag_data[j * size_x + i]);
                 }
-                
-                
+
+
                 //left
                 for (auto& idx_pair : boundary[0])
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-                                        
+
                     set_velocity_for_left_boundary(
                         m(i, j),
                         m(i + 1, j),
                         type.left, u.left, v.left);
-                }                
-                
+                }
+
                 //right
                 for (auto& idx_pair : boundary[1])
                 {
@@ -80,8 +80,8 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
                         m(i - 1, j),
                         get_left_neighbor(m, l, i - 1, j),
                         type.right, u.right, v.right);
-                }                
-                
+                }
+
                 //bottom
                 for (auto& idx_pair : boundary[2])
                 {
@@ -92,21 +92,21 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
                         m(i, j),
                         m(i, j + 1),
                         type.bottom, u.bottom, v.bottom);
-                }                
-            
+                }
+
                 //top
                 for (auto& idx_pair : boundary[3])
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-                    
+
                     set_velocity_for_top_boundary(
                         m(i, j),
                         m(i, j - 1),
                         get_top_neighbor(m, r, i, j - 1),
                         type.top, u.top, v.top);
-                }                                
-                
+                }
+
                 return middle;
             }
         ),
@@ -115,7 +115,7 @@ vector_partition custom_grain_size::set_velocity_for_boundary_and_obstacles(
         right.get_data(RIGHT),
         bottom.get_data(BOTTOM),
         top.get_data(TOP)
-    );        
+    );
 }
 
 scalar_partition custom_grain_size::set_temperature_for_boundary_and_obstacles(
@@ -140,20 +140,20 @@ scalar_partition custom_grain_size::set_temperature_for_boundary_and_obstacles(
             {
                 uint size_x = next.size_x();
                 uint size_y = next.size_y();
-             
+
                 //left
                 for (auto& idx_pair : boundary[0])
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-                                        
+
                     set_temperature_for_boundary(
                         next(i, j),
                         next(i + 1, j),
                         boundary_data_type.left,
                         temperature_boundary_data.left, j, dx, dy);
-                }                
-                
+                }
+
                 //right
                 for (auto& idx_pair : boundary[1])
                 {
@@ -165,8 +165,8 @@ scalar_partition custom_grain_size::set_temperature_for_boundary_and_obstacles(
                         next(i - 1, j),
                         boundary_data_type.right,
                         temperature_boundary_data.right, j, dx, dy);
-                }                
-                
+                }
+
                 //bottom
                 for (auto& idx_pair : boundary[2])
                 {
@@ -178,21 +178,21 @@ scalar_partition custom_grain_size::set_temperature_for_boundary_and_obstacles(
                         next(i, j + 1),
                         boundary_data_type.bottom,
                         temperature_boundary_data.bottom, i, dy, dx);
-                }                
-            
+                }
+
                 //top
                 for (auto& idx_pair : boundary[3])
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-                    
+
                     set_temperature_for_boundary(
                         next(i, j),
                         next(i, j - 1),
                         boundary_data_type.top,
                         temperature_boundary_data.top, i, dy, dx);
-                }                                
-                
+                }
+
                 return middle;
             }
         ),
@@ -201,7 +201,7 @@ scalar_partition custom_grain_size::set_temperature_for_boundary_and_obstacles(
         right.get_data(RIGHT),
         bottom.get_data(BOTTOM),
         top.get_data(TOP)
-    );        
+    );
 }
 
 vector_partition custom_grain_size::compute_fg_on_fluid_cells(
@@ -219,7 +219,7 @@ vector_partition custom_grain_size::compute_fg_on_fluid_cells(
     std::vector<std::bitset<5> > const& flag_data, RealType re, RealType gx,
     RealType gy, RealType beta, RealType dx, RealType dy, RealType dt,
     RealType alpha)
-{           
+{
     return hpx::dataflow(
         hpx::launch::async,
         hpx::util::unwrapped(
@@ -234,45 +234,45 @@ vector_partition custom_grain_size::compute_fg_on_fluid_cells(
             {
                 uint size_x = m_fg.size_x();
                 uint size_y = m_fg.size_y();
-                    
+
                 //left
                 for (auto& idx_pair : boundary[0])
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-                                        
+
                     m_fg(i, j).first = m_uv(i, j).first;
-                }             
-                    
+                }
+
                 //bottom
                 for (auto& idx_pair : boundary[2])
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-                    
-                    m_fg(i, j).second = m_uv(i, j).second;                   
+
+                    m_fg(i, j).second = m_uv(i, j).second;
                 }
-        
+
                 //obstacle
                 for (auto& idx_pair : obstacle)
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-                    
+
                     auto& type = flag_data[j * size_x + i];
-                    
+
                     if (type.test(has_fluid_east))
                         m_fg(i, j).first = m_uv(i, j).first;
-                    
+
                     if (type.test(has_fluid_north))
-                        m_fg(i, j).second = m_uv(i, j).second;  
+                        m_fg(i, j).second = m_uv(i, j).second;
                 }
 
                 for (auto& idx_pair : fluid)
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-                  
+
                     compute_fg_for_cell(
                         m_fg(i, j),
                         m_uv(i, j),
@@ -289,7 +289,7 @@ vector_partition custom_grain_size::compute_fg_on_fluid_cells(
                         re, gx, gy, beta, dx, dy, dt, alpha
                         );
                 }
-                
+
                 return middle_fg;
             }
         ),
@@ -304,7 +304,7 @@ vector_partition custom_grain_size::compute_fg_on_fluid_cells(
         middle_temperature.get_data(CENTER),
         right_temperature.get_data(RIGHT),
         top_temperature.get_data(TOP)
-    );        
+    );
 }
 
 scalar_partition custom_grain_size::compute_temperature_on_fluid_cells(
@@ -319,7 +319,7 @@ scalar_partition custom_grain_size::compute_temperature_on_fluid_cells(
     std::vector<std::pair<uint, uint> > const& obstacle,
     std::vector<std::pair<uint, uint> > const& fluid, RealType re, RealType pr,
     RealType dx, RealType dy, RealType dt, RealType alpha)
-{                       
+{
     return hpx::dataflow(
         hpx::launch::async,
         hpx::util::unwrapped(
@@ -333,14 +333,14 @@ scalar_partition custom_grain_size::compute_temperature_on_fluid_cells(
             {
                 uint size_x = m_temp.size_x();
                 uint size_y = m_temp.size_y();
-                
+
                 scalar_data next(size_x, size_y);
-                
+
                 for (auto& idx_pair : fluid)
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-    
+
                     next(i, j) = compute_temperature_for_cell(
                         m_temp(i, j),
                         get_left_neighbor(m_temp, l_temp, i, j),
@@ -352,44 +352,44 @@ scalar_partition custom_grain_size::compute_temperature_on_fluid_cells(
                         get_bottom_neighbor(m_uv, b_uv, i, j),
                         re, pr, dx, dy, dt, alpha);
                 }
-                
+
                 for (auto& idx_pair : boundary[0])
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-    
+
                     next(i, j) = m_temp(i, j);
-                }                  
-                
+                }
+
                 for (auto& idx_pair : boundary[1])
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-    
+
                     next(i, j) = m_temp(i, j);
-                }                  
-                
+                }
+
                 for (auto& idx_pair : boundary[2])
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-    
+
                     next(i, j) = m_temp(i, j);
-                }                  
-                
+                }
+
                 for (auto& idx_pair : boundary[3])
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-    
+
                     next(i, j) = m_temp(i, j);
-                }                  
-                
+                }
+
                 for (auto& idx_pair : obstacle)
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-    
+
                     next(i, j) = m_temp(i, j);
                 }
 
@@ -404,7 +404,7 @@ scalar_partition custom_grain_size::compute_temperature_on_fluid_cells(
         middle_uv.get_data(CENTER),
         left_uv.get_data(LEFT),
         bottom_uv.get_data(BOTTOM)
-    );        
+    );
 }
 
 scalar_partition custom_grain_size::compute_right_hand_side_on_fluid_cells(
@@ -420,19 +420,19 @@ scalar_partition custom_grain_size::compute_right_hand_side_on_fluid_cells(
             (scalar_data m_rhs, vector_data const& m_fg, vector_data const& l_fg,
                 vector_data const& b_fg)
             -> scalar_partition
-            {                               
+            {
                 for (auto& idx_pair : fluid)
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-                    
+
                     m_rhs(i, j) = compute_rhs_for_cell(
                         m_fg(i, j),
                         get_left_neighbor(m_fg, l_fg, i, j),
                         get_bottom_neighbor(m_fg, b_fg, i, j),
                         dx, dy, dt);
                 }
-                
+
                 return middle_rhs;
             }
         ),
@@ -440,7 +440,7 @@ scalar_partition custom_grain_size::compute_right_hand_side_on_fluid_cells(
         middle_fg.get_data(CENTER),
         left_fg.get_data(LEFT),
         bottom_fg.get_data(BOTTOM)
-    );    
+    );
 }
 
 scalar_data custom_grain_size::set_pressure_for_boundary_and_obstacles(
@@ -450,90 +450,71 @@ scalar_data custom_grain_size::set_pressure_for_boundary_and_obstacles(
     std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
     std::vector<std::pair<uint, uint> > const& obstacle,
     std::vector<std::bitset<5> > const& flag_data)
-{ 
-  /*  hpx::util::high_resolution_timer t;
-    
-    
-    std::cout << "pressure" << std::endl;
-    while(true)
-        if (t.elapsed() > 2)
-            break;*/
+{
     auto m_p = middle_p.get();
-            auto l_p = left_p.get();
-            auto r_p = right_p.get();
-            auto b_p = bottom_p.get();
-            auto t_p = top_p.get();
-                uint size_x = m_p.size_x();
-                uint size_y = m_p.size_y();        
-    
-                for (auto& idx_pair : boundary[0])
-                {
-                    uint i = idx_pair.first;
-                    uint j = idx_pair.second;
-                    
-                    m_p(i, j) = m_p(i + 1, j);
-                }                
-                
-                for (auto& idx_pair : boundary[1])
-                {
-                    uint i = idx_pair.first;
-                    uint j = idx_pair.second;
-                    
-                    m_p(i, j) = m_p(i - 1, j);
-                }                
-                
-                for (auto& idx_pair : boundary[2])
-                {
-                    uint i = idx_pair.first;
-                    uint j = idx_pair.second;
-                    
-                    m_p(i, j) = m_p(i, j + 1);                 
-                }                
-                
-                for (auto& idx_pair : boundary[3])
-                {
-                    uint i = idx_pair.first;
-                    uint j = idx_pair.second;
-                    
-                    m_p(i, j) = m_p(i, j - 1);                  
-                }
+    auto l_p = left_p.get();
+    auto r_p = right_p.get();
+    auto b_p = bottom_p.get();
+    auto t_p = top_p.get();
+    uint size_x = m_p.size_x();
+    uint size_y = m_p.size_y();
 
-                for (auto& idx_pair : obstacle)
-                {
-                    uint i = idx_pair.first;
-                    uint j = idx_pair.second;
-                    
-                    computation::set_pressure_for_cell(
-                                m_p(i, j),
-                                get_left_neighbor(m_p, l_p, i, j),
-                                get_right_neighbor(m_p, r_p, i, j),
-                                get_bottom_neighbor(m_p, b_p, i, j),
-                                get_top_neighbor(m_p, t_p, i, j),
-                                flag_data[j * size_x + i]);                    
-                }     
-                
-             /*  hpx::util::high_resolution_timer t;
-    
-    
-            std::cout << "inside pressure" << std::endl;
-            while(true)
-                if (t.elapsed() > 2)
-                    break;*/
-                        
-                return m_p;
- 
+    for (auto& idx_pair : boundary[0])
+    {
+        uint i = idx_pair.first;
+        uint j = idx_pair.second;
 
+        m_p(i, j) = m_p(i + 1, j);
+    }
+
+    for (auto& idx_pair : boundary[1])
+    {
+        uint i = idx_pair.first;
+        uint j = idx_pair.second;
+
+        m_p(i, j) = m_p(i - 1, j);
+    }
+
+    for (auto& idx_pair : boundary[2])
+    {
+        uint i = idx_pair.first;
+        uint j = idx_pair.second;
+
+        m_p(i, j) = m_p(i, j + 1);
+    }
+
+    for (auto& idx_pair : boundary[3])
+    {
+        uint i = idx_pair.first;
+        uint j = idx_pair.second;
+
+        m_p(i, j) = m_p(i, j - 1);
+    }
+
+    for (auto& idx_pair : obstacle)
+    {
+        uint i = idx_pair.first;
+        uint j = idx_pair.second;
+
+        computation::set_pressure_for_cell(
+                    m_p(i, j),
+                    get_left_neighbor(m_p, l_p, i, j),
+                    get_right_neighbor(m_p, r_p, i, j),
+                    get_bottom_neighbor(m_p, b_p, i, j),
+                    get_top_neighbor(m_p, t_p, i, j),
+                    flag_data[j * size_x + i]);
+    }
+
+    return m_p;
 }
 
 scalar_data custom_grain_size::sor_cycle(
     hpx::shared_future<scalar_data> middle_p, hpx::shared_future<scalar_data>  left_p,
     hpx::shared_future<scalar_data> right_p, hpx::shared_future<scalar_data>  bottom_p,
-    hpx::shared_future<scalar_data> top_p, hpx::shared_future<scalar_data>  middle_rhs, 
+    hpx::shared_future<scalar_data> top_p, hpx::shared_future<scalar_data>  middle_rhs,
     std::vector<std::pair<uint, uint> > const& fluid,
     RealType dx_sq, RealType dy_sq, RealType part1, RealType part2)
-{       
-    //std::cout << "SOR" << std::endl;
-         
+{
     auto m_p = middle_p.get();
     auto l_p = left_p.get();
     auto r_p = right_p.get();
@@ -548,7 +529,7 @@ scalar_data custom_grain_size::sor_cycle(
     {
         uint i = idx_pair.first;
         uint j = idx_pair.second;
-        
+
         m_p(i, j)  = computation::do_sor_cycle_for_cell(
                     m_p(i, j),
                     get_left_neighbor(m_p, l_p, i, j),
@@ -556,20 +537,16 @@ scalar_data custom_grain_size::sor_cycle(
                     get_bottom_neighbor(m_p, b_p, i, j),
                     get_top_neighbor(m_p, t_p, i, j),
                     m_rhs[j * size_x + i ],
-                    dx_sq, dy_sq, part1, part2);                   
+                    dx_sq, dy_sq, part1, part2);
     }
-    
-                //    std::cout << "inside SOR" << std::endl;
 
-    
     return m_p;
-
 }
 
 RealType custom_grain_size::compute_residual(
     hpx::shared_future<scalar_data> middle_p, hpx::shared_future<scalar_data>  left_p,
     hpx::shared_future<scalar_data> right_p, hpx::shared_future<scalar_data>  bottom_p,
-    hpx::shared_future<scalar_data> top_p, hpx::shared_future<scalar_data>  middle_rhs, 
+    hpx::shared_future<scalar_data> top_p, hpx::shared_future<scalar_data>  middle_rhs,
     std::vector<std::pair<uint, uint> > const& fluid,
     RealType dx, RealType dy)
 {
@@ -583,16 +560,14 @@ RealType custom_grain_size::compute_residual(
     auto m_rhs = middle_rhs.get();
     uint size_x = m_p.size_x();
     uint size_y = m_p.size_y();
-    
-
 
     RealType local_residual = 0;
-    
+
     for (auto& idx_pair : fluid)
     {
         uint i = idx_pair.first;
         uint j = idx_pair.second;
-        
+
         local_residual += compute_residual_for_cell(
             m_p(i, j),
             get_left_neighbor(m_p, l_p, i, j),
@@ -601,12 +576,11 @@ RealType custom_grain_size::compute_residual(
             get_top_neighbor(m_p, t_p, i, j),
             m_rhs(i, j), over_dx_sq, over_dy_sq);
     }
-    
-    return local_residual;
 
+    return local_residual;
 }
 
-hpx::future<std::pair<vector_partition, std::pair<RealType, RealType> > > 
+hpx::future<std::pair<vector_partition, std::pair<RealType, RealType> > >
 custom_grain_size::update_velocities(
     vector_partition const& middle_uv, scalar_partition const& middle_p,
     scalar_partition const& right_p, scalar_partition const& top_p,
@@ -617,7 +591,7 @@ custom_grain_size::update_velocities(
 {
     RealType const over_dx = 1./dx;
     RealType const over_dy = 1./dy;
-    
+
     return hpx::dataflow(
         hpx::launch::async,
         hpx::util::unwrapped(
@@ -625,17 +599,17 @@ custom_grain_size::update_velocities(
             (vector_data m_uv, scalar_data const& m_p, scalar_data const& r_p,
                 scalar_data const& t_p, vector_data const& m_fg)
             -> std::pair<vector_partition, std::pair<RealType, RealType> >
-            {                
+            {
                 uint size_x = m_uv.size_x();
                 uint size_y = m_uv.size_y();
-                
+
                 auto max_uv = std::make_pair(0., 0.);
-                
+
                 for (auto& idx_pair : fluid)
                 {
                     uint i = idx_pair.first;
                     uint j = idx_pair.second;
-                    
+
                     auto& middle_cell = m_uv(i, j);
 
                     update_velocity_for_cell(
@@ -646,7 +620,7 @@ custom_grain_size::update_velocities(
                         m_fg(i, j),
                         flag_data[j * size_x + i],
                         over_dx, over_dy, dt);
-                        
+
                     max_uv.first =
                        (std::abs(middle_cell.first)
                             > max_uv.first)
@@ -657,9 +631,9 @@ custom_grain_size::update_velocities(
                        (std::abs(middle_cell.second)
                             > max_uv.second)
                         ? std::abs(middle_cell.second)
-                        : max_uv.second; 
+                        : max_uv.second;
                 }
-                
+
                 return std::make_pair(middle_uv, max_uv);
             }
         ),
@@ -668,7 +642,7 @@ custom_grain_size::update_velocities(
         right_p.get_data(RIGHT),
         top_p.get_data(TOP),
         middle_fg.get_data(CENTER)
-    );    
+    );
 }
 
 hpx::future<std::tuple<scalar_partition, scalar_partition, scalar_partition> >
@@ -711,21 +685,21 @@ custom_grain_size::compute_stream_vorticity_heat(
                         {
                             stream_center(i, j)  =
                                 get_bottom_neighbor(
-                                    stream_center, stream_bottom, i, j) 
+                                    stream_center, stream_bottom, i, j)
                                 + uv_center(i, j).first*dy;
-                            
+
                             heat_center(i, j)  =
                                 get_bottom_neighbor(
-                                    heat_center, heat_bottom, i, j)                                 
+                                    heat_center, heat_bottom, i, j)
                                 + dy * (
                                     re * pr * uv_center(i, j).first
                                     *   (get_right_neighbor(
-                                            temp_center, temp_right, i, j) 
-                                        + temp_center(i, j) 
+                                            temp_center, temp_right, i, j)
+                                        + temp_center(i, j)
                                         ) / 2.
                                     -   (get_right_neighbor(
-                                            temp_center, temp_right, i, j) 
-                                        - temp_center(i, j) 
+                                            temp_center, temp_right, i, j)
+                                        - temp_center(i, j)
                                         ) / dx
                                 );
                         }
@@ -734,7 +708,7 @@ custom_grain_size::compute_stream_vorticity_heat(
                              stream_center(i, j)  =
                                  get_bottom_neighbor(
                                     stream_center, stream_bottom, i, j) ;
-                             
+
                              heat_center(i, j)  =
                                  get_bottom_neighbor(
                                     heat_center, heat_bottom, i, j) ;
@@ -762,7 +736,7 @@ custom_grain_size::compute_stream_vorticity_heat(
                             vorticity_center(i, j)  = 0;
                     }
                 }
-            
+
             return std::make_tuple(
                     scalar_partition(middle_stream.get_id(),stream_center),
                     scalar_partition(middle_stream.get_id(), vorticity_center),

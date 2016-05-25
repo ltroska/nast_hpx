@@ -33,7 +33,7 @@ namespace server
 
 stepper_server::stepper_server(uint nl)
 : num_localities(nl)
-{    
+{
 }
 
 void stepper_server::setup(io::config&& cfg)
@@ -65,11 +65,11 @@ void stepper_server::setup(io::config&& cfg)
         << " with " << params.num_partitions_x - 2
         << "x" << params.num_partitions_y - 2 << " partitions, "
         << params.num_cells_per_partition_x
-        << "x" << params.num_cells_per_partition_y 
-        << " cells each, dx=" << params.dx 
+        << "x" << params.num_cells_per_partition_y
+        << " cells each, dx=" << params.dx
         << " dy=" << params.dx
         << hpx::endl << hpx::flush;
-    
+
     if (hpx::get_locality_id() == 0)
 #ifdef CUSTOM_GRAIN_SIZE
         std::cout << "MODE: CUSTOM_GRAIN_SIZE" << std::endl;
@@ -106,7 +106,7 @@ void stepper_server::initialize_parameters()
             != c.j_max + 2)
     {
         std::cerr
-            << "i_res and/or j_res doesn't fit the dimensions of the problem." 
+            << "i_res and/or j_res doesn't fit the dimensions of the problem."
             << std::endl;
         exit(0);
     }
@@ -140,7 +140,6 @@ void stepper_server::initialize_grids()
     fg_temp_grid.resize(params.num_partitions_x * params.num_partitions_y);
 
     p_grid.resize(params.num_partitions_x * params.num_partitions_y);
-    p_temp_grid.resize(params.num_partitions_x * params.num_partitions_y);
 
     rhs_grid.resize(params.num_partitions_x * params.num_partitions_y);
 
@@ -164,7 +163,7 @@ void stepper_server::initialize_grids()
     for (uint l = 0; l < params.num_partitions_y; l++)
         for (uint k = 0; k < params.num_partitions_x; k++)
         {
-            
+
             // fill grid with the global indices of bottom left cell for each
             // partition
             index_grid[get_index(k, l)] =
@@ -185,33 +184,33 @@ void stepper_server::initialize_grids()
                 vector_partition(hpx::find_here(),
                     params.num_cells_per_partition_x,
                     params.num_cells_per_partition_y);
-            
+
             p_grid[get_index(k, l)] =
                 scalar_partition(hpx::find_here(),
                     params.num_cells_per_partition_x,
                     params.num_cells_per_partition_y,
                     0);
-            
-            rhs_grid[get_index(k, l)] =                
+
+            rhs_grid[get_index(k, l)] =
                 scalar_partition(hpx::find_here(),
                 params.num_cells_per_partition_x,
                 params.num_cells_per_partition_y);
-            
+
             temperature_grid[get_index(k, l)] =
                 scalar_partition(hpx::find_here(),
                 params.num_cells_per_partition_x,
                 params.num_cells_per_partition_y, c.ti);
-            
+
             stream_grid[get_index(k, l)] =
                 scalar_partition(hpx::find_here(),
                 params.num_cells_per_partition_x,
                 params.num_cells_per_partition_y);
-            
+
             vorticity_grid[get_index(k, l)] =
                 scalar_partition(hpx::find_here(),
                 params.num_cells_per_partition_x,
                 params.num_cells_per_partition_y);
-            
+
             heat_grid[get_index(k, l)] =
                 scalar_partition(hpx::find_here(),
                 params.num_cells_per_partition_x,
@@ -227,7 +226,7 @@ void stepper_server::initialize_grids()
                 {
                     local_flags[j * params.num_cells_per_partition_x + i] =
                         c.flag_grid[
-                            (params.j_max + 2 - 1 
+                            (params.j_max + 2 - 1
                             - index_grid[get_index(k, l)].second - j)
                         *(params.i_max + 2)
                         + (index_grid[get_index(k, l)].first + i)
@@ -251,14 +250,14 @@ void stepper_server::initialize_grids()
                         {
                             vector_cell& curr_cell =
                                 curr_data(i, j);
-                            
+
                             curr_cell.first =
                                 c.initial_uv_grid[(params.j_max + 2 - 1
                                 - index_grid[get_index(k, l)].second - j)
                                 *(params.i_max + 2)
                                 + (index_grid[get_index(k, l)].first + i)]
                                     .first;
-                            
+
                             curr_cell.second =
                                 c.initial_uv_grid[(params.j_max + 2 - 1
                                 - index_grid[get_index(k, l)].second - j)
@@ -280,15 +279,15 @@ void stepper_server::initialize_grids()
             else
                 uv_grid[get_index(k, l)] = vector_dummy;
         }
-    
-    
+
+
     for (uint l = 0; l < params.num_partitions_y; l++)
         for (uint k = 0; k < params.num_partitions_x; k++)
-        {    
+        {
             boundary[get_index(k, l)].resize(4);
-            
+
             auto flag_data = flag_grid[get_index(k, l)];
-            
+
             for (uint j = 0; j < c.j_res; ++j)
                 for (uint i = 0; i < c.i_res; ++i)
                 {
@@ -304,33 +303,64 @@ void stepper_server::initialize_grids()
                     else if (type == std::bitset<5>("01101"))
                         boundary[get_index(k, l)][3].emplace_back(i, j);
                     else if (type != std::bitset<5>("00000"))
-                        obstacle[get_index(k, l)].emplace_back(i, j);                    
+                        obstacle[get_index(k, l)].emplace_back(i, j);
                 }
         }
+
+        pdata.resize(params.num_partitions_x * params.num_partitions_y);
+        pdata_temp.resize(params.num_partitions_x * params.num_partitions_y);
+        rhsdata.resize(params.num_partitions_x * params.num_partitions_y);
+
+        for (uint l = 0; l < params.num_partitions_y; l++)
+            for (uint k = 0; k < params.num_partitions_x; k++)
+            {
+                if (k != 0 && k != params.num_partitions_x - 1 && l != 0
+                    && l != params.num_partitions_y - 1)
+                {
+                    pdata[get_index(k, l)] = p_grid[get_index(k, l)].get_data(CENTER);
+                    rhsdata[get_index(k, l)] = rhs_grid[get_index(k, l)].get_data(CENTER);
+                }
+                else if (k == 0)
+                {
+                    pdata[get_index(k, l)] = p_grid[get_index(k, l)].get_data(LEFT);
+                }
+                else if (k == params.num_partitions_x - 1)
+                {
+                    pdata[get_index(k, l)] = p_grid[get_index(k, l)].get_data(RIGHT);
+                }
+                else if (l == 0)
+                {
+                    pdata[get_index(k, l)] = p_grid[get_index(k, l)].get_data(BOTTOM);
+                }
+                else if (l == params.num_partitions_y - 1)
+                {
+                    pdata[get_index(k, l)] = p_grid[get_index(k, l)].get_data(TOP);
+                }
+            }
 }
 
 void stepper_server::initialize_communication()
 {
-    // find if locality has neighbor in each direction    
+    // find if locality has neighbor in each direction
     has_neighbor[LEFT] = !(hpx::get_locality_id() % num_localities_x == 0);
-    
+
     has_neighbor[RIGHT] =
         !(hpx::get_locality_id() % num_localities_x == num_localities_x - 1);
-    
+
     has_neighbor[BOTTOM] = !(hpx::get_locality_id() / num_localities_x == 0);
-    
+
     has_neighbor[TOP] =
         !(hpx::get_locality_id() / num_localities_x == num_localities_y - 1);
-    
+
     has_neighbor[BOTTOM_LEFT] = (has_neighbor[BOTTOM] && has_neighbor[LEFT]);
-    
+
     has_neighbor[BOTTOM_RIGHT] = (has_neighbor[BOTTOM] && has_neighbor[RIGHT]);
-    
+
     has_neighbor[TOP_LEFT] = (has_neighbor[TOP] && has_neighbor[LEFT]);
-    
+
     has_neighbor[TOP_RIGHT] = (has_neighbor[TOP] && has_neighbor[RIGHT]);
 
-    
+
     for (int directionInt = LEFT; directionInt != NUM_DIRECTIONS;
                                                                 directionInt++)
     {
@@ -356,16 +386,16 @@ void stepper_server::do_work()
     for (uint step = 1; t + dt < c.t_end; step++)
     {
         hpx::util::high_resolution_timer t;
-        
+
         // do a timestep
         hpx::future<std::pair<RealType, RealType> > local_max_velocity =
             do_timestep(step, dt);
-            
-        std::cout << "total time for step " << step << ": " << t.elapsed() << std::endl;
-        
-        local_max_velocity.get();
 
-        /* // if this is the root locality gather all remote residuals and sum up
+        std::cout << "total time for step " << step << ": " << t.elapsed() << std::endl;
+
+    //    local_max_velocity.get();
+
+        // if this is the root locality gather all remote residuals and sum up
         if (hpx::get_locality_id() == 0)
         {
             hpx::future<std::vector<std::pair<RealType, RealType> > >
@@ -389,7 +419,7 @@ void stepper_server::do_work()
                             global_max_uv.first =
                                 (max_uv.first > global_max_uv.first
                                     ? max_uv.first : global_max_uv.first);
-                            
+
                             global_max_uv.second =
                                 (max_uv.second > global_max_uv.second
                                     ? max_uv.second : global_max_uv.second);
@@ -405,7 +435,7 @@ void stepper_server::do_work()
 
                         // special case for temperature driven flow
                         if (c.pr)
-                            result = std::min(result, 
+                            result = std::min(result,
                                             (c.re * c.pr) / 2. * 1.
                                             / (1. / std::pow(params.dx, 2)
                                             + 1. / std::pow(params.dy, 2)));
@@ -414,16 +444,14 @@ void stepper_server::do_work()
 
                         return result;
                     });
-            
-            // decide if SOR should keep running or not
+
             hpx::lcos::broadcast_apply<set_dt_action>(localities, step, new_dt.get());
         }
-        // if not root locality, send residual to root locality
         else
             hpx::lcos::gather_there(velocity_basename, std::move(local_max_velocity),
                                        step).wait();
-                                                               
-        dt = dt_buffer.receive(step).get();      */ 
+
+        dt = dt_buffer.receive(step).get();
     }
 }
 
@@ -431,7 +459,7 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
     uint step, RealType dt)
 {
     hpx::util::high_resolution_timer t1;
-        
+
     // set the boundary and obstacle data for each partition
     for (uint l = 0; l < params.num_partitions_y; l++)
         for (uint k = 0; k < params.num_partitions_x; k++)
@@ -488,10 +516,7 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
 
     // note: this does not block (it is essentially moving on a future)
     uv_grid = uv_temp_grid;
-    
-   // print_grid(uv_grid, "uv");
 
-  
     if (c.pr != 0)
         temperature_grid = temperature_temp_grid;
 
@@ -528,7 +553,6 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                     temperature_temp_grid[get_index(k, l)] =
                         temperature_grid[get_index(k, l)];
             }
-
 
         temperature_grid = temperature_temp_grid;
     }
@@ -578,16 +602,15 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                     params.dy,
                     dt
                 );
-   
-  /*  print_grid(uv_grid, "uv");
-    print_grid(temperature_grid, "temp");
-    print_grid(fg_grid, "fg");
-    print_grid(rhs_grid, "rhs");*/
-    
-    RealType t1_elapsed = t1.elapsed();    
-         
-   
-      hpx::util::high_resolution_timer t2;
+
+    RealType t1_elapsed = t1.elapsed();
+
+
+    for (uint l = 1; l < params.num_partitions_y - 1; l++)
+        for (uint k = 1; k < params.num_partitions_x - 1; k++)
+            rhsdata[get_index(k, l)] = rhs_grid[get_index(k, l)].get_data(CENTER);
+
+    hpx::util::high_resolution_timer t2;
 
     RealType const dx_sq = std::pow(params.dx, 2);
     RealType const dy_sq = std::pow(params.dy, 2);
@@ -595,116 +618,63 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
     RealType const over_dy_sq = 1./std::pow(params.dy, 2);
     RealType const part1 = 1. - c.omega;
     RealType const part2 = c.omega * dx_sq * dy_sq / (2. * (dx_sq + dy_sq));
-        
-    uint k = 1;
-    uint l = 1;
-        
-    //this is just a dirty version, will move this later.
-    //It still illustrates the problem
 
-    std::vector<hpx::shared_future<scalar_data> > pdata;
-    std::vector<hpx::shared_future<scalar_data> > pdata_temp;
-    std::vector<hpx::shared_future<scalar_data> > rhsdata;
-    
-    pdata.resize(params.num_partitions_x * params.num_partitions_y);
-    pdata_temp.resize(params.num_partitions_x * params.num_partitions_y);
-    rhsdata.resize(params.num_partitions_x * params.num_partitions_y);
-    
-    for (uint l = 0; l < params.num_partitions_y; l++)
-        for (uint k = 0; k < params.num_partitions_x; k++)
-        {
-            if (k != 0 && k != params.num_partitions_x - 1 && l != 0
-                && l != params.num_partitions_y - 1)
-            {
-                pdata[get_index(k, l)] = p_grid[get_index(k, l)].get_data(CENTER);
-                rhsdata[get_index(k, l)] = rhs_grid[get_index(k, l)].get_data(CENTER);
-            }
-            else if (k == 0)
-            {
-                pdata[get_index(k, l)] = p_grid[get_index(k, l)].get_data(LEFT);
-            }
-            else if (k == params.num_partitions_x - 1)
-            {
-                pdata[get_index(k, l)] = p_grid[get_index(k, l)].get_data(RIGHT);
-            }
-            else if (l == 0)
-            {
-                pdata[get_index(k, l)] = p_grid[get_index(k, l)].get_data(BOTTOM);
-            }
-            else if (l == params.num_partitions_y - 1)
-            {
-                pdata[get_index(k, l)] = p_grid[get_index(k, l)].get_data(TOP);
-            }
-        }
-        
-    /* .get-ing the clients beforehand and then executing the three functions
-     * serially in the following loop makes the code run ~2 times as fast (serially 
-     * around ~0.075 per timestep, with dataflow ~0.15s)
-     */
-     
-#ifndef SLOW
-    //get the data beforehand
-    std::vector<scalar_data> p_data;
-    p_data.resize(params.num_partitions_x * params.num_partitions_y);
-    
-    for (auto idx = 0; idx < p_data.size(); ++idx)
-        p_data[idx] = pdata[idx].get();
-#endif
+    std::cout << "SOR" << std::endl;
 
     uint iter = 0;
     RealType res = 0;
     do
-    {  
-#ifdef SLOW
-        communicate_p_grid(step * c.iter_max + iter);
-        
-    for (uint l = 0; l < params.num_partitions_y; l++)
-        for (uint k = 0; k < params.num_partitions_x; k++)
-        {
-            if (k != 0 && k != params.num_partitions_x - 1 && l != 0
-                && l != params.num_partitions_y - 1)
-            {
-                pdata_temp[get_index(k, l)] =
-                    hpx::dataflow(
-                        hpx::launch::async,
-                        &strategy::set_pressure_for_boundary_and_obstacles,
-                        pdata[get_index(k, l)],
-                        pdata[get_index(k - 1, l)],
-                        pdata[get_index(k + 1, l)],
-                        pdata[get_index(k, l - 1)],
-                        pdata[get_index(k, l + 1)],
-                        boundary[get_index(k, l)],
-                        obstacle[get_index(k, l)],
-                        flag_grid[get_index(k, l)]
-                    );
-            }
-            else
-                pdata_temp[get_index(k, l)] = pdata[get_index(k, l)];
-        }
-        
-      for (uint l = 0; l < params.num_partitions_y; l++)
+    {
+        for (uint l = 0; l < params.num_partitions_y; l++)
             for (uint k = 0; k < params.num_partitions_x; k++)
             {
                 if (k != 0 && k != params.num_partitions_x - 1 && l != 0
                     && l != params.num_partitions_y - 1)
                 {
-                    pdata[get_index(k, l)] =
+                    pdata_temp[get_index(k, l)] =
                         hpx::dataflow(
                             hpx::launch::async,
-                            &strategy::sor_cycle,
-                            pdata_temp[get_index(k, l)],
+                            &strategy::set_pressure_for_boundary_and_obstacles,
+                            pdata[get_index(k, l)],
                             pdata[get_index(k - 1, l)],
-                            pdata_temp[get_index(k + 1, l)],
+                            pdata[get_index(k + 1, l)],
                             pdata[get_index(k, l - 1)],
-                            pdata_temp[get_index(k, l + 1)],
-                            rhsdata[get_index(k, l)],
-                            fluid[get_index(k, l)],
-                            dx_sq, dy_sq, part1,  part2
+                            pdata[get_index(k, l + 1)],
+                            boundary[get_index(k, l)],
+                            obstacle[get_index(k, l)],
+                            flag_grid[get_index(k, l)]
                         );
                 }
                 else
-                    pdata[get_index(k, l)] = pdata_temp[get_index(k, l)];
-            }        
+                    pdata_temp[get_index(k, l)] = pdata[get_index(k, l)];
+            }
+
+          for (uint l = 0; l < params.num_partitions_y; l++)
+                for (uint k = 0; k < params.num_partitions_x; k++)
+                {
+                    if (k != 0 && k != params.num_partitions_x - 1 && l != 0
+                        && l != params.num_partitions_y - 1)
+                    {
+                        pdata[get_index(k, l)] =
+                            hpx::dataflow(
+                                hpx::launch::async,
+                                &strategy::sor_cycle,
+                                pdata_temp[get_index(k, l)],
+                                pdata[get_index(k - 1, l)],
+                                pdata_temp[get_index(k + 1, l)],
+                                pdata[get_index(k, l - 1)],
+                                pdata_temp[get_index(k, l + 1)],
+                                rhsdata[get_index(k, l)],
+                                fluid[get_index(k, l)],
+                                dx_sq, dy_sq, part1,  part2
+                            );
+                    }
+                    else
+                        pdata[get_index(k, l)] = pdata_temp[get_index(k, l)];
+                }
+
+        communicate_p_grid(step * c.iter_max + iter);
+
 
         std::vector<hpx::future<RealType> > residuals;
 
@@ -725,81 +695,7 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                         )
                 );
 
-        // sum up all local residuals
-        hpx::future<RealType> residual_fut =
-            hpx::when_all(residuals).then(
-                hpx::util::unwrapped(
-                    [](std::vector< hpx::future<RealType> > residuals)
-                    -> RealType
-                    {
-                        RealType sum = 0;
 
-                        for (auto& r : residuals)
-                            sum += r.get();
-
-                        return sum;
-                    }
-                )
-            );
-            
-#else
-        communicate_p_grid(step * c.iter_max + iter);        
-    for (uint l = 0; l < params.num_partitions_y; l++)
-        for (uint k = 0; k < params.num_partitions_x; k++)
-        {
-            if (k != 0 && k != params.num_partitions_x - 1 && l != 0
-                && l != params.num_partitions_y - 1)
-            {     
-                strategy::set_pressure_for_boundary_and_obstacles(
-                        hpx::make_ready_future(p_data[get_index(k, l)]),
-                        hpx::make_ready_future(p_data[get_index(k - 1, l)]),
-                        hpx::make_ready_future(p_data[get_index(k + 1, l)]),
-                        hpx::make_ready_future(p_data[get_index(k, l - 1)]),
-                        hpx::make_ready_future(p_data[get_index(k, l + 1)]),
-                        boundary[get_index(k, l)],
-                        obstacle[get_index(k, l)],
-                        flag_grid[get_index(k, l)]
-                    );
-            }
-        }
-        
-
-      for (uint l = 0; l < params.num_partitions_y; l++)
-            for (uint k = 0; k < params.num_partitions_x; k++)
-            {
-                if (k != 0 && k != params.num_partitions_x - 1 && l != 0
-                    && l != params.num_partitions_y - 1)
-                {
-                        strategy::sor_cycle(
-                            hpx::make_ready_future(p_data[get_index(k, l)]),
-                            hpx::make_ready_future(p_data[get_index(k - 1, l)]),
-                            hpx::make_ready_future(p_data[get_index(k + 1, l)]),
-                            hpx::make_ready_future(p_data[get_index(k, l - 1)]),
-                            hpx::make_ready_future(p_data[get_index(k, l + 1)]),
-                            rhsdata[get_index(k, l)],
-                            fluid[get_index(k, l)],
-                            dx_sq, dy_sq, part1,  part2
-                        );
-                }
-            }        
-
-  
-        std::vector<hpx::future<RealType> > residuals;
-
-        for (uint l = 1; l < params.num_partitions_y - 1; l++)
-            for (uint k = 1; k < params.num_partitions_x - 1; k++)
-                residuals.push_back(
-                            hpx::make_ready_future(strategy::compute_residual(
-                            hpx::make_ready_future(pdata[get_index(k, l)]),
-                            hpx::make_ready_future(pdata[get_index(k - 1, l)]),
-                            hpx::make_ready_future(pdata[get_index(k + 1, l)]),
-                            hpx::make_ready_future(pdata[get_index(k, l - 1)]),
-                            hpx::make_ready_future(pdata[get_index(k, l + 1)]),
-                            rhsdata[get_index(k, l)],
-                            fluid[get_index(k, l)],
-                            params.dx, params.dy
-                        ))
-                );
 
         // sum up all local residuals
         hpx::future<RealType> residual_fut =
@@ -817,13 +713,17 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                     }
                 )
             );
-    
-    
-#endif
-        
 
         iter++;
-        
+
+     //   print_grid(p_grid);
+      //  exit(0);
+
+        auto resd = residual_fut.get();
+        std::cout << resd << std::endl;
+
+        residual_fut = hpx::make_ready_future(resd);
+
         // if this is the root locality gather all remote residuals and sum up
         if (hpx::get_locality_id() == 0)
         {
@@ -837,6 +737,7 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                     [](hpx::future<std::vector<RealType>> local_residuals)
                         -> RealType
                     {
+                        std::cout << "got all residuals" << std::endl;
                         RealType result = 0;
                         std::vector<RealType> local_res = local_residuals.get();
 
@@ -847,9 +748,10 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                     });
 
             res = residual.get() / c.num_fluid_cells;
-            
-          /*  // decide if SOR should keep running or not
-            hpx::lcos::broadcast_apply<set_keep_running_action>(
+            std::cout << iter << " " << res << std::endl;
+
+            // decide if SOR should keep running or not
+            /*hpx::lcos::broadcast_apply<set_keep_running_action>(
                 localities, step * c.iter_max + iter,
                 (iter < c.iter_max && res > c.eps_sq));*/
         }
@@ -857,19 +759,17 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
         else
             hpx::lcos::gather_there(residual_basename, std::move(residual_fut),
                                         step*c.iter_max + iter).wait();
-                                        
-                                        
+
+
+
     }
     while (iter < c.iter_max);
-
-   // print_grid(p_grid);
 
     RealType t2_elapsed = t2.elapsed();
 
     hpx::util::high_resolution_timer t3;
 
     // update velocities and find local maximal velocity
-    
     std::vector<hpx::future<std::pair<RealType, RealType> > > max_uvs;
 
     for (uint l = 1; l < params.num_partitions_y - 1; l++)
@@ -910,7 +810,7 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                 });
 
         }
-    
+
     // compute local maximal velocities
     hpx::future<std::pair<RealType, RealType> > max_uv =
         hpx::when_all(max_uvs).then(
@@ -936,11 +836,11 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
             return max_uv;
         })
     );
-    
+
     hpx::wait_all(uv_grid);
-    
+
     t += dt;
-        
+
     // print out local grid
     if ((c.output_skip_size != 0 && (step % c.output_skip_size == 0))
         || (c.delta_vec != 0 && next_write <= t))
@@ -952,15 +852,15 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
             write_vtk(out_iter);
 
         if (hpx::get_locality_id() == 0)
-            std::cout 
-                << "t " << t << " | dt " << dt 
-                << " | iterations: " << iter 
+            std::cout
+                << "t " << t << " | dt " << dt
+                << " | iterations: " << iter
                 << " | residual squared " << res
-                << " | before SOR = " << t1_elapsed 
-                << " | SOR = " << t2_elapsed 
-                << " average = " << t2_elapsed / iter 
-                << " | after SOR = " << t3.elapsed() 
-               // << " | max uv " << max_.first << " " << max_.second
+                << " | before SOR = " << t1_elapsed
+                << " | SOR = " << t2_elapsed
+                << " average = " << t2_elapsed / iter
+                << " | after SOR = " << t3.elapsed()
+               // << " | max uv " << max_u.first << " " << max_.second
                 << std::endl;
 
         out_iter++;
@@ -988,7 +888,7 @@ void stepper_server::communicate_p_grid(uint iter)
     {
         send_p_to_neighbor(iter * params.num_partitions_y + l,
             p_grid[get_index(1, l)], LEFT);
-        
+
         send_p_to_neighbor(iter * params.num_partitions_y + l,
             p_grid[get_index(params.num_partitions_x - 2, l)], RIGHT);
     }
@@ -997,7 +897,7 @@ void stepper_server::communicate_p_grid(uint iter)
     {
         send_p_to_neighbor(iter * params.num_partitions_x + k,
             p_grid[get_index(k, 1)], BOTTOM);
-        
+
         send_p_to_neighbor(iter * params.num_partitions_x + k,
             p_grid[get_index(k, params.num_partitions_y - 2)], TOP);
     }
@@ -1005,20 +905,44 @@ void stepper_server::communicate_p_grid(uint iter)
     // receive data from localities neighboring all four sides
     for (uint l = 1; l < params.num_partitions_y - 1; l++)
     {
-        p_grid[get_index(0, l)] =
-            receive_p_from_neighbor(iter * params.num_partitions_y + l, LEFT);
-        
-        p_grid[get_index(params.num_partitions_x - 1, l)] =
-            receive_p_from_neighbor(iter * params.num_partitions_y + l, RIGHT);
+        p_grid[get_index(0, l)] = receive_p_from_neighbor(iter * params.num_partitions_y + l, LEFT);
+        pdata[get_index(0, l)] =
+                hpx::dataflow(
+                              [](scalar_partition const& p) -> hpx::shared_future<scalar_data>
+                              {
+                                return p.get_data(LEFT);
+                              },
+                              p_grid[get_index(0, l)]);
+
+        p_grid[get_index(params.num_partitions_x - 1, l)] = receive_p_from_neighbor(iter * params.num_partitions_y + l, RIGHT);
+        pdata[get_index(params.num_partitions_x - 1, l)] =
+                        hpx::dataflow(
+                              [](scalar_partition const& p) -> hpx::shared_future<scalar_data>
+                              {
+                                return p.get_data(RIGHT);
+                              },
+                              p_grid[get_index(params.num_partitions_x - 1, l)]);
     }
 
     for (uint k = 1; k < params.num_partitions_x - 1; k++)
     {
-        p_grid[get_index(k, 0)] =
-            receive_p_from_neighbor(iter * params.num_partitions_x + k, BOTTOM);
-        
-        p_grid[get_index(k, params.num_partitions_y - 1)] =
-            receive_p_from_neighbor(iter * params.num_partitions_x + k, TOP);
+        p_grid[get_index(k, 0)] = receive_p_from_neighbor(iter * params.num_partitions_x + k, BOTTOM);
+        pdata[get_index(k, 0)] =
+                hpx::dataflow(
+                              [](scalar_partition const& p) -> hpx::shared_future<scalar_data>
+                              {
+                                return p.get_data(BOTTOM);
+                              },
+                              p_grid[get_index(k, 0)]);
+
+        p_grid[get_index(k, params.num_partitions_y - 1)] = receive_p_from_neighbor(iter * params.num_partitions_x + k, TOP);
+        pdata[get_index(k, params.num_partitions_y - 1)] =
+                 hpx::dataflow(
+                              [](scalar_partition const& p) -> hpx::shared_future<scalar_data>
+                              {
+                                return p.get_data(TOP);
+                              },
+                               p_grid[get_index(k, params.num_partitions_y - 1)]);
     }
 }
 
@@ -1116,7 +1040,7 @@ void stepper_server::communicate_uv_grid(uint step)
 
         send_uv_to_neighbor(step * params.num_partitions_y + l,
             uv_grid[get_index(1, l)], LEFT);
-        
+
         send_uv_to_neighbor(step * params.num_partitions_y + l,
             uv_grid[get_index(params.num_partitions_x - 2, l)], RIGHT);
     }
@@ -1132,7 +1056,7 @@ void stepper_server::communicate_uv_grid(uint step)
 
         send_uv_to_neighbor(step * params.num_partitions_x + k,
             uv_grid[get_index(k, 1)], BOTTOM);
-        
+
         send_uv_to_neighbor(step * params.num_partitions_x + k,
             uv_grid[get_index(k, params.num_partitions_y - 2)], TOP);
     }
@@ -1142,7 +1066,7 @@ void stepper_server::communicate_uv_grid(uint step)
     {
         uv_grid[get_index(0, l)] =
             receive_uv_from_neighbor(step * params.num_partitions_y + l, LEFT);
-        
+
         uv_grid[get_index(params.num_partitions_x - 1, l)] =
             receive_uv_from_neighbor(step * params.num_partitions_y + l, RIGHT);
     }
@@ -1152,20 +1076,20 @@ void stepper_server::communicate_uv_grid(uint step)
         uv_grid[get_index(k, 0)] =
             receive_uv_from_neighbor(step * params.num_partitions_x + k,
                                                                         BOTTOM);
-        
+
         uv_grid[get_index(k, params.num_partitions_y - 1)] =
             receive_uv_from_neighbor(step * params.num_partitions_x + k, TOP);
     }
 
     uv_grid[get_index(0, params.num_partitions_y - 1)] =
         receive_uv_from_neighbor(step, TOP_LEFT);
-    
+
     uv_grid[get_index(params.num_partitions_x - 1,
                         params.num_partitions_y - 1)]
         = receive_uv_from_neighbor(step, TOP_RIGHT);
-    
+
     uv_grid[get_index(0, 0)] = receive_uv_from_neighbor(step, BOTTOM_LEFT);
-    
+
     uv_grid[get_index(params.num_partitions_x - 1, 0)] =
         receive_uv_from_neighbor(step, BOTTOM_RIGHT);
 }
@@ -1173,7 +1097,7 @@ void stepper_server::communicate_uv_grid(uint step)
 void stepper_server::receive_uv_action_(
     uint t, vector_partition uv, direction to_dir)
 
-{   
+{
     //we need to negate the direction to put the data into the correct buffer
     uv_recv_buffs_[NUM_DIRECTIONS - to_dir - 1].store_received(t,
                                                                 std::move(uv));
@@ -1205,7 +1129,7 @@ const
 {
     std::shared_ptr<hpx::lcos::local::promise<int> > p =
         std::make_shared<hpx::lcos::local::promise<int> >();
-    
+
     io::do_async_print(grid, message, params.num_partitions_x,
         params.num_partitions_y, params.num_cells_per_partition_x,
         params.num_cells_per_partition_y, p);
@@ -1240,10 +1164,10 @@ void stepper_server::write_vtk(uint step)
                         global_i, global_j, params.i_max,
                         params.j_max, c.re, c.pr, params.dx, params.dy
                     );
-            
+
             hpx::lcos::local::promise<scalar_partition> outer_p1;
             hpx::lcos::local::promise<scalar_partition> outer_p2;
-            
+
             stream_grid[get_index(k, l)] = f.then(
                 [outer_p1 = std::move(outer_p1), outer_p2 = std::move(outer_p2)]
                 (auto fut) mutable -> scalar_partition
@@ -1251,15 +1175,15 @@ void stepper_server::write_vtk(uint step)
                     std::tuple<scalar_partition, scalar_partition,
                                 scalar_partition>
                         p = fut.get();
-                    
+
                     outer_p1.set_value(std::get<1>(p));
                     outer_p2.set_value(std::get<2>(p));
-                    
+
                     return std::get<0>(p);
                 }
             );
         }
-        
+
     // write out data once computation finishes
     //hpx::dataflow(
     //    hpx::launch::async,

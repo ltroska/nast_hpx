@@ -101,24 +101,32 @@ public:
             case LEFT:
             {
                 data_ =
-                    buffer_type(base.data_.data(), base.size(),
-                                    buffer_type::reference);
+                    buffer_type(new T [base.size_y()], base.size_y(),
+                                    buffer_type::take, array_deleter());
+                
+                for(uint i = 0; i < base.size_y(); ++i) {
+                    data_[i] = base(base.size_x() - 1,i);
+                }
 
-                size_x_ = base.size_x();
+                size_x_ = 1;
                 size_y_ = base.size_y();
-                size_ = base.size();
+                size_ = base.size_y();
                 break;
             }
 
             case RIGHT:
             {
                 data_ =
-                     buffer_type(base.data_.data(), base.size(),
-                                    buffer_type::reference);
+                    buffer_type(new T [base.size_y()], base.size_y(),
+                                    buffer_type::take, array_deleter());
                 
-                size_x_ = base.size_x();
+                for(uint i = 0; i < base.size_y(); ++i) {
+                    data_[i] = base(0, i);
+                }
+
+                size_x_ = 1;
                 size_y_ = base.size_y();
-                size_ = base.size();
+                size_ = base.size_y();
                 break;
             }
 

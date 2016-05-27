@@ -35,7 +35,7 @@ void do_get_neighbor_cell_test(uint k, uint l, uint i, uint j, uint i_max, uint 
     vector_data topleft_data = grid[(l+1) * num_partitions_y + k-1].get_data(TOP_LEFT).get();
     vector_data topright_data = grid[(l+1) * num_partitions_y + k+1].get_data(TOP_RIGHT).get();
 
-    vector_cell& cell = center_data.get_cell_ref(i, j);
+    vector_cell& cell = center_data(i, j);
     vector_cell left_neighbor = get_left_neighbor(center_data, left_data, i, j);
     vector_cell right_neighbor =
         get_right_neighbor(center_data, right_data, i, j);
@@ -46,26 +46,26 @@ void do_get_neighbor_cell_test(uint k, uint l, uint i, uint j, uint i_max, uint 
         get_bottomright_neighbor(center_data, bottom_data, right_data,
             bottomright_data, i, j);
     vector_cell top_left_neighbor =
-        get_left_neighbor(center_data, left_data, i, j);
+        get_topleft_neighbor(center_data, top_data, left_data, topleft_data, i, j);
 
     std::string msg = std::to_string(k) + " " + std::to_string(l) + " " + std::to_string(i) + " " + std::to_string(j);
-    HPX_ASSERT_MSG(left_neighbor.first == cell.first - 1 && left_neighbor.second == cell.second,
-                    ("left_neighbor failed for " + msg + expected_string(cell, left_neighbor)).c_str() );
+    if (!(left_neighbor.first == cell.first - 1 && left_neighbor.second == cell.second))
+                  std::cerr <<  ("left_neighbor failed for " + msg + expected_string(cell, left_neighbor)).c_str()  << std::endl;
 
-    HPX_ASSERT_MSG(right_neighbor.first == cell.first + 1 && right_neighbor.second == cell.second,
-                    ("right_neighbor failed for " + msg + expected_string(cell, right_neighbor)).c_str() );
+    if (!(right_neighbor.first == cell.first + 1 && right_neighbor.second == cell.second))
+                     std::cerr <<  ("right_neighbor failed for " + msg + expected_string(cell, right_neighbor)).c_str() << std::endl;
 
-    HPX_ASSERT_MSG(bottom_neighbor.first == cell.first && bottom_neighbor.second == cell.second - 1,
-                    ("bottom_neighbor failed for " + msg + expected_string(cell, bottom_neighbor)).c_str() );
+    if (!(bottom_neighbor.first == cell.first && bottom_neighbor.second == cell.second - 1))
+                     std::cerr <<  ("bottom_neighbor failed for " + msg + expected_string(cell, bottom_neighbor)).c_str() << std::endl;
 
-    HPX_ASSERT_MSG(top_neighbor.first == cell.first && top_neighbor.second == cell.second + 1,
-                    ("top_neighbor failed for " + msg + expected_string(cell, top_neighbor)).c_str() );
+    if (!(top_neighbor.first == cell.first && top_neighbor.second == cell.second + 1))
+                     std::cerr <<  ("top_neighbor failed for " + msg + expected_string(cell, top_neighbor)).c_str() << std::endl;
 
-    HPX_ASSERT_MSG(bottom_right_neighbor.first == cell.first + 1 && bottom_right_neighbor.second == cell.second - 1,
-                    ("bottom_right_neighbor failed for " + msg + expected_string(cell, bottom_right_neighbor)).c_str() );
+    if (!(bottom_right_neighbor.first == cell.first + 1 && bottom_right_neighbor.second == cell.second - 1))
+                     std::cerr <<  ("bottom_right_neighbor failed for " + msg + expected_string(cell, bottom_right_neighbor)).c_str() << std::endl;
 
-    HPX_ASSERT_MSG(top_left_neighbor.first == cell.first - 1 && top_left_neighbor.second == cell.second + 1,
-                    ("top_left_neighbor failed for " + msg + expected_string(cell, top_left_neighbor)).c_str() );
+    if (!(top_left_neighbor.first == cell.first - 1 && top_left_neighbor.second == cell.second + 1))
+                     std::cerr <<  ("top_left_neighbor failed for " + msg + expected_string(cell, top_left_neighbor)).c_str() << std::endl;
 
 }
 

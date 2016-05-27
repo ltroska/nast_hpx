@@ -619,8 +619,6 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
     RealType const part1 = 1. - c.omega;
     RealType const part2 = c.omega * dx_sq * dy_sq / (2. * (dx_sq + dy_sq));
 
-    std::cout << "SOR" << std::endl;
-
     uint iter = 0;
     RealType res = 0;
     do
@@ -720,7 +718,6 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
       //  exit(0);
 
         auto resd = residual_fut.get();
-        std::cout << resd << std::endl;
 
         residual_fut = hpx::make_ready_future(resd);
 
@@ -737,7 +734,6 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                     [](hpx::future<std::vector<RealType>> local_residuals)
                         -> RealType
                     {
-                        std::cout << "got all residuals" << std::endl;
                         RealType result = 0;
                         std::vector<RealType> local_res = local_residuals.get();
 
@@ -748,7 +744,6 @@ hpx::future<std::pair<RealType, RealType> > stepper_server::do_timestep(
                     });
 
             res = residual.get() / c.num_fluid_cells;
-            std::cout << iter << " " << res << std::endl;
 
             // decide if SOR should keep running or not
             /*hpx::lcos::broadcast_apply<set_keep_running_action>(

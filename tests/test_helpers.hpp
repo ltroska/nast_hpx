@@ -135,7 +135,7 @@ struct grid_maker
                 for (uint i = 0; i < cells_x; i++)
                     for (uint j = 0; j < cells_y; j++)
                     {
-                        data.get_cell_ref(i, j) = T(rd());
+                        data(i, j) = T(rd());
                     }
 
                 grid[get_index(k, l)] = grid::partition<T>(hpx::find_here(), data);
@@ -175,7 +175,7 @@ struct grid_maker
                 for (uint i = 0; i < cells_x; i++)
                     for (uint j = 0; j < cells_y; j++)
                     {
-                        vector_cell& cell = data.get_cell_ref(i, j);
+                        vector_cell& cell = data(i, j);
 
                         cell.first = k*cells_x + i;
                         cell.second = l*cells_y + j;
@@ -232,7 +232,7 @@ void print_grid(std::vector<grid::partition<T> > const& grid, uint partitions_x,
             {
                 for (uint col = 0; col < cells_x; col++)
                 {
-                    std::cout << data[i][j].get_cell(col, row) << " ";
+                    std::cout << data[i][j](col, row) << " ";
                 }
             }
             std::cout << std::endl;

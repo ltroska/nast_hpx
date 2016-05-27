@@ -57,4 +57,13 @@ add_hpx_executable(
     COMPONENT_DEPENDENCIES stepper_server
 )
 
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
+
+add_hpx_executable(
+    test_get_neighbor_cell
+    ESSENTIAL
+    SOURCES tests/test_get_neighbor_cell.cpp
+    COMPONENT_DEPENDENCIES partition_server
+)
+add_test(get_neighbor_cell test_get_neighbor_cell -t4)
 

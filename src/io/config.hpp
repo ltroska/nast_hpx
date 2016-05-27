@@ -1,5 +1,5 @@
-#ifndef IO_CONFIG_HPP
-#define IO_CONFIG_HPP
+#ifndef NAST_HPX_IO_CONFIG_HPP
+#define NAST_HPX_IO_CONFIG_HPP
 
 #include <iostream>
 #include <bitset>
@@ -8,7 +8,7 @@
 #include "util/typedefs.hpp"
 #include "util/boundary_data.hpp"
 
-namespace io {
+namespace nast_hpx { namespace io {
 
 /// This class represents the configuration of the simulation provided by the
 /// csv file passed in as an argument to the executable.
@@ -20,26 +20,26 @@ struct config
         uint j_res;
         uint num_fluid_cells;
         
-        RealType x_length;
-        RealType y_length;
+        Real x_length;
+        Real y_length;
 
-        RealType re;
-        RealType pr;
-        RealType omega;
-        RealType tau;
-        RealType eps;
-        RealType eps_sq;
-        RealType alpha;
-        RealType beta;
-        RealType gx;
-        RealType gy;
+        Real re;
+        Real pr;
+        Real omega;
+        Real tau;
+        Real eps;
+        Real eps_sq;
+        Real alpha;
+        Real beta;
+        Real gx;
+        Real gy;
 
         bool vtk;
         uint output_skip_size;
-        RealType delta_vec;
+        Real delta_vec;
 
-        RealType t_end;
-        RealType dt;
+        Real t_end;
+        Real dt;
         uint sub_iterations;
         uint iter_max;
 
@@ -51,13 +51,13 @@ struct config
 
         boundary_data temp_bnd;
         boundary_data temp_data_type;
-        RealType ti;
+        Real ti;
 
         bool with_flag_grid;
         std::vector<std::bitset<5> > flag_grid;
 
         bool with_initial_uv_grid;
-        std::vector<std::pair<RealType, RealType> > initial_uv_grid;
+        std::vector<std::pair<Real, Real> > initial_uv_grid;
         
         template <typename Archive>
         void serialize(Archive& ar, const unsigned int version)
@@ -113,6 +113,7 @@ struct config
 };
 
 } //namespace
+}
 
 #endif
 

@@ -9,15 +9,15 @@ struct boundary_data
 {
     boundary_data() : left(0), right(0), bottom(0), top(0) {}
 
-    boundary_data(RealType value)
+    boundary_data(Real value)
     : left(value), right(value), bottom(value), top(value) {}
 
-    boundary_data(RealType left_value, RealType right_value,
-        RealType bottom_value, RealType top_value)
+    boundary_data(Real left_value, Real right_value,
+        Real bottom_value, Real top_value)
     : left(left_value), right(right_value), bottom(bottom_value),
         top(top_value) {}
 
-    RealType left, right, bottom, top;
+    Real left, right, bottom, top;
 
     template <typename Archive>
     void serialize(Archive& ar, const unsigned int version)

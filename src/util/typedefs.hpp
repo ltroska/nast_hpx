@@ -1,7 +1,7 @@
 #ifndef UTIL_TYPEDEFS_HPP
 #define UTIL_TYPEDEFS_HPP
 
-#define RealType double
+#define Real double
 #define uint std::size_t
 
 #define has_fluid_north 0

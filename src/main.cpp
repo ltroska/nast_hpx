@@ -6,12 +6,12 @@
 
 int hpx_main(boost::program_options::variables_map& vm)
 {
-    stepper::stepper step;
+    nast_hpx::stepper::stepper step;
         
     const auto cfg_path = vm["cfg"].as<std::string>();
         
-    step.setup(io::config::read_config_from_file(cfg_path.c_str())).wait();
-
+    step.setup(nast_hpx::io::config::read_config_from_file(cfg_path.c_str())).wait();
+    
     return hpx::finalize();
 }
 

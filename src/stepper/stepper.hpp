@@ -1,11 +1,12 @@
-#ifndef STEPPER_STEPPER_HPP
-#define STEPPER_STEPPER_HPP
+#ifndef NAST_HPX_STEPPER_STEPPER_HPP
+#define NAST_HPX_STEPPER_STEPPER_HPP
 
 #include "server/stepper_server.hpp"
 
-namespace stepper {
+namespace nast_hpx { namespace stepper {
     
 /// A client that represents the stepper_server component.
+
 struct stepper
     : hpx::components::client_base<stepper, server::stepper_server>
 {
@@ -46,5 +47,6 @@ struct stepper
 
 
 }//namespace stepper
+}
 
 #endif

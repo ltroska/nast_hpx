@@ -15,7 +15,7 @@
 
 namespace io {
         
-typedef std::vector<std::vector<grid::partition_data<RealType> > >
+typedef std::vector<std::vector<grid::partition_data<Real> > >
     scalar_out_grid_type;
 
 typedef std::vector<std::vector<grid::partition_data<vector_cell> > >
@@ -75,7 +75,7 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
     scalar_out_grid_type const& heat_grid,
     scalar_out_grid_type const& temp_grid,
     bitset_grid_type const& flag_grid,
-    RealType dx, RealType dy, uint step, uint i_max, uint j_max,
+    Real dx, Real dy, uint step, uint i_max, uint j_max,
     uint partitions_x, uint partitions_y, uint cells_x, uint cells_y,
     uint loc, uint num_localities,
     std::shared_ptr<hpx::lcos::local::promise<int> > p)
@@ -195,23 +195,23 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
     coordinate_y += "\n";
 
     std::stringstream p_stream;
-    p_stream << std::setprecision(std::numeric_limits<RealType>::digits10);
+    p_stream << std::setprecision(std::numeric_limits<Real>::digits10);
 
     std::stringstream uv_stream;
-    uv_stream << std::setprecision(std::numeric_limits<RealType>::digits10);
+    uv_stream << std::setprecision(std::numeric_limits<Real>::digits10);
 
     std::stringstream vorticity_stream;
     vorticity_stream
-        << std::setprecision(std::numeric_limits<RealType>::digits10);
+        << std::setprecision(std::numeric_limits<Real>::digits10);
 
     std::stringstream strom_stream;
-    strom_stream << std::setprecision(std::numeric_limits<RealType>::digits10);
+    strom_stream << std::setprecision(std::numeric_limits<Real>::digits10);
 
     std::stringstream heat_stream;
-    heat_stream << std::setprecision(std::numeric_limits<RealType>::digits10);
+    heat_stream << std::setprecision(std::numeric_limits<Real>::digits10);
 
     std::stringstream temp_stream;
-    temp_stream << std::setprecision(std::numeric_limits<RealType>::digits10);
+    temp_stream << std::setprecision(std::numeric_limits<Real>::digits10);
 
     uint k, l, i, j;
 
@@ -304,8 +304,8 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
                             uv_stream << "0 0\n";
                         else
                         {
-                            RealType u;
-                            RealType v;
+                            Real u;
+                            Real v;
 
                             if (col != 0)
                                 u = (uv_grid[i][j](col, row).first
@@ -426,7 +426,7 @@ void do_write_vtk(scalar_out_grid_type const& p_grid,
     std::string heatstring = heat_stream.str();
     std::string tempstring = temp_stream.str();
 
-    os  << std::setprecision(std::numeric_limits<RealType>::digits10)
+    os  << std::setprecision(std::numeric_limits<Real>::digits10)
         << "<?xml version=\"1.0\"?>" << std::endl
         << "<VTKFile type=\"RectilinearGrid\" version=\"0.1\" byte_order=\"LittleEndian\">"
             << std::endl
@@ -487,7 +487,7 @@ hpx::lcos::future<int> write_vtk_worker(
     scalar_out_grid_type const& p_grid, vector_out_grid_type const& uv_grid,
     scalar_out_grid_type const& stream_grid, scalar_out_grid_type const& vorticity_grid,
     scalar_out_grid_type const& heat_grid, scalar_out_grid_type const& temp_grid,
-    bitset_grid_type const& flag_grid, RealType dx, RealType dy, uint step,
+    bitset_grid_type const& flag_grid, Real dx, Real dy, uint step,
     uint i_max, uint j_max, uint partitions_x, uint partitions_y, uint cells_x,
     uint cells_y)
 {
@@ -518,7 +518,7 @@ int write_vtk(
     scalar_grid_type const& p_grid, vector_grid_type const& uv_grid,
     scalar_grid_type const& stream_grid, scalar_grid_type const& vorticity_grid,
     scalar_grid_type const& heat_grid, scalar_grid_type const& temp_grid,
-    bitset_grid_type const& flag_grid, RealType dx, RealType dy, uint step,
+    bitset_grid_type const& flag_grid, Real dx, Real dy, uint step,
     uint i_max, uint j_max, uint partitions_x, uint partitions_y, uint cells_x,
     uint cells_y)
 {

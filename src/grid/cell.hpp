@@ -9,9 +9,9 @@ struct scalar_cell
 {
     scalar_cell() : value(0) {}
 
-    scalar_cell(RealType v) : value(v) {}
+    scalar_cell(Real v) : value(v) {}
 
-    RealType value;
+    Real value;
 
     friend class hpx::serialization::access;
 
@@ -32,12 +32,12 @@ struct vector_cell
 {
     vector_cell() : first(0), second(0) {}
 
-    vector_cell(RealType value) : first(value), second(value) {}
+    vector_cell(Real value) : first(value), second(value) {}
 
-    vector_cell(RealType value1, RealType value2)
+    vector_cell(Real value1, Real value2)
         : first(value1), second(value2) {}
 
-    RealType first, second;
+    Real first, second;
 
     friend class hpx::serialization::access;
 

@@ -27,7 +27,7 @@ inline void set_velocity_for_obstacle(vector_cell& middle,
 }
 
 inline void set_velocity_for_left_boundary(vector_cell& middle,
-    vector_cell  right, int type, RealType u_left, RealType v_left)
+    vector_cell  right, int type, Real u_left, Real v_left)
 {
     switch(type)
     {
@@ -52,7 +52,7 @@ inline void set_velocity_for_left_boundary(vector_cell& middle,
 
 inline void set_velocity_for_right_boundary(vector_cell& middle,
     vector_cell& left, vector_cell  left_left,
-    int type, RealType u_right, RealType v_right)
+    int type, Real u_right, Real v_right)
 {
     switch(type)
     {
@@ -76,7 +76,7 @@ inline void set_velocity_for_right_boundary(vector_cell& middle,
 }
 
 inline void set_velocity_for_bottom_boundary(vector_cell& middle,
-    vector_cell  top, int type, RealType u_bottom, RealType v_bottom)
+    vector_cell  top, int type, Real u_bottom, Real v_bottom)
 {
     switch(type)
     {
@@ -101,7 +101,7 @@ inline void set_velocity_for_bottom_boundary(vector_cell& middle,
 
 inline void set_velocity_for_top_boundary(vector_cell& middle,
     vector_cell& bottom, vector_cell  bottom_bottom,
-    int type, RealType u_top, RealType v_top)
+    int type, Real u_top, Real v_top)
 {
     switch(type)
     {
@@ -136,9 +136,9 @@ inline void set_velocity_for_fluid(vector_cell& middle,
         middle.first = 0;
 }   
 
-inline void set_temperature_for_boundary(RealType& middle,
-    RealType  neighbor, int type, RealType temperature_boundary, uint i,
-    RealType dx, RealType dy)
+inline void set_temperature_for_boundary(Real& middle,
+    Real  neighbor, int type, Real temperature_boundary, uint i,
+    Real dx, Real dy)
 {
     switch(type)
     {
@@ -155,11 +155,11 @@ inline void compute_fg_for_cell(vector_cell& middle_fg,
         vector_cell  middle_uv, vector_cell  left_uv,
         vector_cell  right_uv, vector_cell  bottom_uv,
         vector_cell  top_uv, vector_cell  bottomright_uv,
-        vector_cell  topleft_uv, RealType  middle_temperature,
-        RealType  right_temperature,
-        RealType  top_temperature, std::bitset<5>  type,
-        RealType re, RealType gx, RealType gy, RealType beta,
-        RealType dx, RealType dy, RealType dt, RealType alpha)
+        vector_cell  topleft_uv, Real  middle_temperature,
+        Real  right_temperature,
+        Real  top_temperature, std::bitset<5>  type,
+        Real re, Real gx, Real gy, Real beta,
+        Real dx, Real dy, Real dt, Real alpha)
 {      
     middle_fg.first =
         middle_uv.first
@@ -210,12 +210,12 @@ inline void compute_fg_for_cell(vector_cell& middle_fg,
                             );
 }
 
-inline RealType compute_temperature_for_cell(RealType middle_temperature,
-    RealType left_temperature, RealType right_temperature,
-    RealType bottom_temperature, RealType top_temperature,
+inline Real compute_temperature_for_cell(Real middle_temperature,
+    Real left_temperature, Real right_temperature,
+    Real bottom_temperature, Real top_temperature,
     vector_cell  middle_uv, vector_cell  left_uv,
-    vector_cell  bottom_uv, RealType re, RealType pr, RealType dx,
-    RealType dy, RealType dt, RealType alpha)
+    vector_cell  bottom_uv, Real re, Real pr, Real dx,
+    Real dy, Real dt, Real alpha)
 {         
    return dt * (
             1./re*1./pr * (
@@ -241,17 +241,17 @@ inline RealType compute_temperature_for_cell(RealType middle_temperature,
             + middle_temperature ;
 }
 
-inline RealType compute_rhs_for_cell(
+inline Real compute_rhs_for_cell(
     vector_cell  middle_fg, vector_cell  left_fg,
-    vector_cell  bottom_fg, RealType dx, RealType dy, RealType dt)
+    vector_cell  bottom_fg, Real dx, Real dy, Real dt)
 {        
     return 1./dt * ( (middle_fg.first - left_fg.first)/dx
                      + (middle_fg.second - bottom_fg.second)/dy);
 }
 
 
-inline void set_pressure_for_cell(RealType& middle_p,
-    RealType left_p, RealType right_p, RealType bottom_p, RealType top_p,
+inline void set_pressure_for_cell(Real& middle_p,
+    Real left_p, Real right_p, Real bottom_p, Real top_p,
     std::bitset<5>  type)
     {
         middle_p  = (left_p * type.test(has_fluid_west)
@@ -264,8 +264,8 @@ inline void set_pressure_for_cell(RealType& middle_p,
                         );        
     }
     
-inline void set_pressure_for_boundary(RealType& middle_p,
-    RealType left_p, RealType right_p, RealType bottom_p, RealType top_p,
+inline void set_pressure_for_boundary(Real& middle_p,
+    Real left_p, Real right_p, Real bottom_p, Real top_p,
     std::bitset<5>  type)
 {
     middle_p  = left_p * !type.test(has_fluid_west)
@@ -274,10 +274,10 @@ inline void set_pressure_for_boundary(RealType& middle_p,
                     + top_p * !type.test(has_fluid_north);        
 }
     
-inline RealType do_sor_cycle_for_cell(RealType middle_p,
-    RealType left_p, RealType right_p, RealType bottom_p, RealType top_p,
-    RealType middle_rhs, RealType dx_sq, RealType dy_sq, RealType part1,
-    RealType part2)
+inline Real do_sor_cycle_for_cell(Real middle_p,
+    Real left_p, Real right_p, Real bottom_p, Real top_p,
+    Real middle_rhs, Real dx_sq, Real dy_sq, Real part1,
+    Real part2)
 {   
     return part1 * middle_p 
             + part2 * (
@@ -287,11 +287,11 @@ inline RealType do_sor_cycle_for_cell(RealType middle_p,
                   );
 }
 
-inline RealType compute_residual_for_cell(RealType middle_p,
-    RealType left_p, RealType right_p, RealType bottom_p, RealType top_p,
-    RealType middle_rhs, RealType over_dx_sq, RealType over_dy_sq)
+inline Real compute_residual_for_cell(Real middle_p,
+    Real left_p, Real right_p, Real bottom_p, Real top_p,
+    Real middle_rhs, Real over_dx_sq, Real over_dy_sq)
 {
-    RealType tmp =
+    Real tmp =
         (right_p - 2 * middle_p + left_p ) * over_dx_sq 
         + (top_p - 2 * middle_p + bottom_p ) * over_dy_sq 
         - middle_rhs;
@@ -302,9 +302,9 @@ inline RealType compute_residual_for_cell(RealType middle_p,
 
 
 inline void update_velocity_for_cell(vector_cell& middle_uv,
-    RealType middle_p, RealType right_p, RealType top_p,
-    vector_cell  middle_fg, std::bitset<5>  type, RealType over_dx,
-    RealType over_dy, RealType dt)
+    Real middle_p, Real right_p, Real top_p,
+    vector_cell  middle_fg, std::bitset<5>  type, Real over_dx,
+    Real over_dy, Real dt)
 {
     if (type.test(3))
         middle_uv.first =

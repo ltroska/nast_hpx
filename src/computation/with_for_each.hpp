@@ -36,7 +36,7 @@ public:
             boundary_data const& boundary_data_type,
             boundary_data const& temperature_boundary_data,
             uint global_i, uint global_j,
-            RealType dx, RealType dy);
+            Real dx, Real dy);
     
     static vector_partition compute_fg_on_fluid_cells(
         vector_partition const& middle_uv,
@@ -48,8 +48,8 @@ public:
         scalar_partition const& right_temperature,
         scalar_partition const& top_temperature,
         std::vector<std::bitset<5> > const& flag_data,
-        RealType re, RealType gx, RealType gy, RealType beta,
-        RealType dx, RealType dy, RealType dt, RealType alpha);
+        Real re, Real gx, Real gy, Real beta,
+        Real dx, Real dy, Real dt, Real alpha);
     
     static scalar_partition compute_temperature_on_fluid_cells(
         scalar_partition const& middle_temperature,
@@ -61,14 +61,14 @@ public:
         vector_partition const& left_uv,
         vector_partition const& bottom_uv,
         std::vector<std::bitset<5> > const& flag_data,
-        RealType re, RealType pr, RealType dx, RealType dy, RealType dt,
-        RealType alpha);
+        Real re, Real pr, Real dx, Real dy, Real dt,
+        Real alpha);
     
     static scalar_partition compute_right_hand_side_on_fluid_cells(
         vector_partition const& middle_fg, vector_partition const& left_fg,
         vector_partition const& bottom_fg,
         std::vector<std::bitset<5> > const& flag_data,
-        RealType dx, RealType dy, RealType dt);
+        Real dx, Real dy, Real dt);
     
     static scalar_partition set_pressure_for_boundary_and_obstacles(
         scalar_partition const& middle_p, scalar_partition const& left_p,
@@ -81,25 +81,25 @@ public:
         scalar_partition const& bottom_p, scalar_partition const& top_p,
         scalar_partition const& middle_rhs, 
         std::vector<std::bitset<5> > const& flag_data,
-        RealType omega, RealType dx, RealType dy);
+        Real omega, Real dx, Real dy);
     
   
-    static hpx::future<RealType> compute_residual(
+    static hpx::future<Real> compute_residual(
         scalar_partition const& middle_p, scalar_partition const& left_p,
         scalar_partition const& right_p, scalar_partition const& bottom_p,
         scalar_partition const& top_p, scalar_partition const& middle_rhs,
-        std::vector<std::bitset<5> > const& flag_data, RealType dx,
-        RealType dy);
+        std::vector<std::bitset<5> > const& flag_data, Real dx,
+        Real dy);
     
     static hpx::future<
-            std::pair<vector_partition, std::pair<RealType, RealType> >
+            std::pair<vector_partition, std::pair<Real, Real> >
             >
     update_velocities(
        vector_partition const& middle_uv, scalar_partition const& middle_p,
        scalar_partition const& right_p, scalar_partition const& top_p, 
        vector_partition const& middle_fg,
        std::vector<std::bitset<5> > const& flag_data,
-       RealType dx, RealType dy, RealType dt);
+       Real dx, Real dy, Real dt);
        
     static hpx::future<
             std::tuple<scalar_partition, scalar_partition, scalar_partition>
@@ -114,8 +114,8 @@ public:
         scalar_partition const& middle_temperature,
         scalar_partition const& right_temperature,
         std::vector<std::bitset<5> > const& flag_data, 
-        uint global_i, uint global_j, uint i_max, uint j_max, RealType re,
-        RealType pr, RealType dx, RealType dy);   
+        uint global_i, uint global_j, uint i_max, uint j_max, Real re,
+        Real pr, Real dx, Real dy);   
 };
 
 }//namespace

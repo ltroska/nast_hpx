@@ -125,7 +125,7 @@ scalar_partition custom_grain_size::set_temperature_for_boundary_and_obstacles(
     std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
     boundary_data const& boundary_data_type,
     boundary_data const& temperature_boundary_data,
-    uint global_i, uint global_j, RealType dx, RealType dy)
+    uint global_i, uint global_j, Real dx, Real dy)
 {
     //TODO: add temperature for obstacle cells
     return hpx::dataflow(
@@ -216,9 +216,9 @@ vector_partition custom_grain_size::compute_fg_on_fluid_cells(
     std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
     std::vector<std::pair<uint, uint> > const& obstacle,
     std::vector<std::pair<uint, uint> > const& fluid,
-    std::vector<std::bitset<5> > const& flag_data, RealType re, RealType gx,
-    RealType gy, RealType beta, RealType dx, RealType dy, RealType dt,
-    RealType alpha)
+    std::vector<std::bitset<5> > const& flag_data, Real re, Real gx,
+    Real gy, Real beta, Real dx, Real dy, Real dt,
+    Real alpha)
 {
     return hpx::dataflow(
         hpx::launch::async,
@@ -317,8 +317,8 @@ scalar_partition custom_grain_size::compute_temperature_on_fluid_cells(
     vector_partition const& bottom_uv,
     std::vector<std::vector<std::pair<uint, uint> > > const& boundary,
     std::vector<std::pair<uint, uint> > const& obstacle,
-    std::vector<std::pair<uint, uint> > const& fluid, RealType re, RealType pr,
-    RealType dx, RealType dy, RealType dt, RealType alpha)
+    std::vector<std::pair<uint, uint> > const& fluid, Real re, Real pr,
+    Real dx, Real dy, Real dt, Real alpha)
 {
     return hpx::dataflow(
         hpx::launch::async,
@@ -411,7 +411,7 @@ scalar_partition custom_grain_size::compute_right_hand_side_on_fluid_cells(
     scalar_partition const& middle_rhs, vector_partition const& middle_fg,
     vector_partition const& left_fg, vector_partition const& bottom_fg,
     std::vector<std::pair<uint, uint> > const& fluid,
-    RealType dx, RealType dy, RealType dt)
+    Real dx, Real dy, Real dt)
 {
     return hpx::dataflow(
         hpx::launch::async,
@@ -513,7 +513,7 @@ scalar_data custom_grain_size::sor_cycle(
     hpx::shared_future<scalar_data> right_p, hpx::shared_future<scalar_data>  bottom_p,
     hpx::shared_future<scalar_data> top_p, hpx::shared_future<scalar_data>  middle_rhs,
     std::vector<std::pair<uint, uint> > const& fluid,
-    RealType dx_sq, RealType dy_sq, RealType part1, RealType part2)
+    Real dx_sq, Real dy_sq, Real part1, Real part2)
 {
     auto m_p = middle_p.get();
     auto l_p = left_p.get();
@@ -543,15 +543,15 @@ scalar_data custom_grain_size::sor_cycle(
     return m_p;
 }
 
-RealType custom_grain_size::compute_residual(
+Real custom_grain_size::compute_residual(
     hpx::shared_future<scalar_data> middle_p, hpx::shared_future<scalar_data>  left_p,
     hpx::shared_future<scalar_data> right_p, hpx::shared_future<scalar_data>  bottom_p,
     hpx::shared_future<scalar_data> top_p, hpx::shared_future<scalar_data>  middle_rhs,
     std::vector<std::pair<uint, uint> > const& fluid,
-    RealType dx, RealType dy)
+    Real dx, Real dy)
 {
-    RealType const over_dx_sq = 1./std::pow(dx, 2);
-    RealType const over_dy_sq = 1./std::pow(dy, 2);
+    Real const over_dx_sq = 1./std::pow(dx, 2);
+    Real const over_dy_sq = 1./std::pow(dy, 2);
     auto m_p = middle_p.get();
     auto l_p = left_p.get();
     auto r_p = right_p.get();
@@ -561,7 +561,7 @@ RealType custom_grain_size::compute_residual(
     uint size_x = m_p.size_x();
     uint size_y = m_p.size_y();
 
-    RealType local_residual = 0;
+    Real local_residual = 0;
 
     for (auto& idx_pair : fluid)
     {
@@ -580,17 +580,17 @@ RealType custom_grain_size::compute_residual(
     return local_residual;
 }
 
-hpx::future<std::pair<vector_partition, std::pair<RealType, RealType> > >
+hpx::future<std::pair<vector_partition, std::pair<Real, Real> > >
 custom_grain_size::update_velocities(
     vector_partition const& middle_uv, scalar_partition const& middle_p,
     scalar_partition const& right_p, scalar_partition const& top_p,
     vector_partition const& middle_fg,
     std::vector<std::bitset<5> > const& flag_data,
     std::vector<std::pair<uint, uint> > const& fluid,
-    RealType dx, RealType dy, RealType dt)
+    Real dx, Real dy, Real dt)
 {
-    RealType const over_dx = 1./dx;
-    RealType const over_dy = 1./dy;
+    Real const over_dx = 1./dx;
+    Real const over_dy = 1./dy;
 
     return hpx::dataflow(
         hpx::launch::async,
@@ -598,7 +598,7 @@ custom_grain_size::update_velocities(
             [middle_uv, flag_data, fluid, over_dx, over_dy, dt]
             (vector_data m_uv, scalar_data const& m_p, scalar_data const& r_p,
                 scalar_data const& t_p, vector_data const& m_fg)
-            -> std::pair<vector_partition, std::pair<RealType, RealType> >
+            -> std::pair<vector_partition, std::pair<Real, Real> >
             {
                 uint size_x = m_uv.size_x();
                 uint size_y = m_uv.size_y();
@@ -656,7 +656,7 @@ custom_grain_size::compute_stream_vorticity_heat(
     scalar_partition const& middle_temperature,
     scalar_partition const& right_temperature,
     std::vector<std::bitset<5> > const& flag_data, uint global_i, uint global_j,
-    uint i_max, uint j_max, RealType re, RealType pr, RealType dx, RealType dy)
+    uint i_max, uint j_max, Real re, Real pr, Real dx, Real dy)
 {
     return hpx::dataflow(
         hpx::launch::async,

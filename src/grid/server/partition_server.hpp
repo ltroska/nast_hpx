@@ -1,95 +1,68 @@
-#ifndef GRID_SERVER_PARTITION_SERVER_HPP
-#define GRID_SERVER_PARTITION_SERVER_HPP
+#ifndef NAST_HPX_GRID_SERVER_PARTITION_SERVER_HPP
+#define NAST_HPX_GRID_SERVER_PARTITION_SERVER_HPP
 
 #include <hpx/include/components.hpp>
-#include <hpx/include/actions.hpp>
-#include <hpx/include/util.hpp>
-
-#include <boost/preprocessor/cat.hpp>
+#include <hpx/runtime/serialization/serialize.hpp>
 
 #include "grid/partition_data.hpp"
-#include "grid/direction.hpp"
+#include "grid/send_buffer.hpp"
+#include "grid/recv_buffer.hpp"
 
-namespace grid { namespace server {
+namespace nast_hpx { namespace grid { namespace server {
 
+char const* partition_basename = "/nast_hpx/partition/";
+
+    
 /// component encapsulates partition_data, making it remotely available
-template<typename T>
 struct HPX_COMPONENT_EXPORT partition_server
-    : public hpx::components::locking_hook<
-            hpx::components::simple_component_base<partition_server<T> > >
+    : public hpx::components::component_base<partition_server>
 {
+public:
+    typedef hpx::serialization::serialize_buffer<Real> buffer_type;
+
     partition_server() {}
 
     /// construct partition from given data.
     /// note: this does not copy, data_ will only point to the given data,
     /// since partition_data is essentially a shared_array
-    partition_server(partition_data<T> const& data)
+    partition_server(partition_data<Real> const& data)
     : data_(data)
     {}
 
-    partition_server(uint size_x, uint size_y, RealType initial_value)
+    partition_server(uint size_x, uint size_y, Real initial_value)
     : data_(size_x, size_y, initial_value)
     {}
 
     /// return the sliced data appropriate for given direction
-    partition_data<T> get_data(direction type) const
+    void do_timestep();
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, do_timestep, do_timestep_action);
+    
+    void set_right_boundary(buffer_type buffer, std::size_t step, std::size_t var)
     {
-        if (type == CENTER)
-        {
-            return data_;
-        }
-        else
-            return partition_data<T>(data_, type);
+        recv_buffer_right.set_buffer(buffer, step);
     }
-    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, get_data);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_right_boundary, set_right_boundary_action);
+    
+    send_buffer<buffer_type, LEFT, set_right_boundary_action> send_buffer_left;
+    recv_buffer<buffer_type, RIGHT> recv_buffer_right;
+        
+protected:
+    void send_boundary();
+    void receive_boundary();
 
 private:
-    partition_data<T> data_;
+    partition_data<Real> data_;
+    std::vector<hpx::id_type> ids;
+    std::size_t rank;
 };
 
 }//namespace server
 }//namespace grid
+}
 
-// boilerplate needed for a templated component
+// boilerplate needed
 
-#define HPX_REGISTER_PARTITION_SERVER_DECLARATION(...)                          \
-    HPX_REGISTER_PARTITION_SERVER_DECLARATION_(__VA_ARGS__)                     \
-/**/
-#define HPX_REGISTER_PARTITION_SERVER_DECLARATION_(...)                         \
-    HPX_UTIL_EXPAND_(BOOST_PP_CAT(                                              \
-        HPX_REGISTER_PARTITION_SERVER_DECLARATION_, HPX_UTIL_PP_NARG(__VA_ARGS__)\
-    )(__VA_ARGS__))                                                             \
-/**/
-
-#define HPX_REGISTER_PARITION_SERVER_DECLARATION_1(type)                        \
-    HPX_REGISTER_PARTITION_DECLARATION_2(type, type)                            \
-/**/
-#define HPX_REGISTER_PARTITION_SERVER_DECLARATION_2(type, name)                 \
-    HPX_REGISTER_ACTION_DECLARATION(                                            \
-        grid::server::partition_server<type>::get_data_action,                  \
-        BOOST_PP_CAT(__partition_server_get_data_action_, name));               \
-/**/
-
-#define HPX_REGISTER_PARTITION_SERVER(...)                                      \
-    HPX_REGISTER_PARTITION_SERVER_(__VA_ARGS__)                                 \
-/**/
-#define HPX_REGISTER_PARTITION_SERVER_(...)                                     \
-    HPX_UTIL_EXPAND_(BOOST_PP_CAT(                                              \
-        HPX_REGISTER_PARTITION_SERVER_, HPX_UTIL_PP_NARG(__VA_ARGS__)           \
-    )(__VA_ARGS__))                                                             \
-/**/
-
-#define HPX_REGISTER_PARTITION_SERVER_1(type)                                   \
-    HPX_REGISTER_PARTITION_SERVER_2(type, type)                                 \
-/**/
-#define HPX_REGISTER_PARTITION_SERVER_2(type, name)                             \
-    HPX_REGISTER_ACTION(                                                        \
-        grid::server::partition_server<type>::get_data_action,                  \
-        BOOST_PP_CAT(__partition_server_get_data_action_, name));               \
-    typedef ::hpx::components::simple_component<                                \
-        grid::server::partition_server<type>                                    \
-    > BOOST_PP_CAT(__partition_server_, name);                                  \
-    HPX_REGISTER_COMPONENT(BOOST_PP_CAT(__partition_server_, name))             \
-/**/
+HPX_REGISTER_ACTION_DECLARATION(nast_hpx::grid::server::partition_server::do_timestep_action,
+                                    partition_server_do_timestep_action);
 
 #endif

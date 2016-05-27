@@ -7,8 +7,7 @@
 
 #include "pugixml/pugixml.hpp"
 
-namespace io
-{
+namespace nast_hpx { namespace io {
     /// Methods reads the simulation configuration from the given file
     /// and returns a corresponding config object.
     config config::read_config_from_file(const char *path)
@@ -545,7 +544,7 @@ namespace io
                     std::getline(issc, v, '/');
 
                     cfg.initial_uv_grid.push_back(
-                        std::pair<RealType, RealType>(
+                        std::pair<Real, Real>(
                             std::stod(u), std::stod(v)));
 
                     if (!iss.good())
@@ -563,4 +562,5 @@ namespace io
         return cfg;
     }
         
+}
 }

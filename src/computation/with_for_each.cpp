@@ -139,7 +139,7 @@ scalar_partition with_for_each::set_temperature_for_boundary_and_obstacles(
     std::vector<std::bitset<5> > const& flag_data,
     boundary_data const& boundary_data_type,
     boundary_data const& temperature_boundary_data,
-    uint global_i, uint global_j, RealType dx, RealType dy)
+    uint global_i, uint global_j, Real dx, Real dy)
 {
     //TODO: add temperature for obstacle cells
     return hpx::dataflow(
@@ -205,9 +205,9 @@ vector_partition with_for_each::compute_fg_on_fluid_cells(
     scalar_partition const& right_temperature,
     scalar_partition const& top_temperature,
     std::vector<std::bitset<5> > const& flag_data,
-    RealType re,
-    RealType gx, RealType gy, RealType beta,
-    RealType dx, RealType dy, RealType dt, RealType alpha)
+    Real re,
+    Real gx, Real gy, Real beta,
+    Real dx, Real dy, Real dt, Real alpha)
 {           
     return hpx::dataflow(
         hpx::launch::async,
@@ -277,8 +277,8 @@ scalar_partition with_for_each::compute_temperature_on_fluid_cells(
     vector_partition const& left_uv,
     vector_partition const& bottom_uv,
     std::vector<std::bitset<5> > const& flag_data,
-    RealType re, RealType pr, RealType dx, RealType dy, RealType dt,
-    RealType alpha        
+    Real re, Real pr, Real dx, Real dy, Real dt,
+    Real alpha        
 )
 {                      
     return hpx::dataflow(
@@ -341,7 +341,7 @@ scalar_partition with_for_each::compute_right_hand_side_on_fluid_cells(
     vector_partition const& middle_fg, vector_partition const& left_fg,
     vector_partition const& bottom_fg,
     std::vector<std::bitset<5> > const& flag_data,
-    RealType dx, RealType dy, RealType dt)
+    Real dx, Real dy, Real dt)
 {  
     return hpx::dataflow(
         hpx::launch::async,
@@ -440,12 +440,12 @@ scalar_partition with_for_each::sor_cycle(scalar_partition const& middle_p,
         scalar_partition const& bottom_p, scalar_partition const& top_p,
         scalar_partition const& middle_rhs, 
         std::vector<std::bitset<5> > const& flag_data,
-        RealType omega, RealType dx, RealType dy)
+        Real omega, Real dx, Real dy)
 {
-    RealType const dx_sq = std::pow(dx, 2);
-    RealType const dy_sq = std::pow(dy, 2);
-    RealType const part1 = 1. - omega;
-    RealType const part2 = omega * dx_sq * dy_sq / (2. * (dx_sq + dy_sq));
+    Real const dx_sq = std::pow(dx, 2);
+    Real const dy_sq = std::pow(dy, 2);
+    Real const part1 = 1. - omega;
+    Real const part2 = omega * dx_sq * dy_sq / (2. * (dx_sq + dy_sq));
 
     return hpx::dataflow(
         hpx::launch::async,
@@ -493,14 +493,14 @@ scalar_partition with_for_each::sor_cycle(scalar_partition const& middle_p,
     );    
 }
 
-hpx::future<RealType> with_for_each::compute_residual(
+hpx::future<Real> with_for_each::compute_residual(
     scalar_partition const& middle_p, scalar_partition const& left_p,
     scalar_partition const& right_p, scalar_partition const& bottom_p,
     scalar_partition const& top_p, scalar_partition const& middle_rhs,
-    std::vector<std::bitset<5> > const& flag_data, RealType dx, RealType dy)
+    std::vector<std::bitset<5> > const& flag_data, Real dx, Real dy)
 {
-    RealType const over_dx_sq = 1./std::pow(dx, 2);
-    RealType const over_dy_sq = 1./std::pow(dy, 2);
+    Real const over_dx_sq = 1./std::pow(dx, 2);
+    Real const over_dy_sq = 1./std::pow(dy, 2);
    
     return hpx::dataflow(
         hpx::launch::async,
@@ -509,7 +509,7 @@ hpx::future<RealType> with_for_each::compute_residual(
             (scalar_data const& m_p, scalar_data const& l_p,
                 scalar_data const& r_p, scalar_data const& b_p,
                 scalar_data const& t_p, scalar_data const& m_rhs)
-            -> RealType
+            -> Real
             {
                 uint size_x = m_p.size_x();
                 uint size_y = m_p.size_y();
@@ -520,7 +520,7 @@ hpx::future<RealType> with_for_each::compute_residual(
                 return hpx::parallel::transform_reduce(
                     hpx::parallel::par, boost::begin(range), boost::end(range),
                     [&](uint cnt)
-                        -> RealType
+                        -> Real
                     {
                         uint const i = cnt%size_x;
                         uint const j = cnt/size_x;
@@ -536,7 +536,7 @@ hpx::future<RealType> with_for_each::compute_residual(
                             over_dx_sq, over_dy_sq);
                     },
                     0.,
-                    [](RealType a, RealType b) -> RealType {return a + b;}
+                    [](Real a, Real b) -> Real {return a + b;}
                     );                
             }
         ),
@@ -549,16 +549,16 @@ hpx::future<RealType> with_for_each::compute_residual(
     );   
 }
 
-hpx::future<std::pair<vector_partition, std::pair<RealType, RealType> > > 
+hpx::future<std::pair<vector_partition, std::pair<Real, Real> > > 
 with_for_each::update_velocities(
     vector_partition const& middle_uv, scalar_partition const& middle_p,
     scalar_partition const& right_p, scalar_partition const& top_p, 
     vector_partition const& middle_fg,
-    std::vector<std::bitset<5> > const& flag_data, RealType dx, RealType dy,
-    RealType dt)
+    std::vector<std::bitset<5> > const& flag_data, Real dx, Real dy,
+    Real dt)
 {
-    RealType const over_dx = 1./dx;
-    RealType const over_dy = 1./dy;
+    Real const over_dx = 1./dx;
+    Real const over_dy = 1./dy;
        
     return hpx::dataflow(
         hpx::launch::async,
@@ -566,7 +566,7 @@ with_for_each::update_velocities(
             [middle_uv, flag_data, over_dx, over_dy, dt]
             (vector_data next, scalar_data const& m_p, scalar_data const& r_p,
                 scalar_data const& t_p, vector_data const& m_fg)
-            -> std::pair<vector_partition, std::pair<RealType, RealType> >
+            -> std::pair<vector_partition, std::pair<Real, Real> >
             {
                 uint size_x = next.size_x();
                 uint size_y = next.size_y();
@@ -633,8 +633,8 @@ with_for_each::compute_stream_vorticity_heat(
     scalar_partition const& middle_temperature,
     scalar_partition const& right_temperature,
     std::vector<std::bitset<5> > const& flag_data, 
-    uint global_i, uint global_j, uint i_max, uint j_max, RealType re,
-    RealType pr, RealType dx, RealType dy)
+    uint global_i, uint global_j, uint i_max, uint j_max, Real re,
+    Real pr, Real dx, Real dy)
 {
     return hpx::dataflow(
         hpx::launch::async,

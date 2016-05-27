@@ -36,18 +36,11 @@ add_hpx_component(
 )
 
 add_hpx_component(
-	strategy
-	SOURCES src/computation/custom_grain_size.cpp
-	HEADERS src/computation/custom_grain_size.hpp
-	COMPONENT_DEPENDENCIES partition_server
-)
-
-add_hpx_component(
     stepper_server
     SOURCES src/stepper/server/stepper_server.cpp
     HEADERS src/stepper/server/stepper_server.hpp
     COMPILE_FLAGS -DCUSTOM_GRAIN_SIZE
-    COMPONENT_DEPENDENCIES iostreams partition_server strategy)
+    COMPONENT_DEPENDENCIES iostreams partition_server)
 
 add_hpx_executable(
     main
@@ -57,13 +50,13 @@ add_hpx_executable(
     COMPONENT_DEPENDENCIES stepper_server
 )
 
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
+#add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
 
-add_hpx_executable(
-    test_get_neighbor_cell
-    ESSENTIAL
-    SOURCES tests/test_get_neighbor_cell.cpp
-    COMPONENT_DEPENDENCIES partition_server
-)
-add_test(get_neighbor_cell test_get_neighbor_cell -t4)
+#add_hpx_executable(
+#    test_get_neighbor_cell
+#    ESSENTIAL
+#    SOURCES tests/test_get_neighbor_cell.cpp
+#    COMPONENT_DEPENDENCIES partition_server
+#)
+#add_test(get_neighbor_cell test_get_neighbor_cell -t4)
 

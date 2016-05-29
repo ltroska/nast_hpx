@@ -9,6 +9,7 @@
 #define has_fluid_west 2
 #define has_fluid_east 3
 #define is_fluid 4
+#define is_boundary 5
 
 #define noslip 1
 #define slip 2

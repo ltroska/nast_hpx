@@ -1,4 +1,3 @@
-#include <cmath>
 #include <chrono>
 
 #include <hpx/include/iostreams.hpp>
@@ -24,21 +23,19 @@ void stepper_server::setup(io::config&& cfg)
 {
     // special case for two localities, we want a square configuration
     // of localities
-    if (num_localities == 2)
-    {
-        num_localities_x = 2;
-        num_localities_y = 1;
-    }
-    else
-    {
-        num_localities_x = static_cast<uint> (sqrt(num_localities));
-        num_localities_y = num_localities_x;
-    }
 
 
-    std::cout << "hi" << std::endl;
-    part = grid::partition(hpx::find_here(), 16, 16);
-    part.do_timestep();
+    auto rank = hpx::get_locality_id();
+
+    std::cout << cfg << std::endl;
+    std::size_t idx, idy;
+    
+    
+    idx = (rank % cfg.num_localities_x);
+    idy = (rank / cfg.num_localities_x);
+    part = grid::partition(hpx::find_here(), cfg, idx, idy);
+    part.init_sync();
+    part.do_timestep(0.001);
 
    
 }

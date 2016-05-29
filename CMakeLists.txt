@@ -23,11 +23,10 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/
 add_compile_options(-std=c++14)
 
 add_library(pugixml ${CMAKE_CURRENT_SOURCE_DIR}/libs/pugixml/pugixml.cpp)
-
-# --------------- MAIN --------------- #
-
 add_library(config src/io/config.cpp)
 target_link_libraries(config pugixml)
+
+# --------------- MAIN --------------- #
 
 add_hpx_component(
     partition_server

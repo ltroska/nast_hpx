@@ -45,6 +45,18 @@ struct config
 
         uint wfe;
 
+        std::size_t num_localities;
+        std::size_t num_localities_x;
+        std::size_t num_localities_y;
+        
+        std::size_t num_local_partitions;
+        std::size_t num_local_partitions_x;
+        std::size_t num_local_partitions_y;
+        std::size_t cells_x_per_partition;
+        std::size_t cells_y_per_partition;
+        
+        std::size_t rank;
+
         boundary_data u_bnd;
         boundary_data v_bnd;
         boundary_data data_type;
@@ -54,7 +66,7 @@ struct config
         Real ti;
 
         bool with_flag_grid;
-        std::vector<std::bitset<5> > flag_grid;
+        std::vector<std::bitset<6> > flag_grid;
 
         bool with_initial_uv_grid;
         std::vector<std::pair<Real, Real> > initial_uv_grid;
@@ -65,7 +77,10 @@ struct config
             ar & i_max & j_max & i_res & j_res & num_fluid_cells & x_length
                 & y_length & re & pr & omega & tau & eps & eps_sq & alpha
                 & beta & t_end & dt & delta_vec & vtk & output_skip_size
-                & sub_iterations & iter_max & wfe & gx & gy;
+                & sub_iterations & iter_max & wfe & gx & gy & num_localities
+                & num_localities_x & num_localities_y & num_local_partitions
+                & num_local_partitions_x & num_local_partitions_y & cells_x_per_partition 
+                & cells_y_per_partition & rank;
             //& u_bnd & v_bnd & data_type
             //& temp_bnd & temp_data_type & ti & with_flag_grid & flag_grid
             //& with_initial_uv_grid & initial_uv_grid;
@@ -75,16 +90,36 @@ struct config
         {
             os  << "config:"
                 << "\n{"
+                << "\nGEOMETRY:"
                 << "\n\tiMax = " << config.i_max
                 << "\n\tjMax = " << config.j_max
-                << "\n\tiRes = " << config.i_res
-                << "\n\tjRes = " << config.j_res
+                << "\n\tnum_localities = " << config.num_localities
+                << "\n\tnum_localities_x = " << config.num_localities_x
+                << "\n\tnum_localities_y = " << config.num_localities_y                
+                << "\n\tnum_local_partitions = " << config.num_local_partitions
+                << "\n\tnum_local_partitions_x = " << config.num_local_partitions_x
+                << "\n\tnum_local_partitions_y = " << config.num_local_partitions_y
+                << "\n\tnum_cells_x_per_partition = " << config.cells_x_per_partition
+                << "\n\tnum_cells_y_per_partition = " << config.cells_y_per_partition
+                << "\n\trank = " << config.rank
                 << "\n\tnumFluid = " << config.num_fluid_cells
                 << "\n\txLength = " << config.x_length
                 << "\n\tyLength = " << config.y_length
+                << "\nDATA:"
                 << "\n\tRe = " << config.re
                 << "\n\tPr = " << config.pr
                 << "\n\tomega = " << config.omega
+                << "\n\tGX = " << config.gx
+                << "\n\tGY = " << config.gy
+                << "\n\tbeta = " << config.beta
+                << "\n\tdt = " << config.dt
+                << "\n\tu_bnd " << config.u_bnd
+                << "\n\tv_bnd " << config.v_bnd
+                << "\n\tbnd_data_type " << config.data_type
+                << "\n\ttemp_bnd " << config.temp_bnd
+                << "\n\ttemp_data_type " << config.temp_data_type
+                << "\n\tTI = " << config.ti
+                << "\nSIMULATION:"
                 << "\n\ttau = " << config.tau
                 << "\n\teps = " << config.eps
                 << "\n\talpha = " << config.alpha
@@ -92,23 +127,13 @@ struct config
                 << "\n\tdeltaVec = " << config.delta_vec
                 << "\n\titerMax = " << config.iter_max
                 << "\n\tsubIterations = " << config.sub_iterations
-                << "\n\tGX = " << config.gx
-                << "\n\tGY = " << config.gy
-                << "\n\tbeta = " << config.beta
-                << "\n\tdt = " << config.dt
                 << "\n\twfe = " << config.wfe
                 << "\n\tvtk = " << config.vtk
-                << "\n\tu_bnd " << config.u_bnd
-                << "\n\tv_bnd " << config.v_bnd
-                << "\n\tbnd_data_type " << config.data_type
-                << "\n\ttemp_bnd " << config.temp_bnd
-                << "\n\ttemp_data_type " << config.temp_data_type
-                << "\n\tTI = " << config.ti
                 << "\n}";
             return os;
         }
         
-        static config read_config_from_file(const char *path);
+        static config read_config_from_file(const char *path, std::size_t rank, std::size_t num_localities);
 
 };
 

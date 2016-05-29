@@ -12,11 +12,8 @@ enum direction
 {
     LEFT = 0,
     TOP,
-    BOTTOM_LEFT,
     BOTTOM_RIGHT,
-    CENTER,
     TOP_LEFT,
-    TOP_RIGHT,
     BOTTOM,
     RIGHT,
     NUM_DIRECTIONS
@@ -34,8 +31,8 @@ public:
       size_(0)
     {}
 
-    partition_data(uint size_x, uint size_y)
-    : data_(size_x * size_y, 0),
+    partition_data(std::size_t size_x, std::size_t size_y)
+    : data_(size_x * size_y, T()),
       size_x_(size_x),
       size_y_(size_y),
       size_(size_x * size_y),
@@ -44,18 +41,20 @@ public:
       act_size_(act_size_x_ * act_size_y_)
     {}
 
-    partition_data(uint size_x, uint size_y, T initial_value)
-    : data_(size_x * size_y, initial_value),
-      size_x_(size_x),
-      size_y_(size_y),
-      size_(size_x * size_y),
-      act_size_x_(size_x_ - 2),
-      act_size_y_(size_y_ - 2),
-      act_size_(act_size_x_ * act_size_y_)
-    {}
+    
+    void resize(std::size_t size_x, std::size_t size_y, T val = T())
+    {
+        size_x_ = size_x;
+        size_y_ = size_y;
+        size_ = size_x * size_y;
+        act_size_x_ = size_x_ - 2;
+        act_size_y_ = size_y_ - 2;
+        act_size_ = act_size_x_ * act_size_y_;
+        data_.resize(size_x_ * size_y_, val);
+    }
 
-    inline T operator[](uint idx) const { return data_[idx];}
-    inline T& operator[](uint idx) { return data_[idx];}
+    inline T operator[](std::size_t idx) const { return data_[idx];}
+    inline T& operator[](std::size_t idx) { return data_[idx];}
     
     inline T& operator()(unsigned idx, unsigned idy)
     {return data_[idy * size_x_ + idx];}
@@ -69,9 +68,9 @@ public:
     friend std::ostream& operator<<(std::ostream& os,
         partition_data<T> const& data)
     {
-        for (uint j = data.size_y_ - 1; j < data.size_y_; --j)
+        for (std::size_t j = data.size_y_ - 1; j < data.size_y_; --j)
         {
-            for (uint i = 0; i < data.size_x_; ++i)
+            for (std::size_t i = 0; i < data.size_x_; ++i)
                 os << data(i, j) << " ";
 
             os << "\n";
@@ -81,13 +80,13 @@ public:
     }
     
     std::vector<T> data_;
-    uint size_x_;
-    uint size_y_;
-    uint size_;
+    std::size_t size_x_;
+    std::size_t size_y_;
+    std::size_t size_;
     
-    uint act_size_x_;
-    uint act_size_y_;
-    uint act_size_;
+    std::size_t act_size_x_;
+    std::size_t act_size_y_;
+    std::size_t act_size_;
 };
 
 }//namespace grid

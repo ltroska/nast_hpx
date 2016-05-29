@@ -8,6 +8,8 @@
 #include "grid/send_buffer.hpp"
 #include "grid/recv_buffer.hpp"
 
+#include "io/config.hpp"
+
 namespace nast_hpx { namespace grid { namespace server {
 
 char const* partition_basename = "/nast_hpx/partition/";
@@ -18,42 +20,125 @@ struct HPX_COMPONENT_EXPORT partition_server
     : public hpx::components::component_base<partition_server>
 {
 public:
+
+    static const std::size_t U = 0;
+    static const std::size_t V = 1;
+    static const std::size_t F = 2;
+    static const std::size_t G = 3;
+    static const std::size_t P = 4;
+    static const std::size_t NUM_VARIABLES = 5;
+
     typedef hpx::serialization::serialize_buffer<Real> buffer_type;
 
     partition_server() {}
 
-    /// construct partition from given data.
-    /// note: this does not copy, data_ will only point to the given data,
-    /// since partition_data is essentially a shared_array
-    partition_server(partition_data<Real> const& data)
-    : data_(data)
-    {}
-
-    partition_server(uint size_x, uint size_y, Real initial_value)
-    : data_(size_x, size_y, initial_value)
-    {}
+    partition_server(io::config&& cfg, uint idx, uint idy);
+        
+    void init();
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, init, init_action);
 
     /// return the sliced data appropriate for given direction
-    void do_timestep();
+    void do_timestep(Real dt);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, do_timestep, do_timestep_action);
+    
+    void set_left_boundary(buffer_type buffer, std::size_t step, std::size_t var)
+    {
+        recv_buffer_left_[var].set_buffer(buffer, step);
+    }
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_left_boundary, set_left_boundary_action);
     
     void set_right_boundary(buffer_type buffer, std::size_t step, std::size_t var)
     {
-        recv_buffer_right.set_buffer(buffer, step);
+        recv_buffer_right_[var].set_buffer(buffer, step);
     }
-    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_right_boundary, set_right_boundary_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_right_boundary, set_right_boundary_action);    
     
-    send_buffer<buffer_type, LEFT, set_right_boundary_action> send_buffer_left;
-    recv_buffer<buffer_type, RIGHT> recv_buffer_right;
+    void set_bottom_boundary(buffer_type buffer, std::size_t step, std::size_t var)
+    {
+        recv_buffer_bottom_[var].set_buffer(buffer, step);
+    }
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_bottom_boundary, set_bottom_boundary_action);
+    
+    void set_top_boundary(buffer_type buffer, std::size_t step, std::size_t var)
+    {
+        recv_buffer_top_[var].set_buffer(buffer, step);
+    }
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_top_boundary, set_top_boundary_action);
+     
+    void set_bottom_right_boundary(buffer_type buffer, std::size_t step, std::size_t var)
+    {
+        recv_buffer_bottom_right_[var].set_buffer(buffer, step);
+    }
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_bottom_right_boundary, set_bottom_right_boundary_action);
+        
+    void set_top_left_boundary(buffer_type buffer, std::size_t step, std::size_t var)
+    {
+        recv_buffer_top_left_[var].set_buffer(buffer, step);
+    }
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_top_left_boundary, set_top_left_boundary_action);
+        
+    send_buffer<buffer_type, LEFT, set_right_boundary_action> send_buffer_left_;
+    recv_buffer<buffer_type, LEFT> recv_buffer_left_[NUM_VARIABLES];
+    
+    send_buffer<buffer_type, RIGHT, set_left_boundary_action> send_buffer_right_;
+    recv_buffer<buffer_type, RIGHT> recv_buffer_right_[NUM_VARIABLES];    
+    
+    send_buffer<buffer_type, BOTTOM, set_top_boundary_action> send_buffer_bottom_;
+    recv_buffer<buffer_type, BOTTOM> recv_buffer_bottom_[NUM_VARIABLES];    
+    
+    send_buffer<buffer_type, TOP, set_bottom_boundary_action> send_buffer_top_;
+    recv_buffer<buffer_type, TOP> recv_buffer_top_[NUM_VARIABLES];    
+    
+    send_buffer<buffer_type, BOTTOM_RIGHT, set_top_left_boundary_action> send_buffer_bottom_right_;
+    recv_buffer<buffer_type, BOTTOM_RIGHT> recv_buffer_bottom_right_[NUM_VARIABLES];    
+    
+    send_buffer<buffer_type, TOP_LEFT, set_bottom_right_boundary_action> send_buffer_top_left_;
+    recv_buffer<buffer_type, TOP_LEFT> recv_buffer_top_left_[NUM_VARIABLES];
         
 protected:
-    void send_boundary();
-    void receive_boundary();
+    template<direction dir>
+    void send_boundary(std::size_t step, std::vector<hpx::shared_future<void> >& send_futures, std::size_t var);
+
+    template<std::size_t var>
+    void send_right_and_top_boundaries(std::size_t step, std::vector<std::vector<hpx::shared_future<void> > >& send_futures);
+    
+    template<std::size_t var>
+    void send_cross_boundaries(std::size_t step, std::vector<std::vector<hpx::shared_future<void> > >& send_futures);
+    
+    template<std::size_t var>
+    void send_all_boundaries(std::size_t step, std::vector<std::vector<hpx::shared_future<void> > >& send_futures);
+    
+    template<direction dir>
+    hpx::shared_future<void> receive_boundary(std::size_t step, std::size_t var);
+    
+    template<std::size_t var>
+    void receive_left_and_bottom_boundaries(std::size_t step, std::vector<hpx::shared_future<void> >& recv_futures);
+     
+    template<std::size_t var>
+    void receive_cross_boundaries(std::size_t step, std::vector<hpx::shared_future<void> >& recv_futures);
+    
+    template<std::size_t var>
+    void receive_all_boundaries(std::size_t step, std::vector<hpx::shared_future<void> >& recv_futures);
+    
+    template<direction dir>
+    hpx::shared_future<void> get_dependency(std::size_t idx_block,
+        std::size_t idy_block, std::vector<hpx::shared_future<void> > const& recv_futures,
+        partition_data<hpx::shared_future<void> > const& calc_futures);
 
 private:
-    partition_data<Real> data_;
-    std::vector<hpx::id_type> ids;
-    std::size_t rank;
+    partition_data<Real> data_[NUM_VARIABLES];
+    partition_data<std::bitset<6> > cell_types_;
+    std::vector<hpx::id_type> ids_;
+    std::size_t rank_, num_partitions_, num_partitions_x_, num_partitions_y_;
+    std::size_t cells_x_, cells_y_;
+    std::size_t num_x_blocks_, num_y_blocks_, cells_per_x_block_, cells_per_y_block_;
+    std::size_t idx_, idy_;
+    
+    Real dx_, dy_, alpha_, beta_, re_, gx_, gy_, eps_sq_;
+    
+    boundary_data u_bnd_, v_bnd_, uv_bnd_type_;
+    
+    bool is_left_, is_right_, is_bottom_, is_top_;
 };
 
 }//namespace server
@@ -64,5 +149,8 @@ private:
 
 HPX_REGISTER_ACTION_DECLARATION(nast_hpx::grid::server::partition_server::do_timestep_action,
                                     partition_server_do_timestep_action);
+                                    
+HPX_REGISTER_ACTION_DECLARATION(nast_hpx::grid::server::partition_server::init_action,
+                                    partition_server_init_action);
 
 #endif

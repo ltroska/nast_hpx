@@ -29,16 +29,19 @@ for row in range(len(in_grid)):
 		type_int = 16*cell
 
 		if row == 0 and col != 0 and col != len(in_grid[0]) - 1:
-			type_int = 0 + 1 + 4 + 8
+			type_int = 2 + 32
 
 		elif row == len(in_grid) - 1 and col != 0 and col != len(in_grid[0]) - 1:
-			type_int = 0 + 2 + 4 + 8
+			type_int = 1 + 32
 
 		elif col == 0 and row != 0 and row != len(in_grid) - 1:
-			type_int = 0 + 1 + 2 + 4
+			type_int = 8 + 32
 
 		elif col == len(in_grid[0]) - 1 and row != 0 and row != len(in_grid) - 1:
-			type_int = 0 + 1 + 2 + 8
+			type_int = 4 + 32
+
+		elif (col == 0 and row == 0) or (col == 0 and row == len(in_grid) - 1) or (col == len(in_grid[0]) - 1 and row == 0) or (col == len(in_grid[0]) - 1 and row == len(in_grid) - 1):
+			type_int = 32
 
 		else:
 			count = 0

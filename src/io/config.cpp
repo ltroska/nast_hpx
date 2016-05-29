@@ -4,16 +4,31 @@
 #include <fstream>
 #include <string>
 #include <cstdlib>
+#include <cmath>
 
 #include "pugixml/pugixml.hpp"
 
 namespace nast_hpx { namespace io {
     /// Methods reads the simulation configuration from the given file
     /// and returns a corresponding config object.
-    config config::read_config_from_file(const char *path)
+    config config::read_config_from_file(const char *path, std::size_t rank, std::size_t num_localities)
     {
-        pugi::xml_document doc;
         config cfg;
+        cfg.num_localities = num_localities;
+        cfg.rank = rank;
+        
+        if (cfg.num_localities == 2)
+        {
+            cfg.num_localities_x = 2;
+            cfg.num_localities_y = 1;
+        }
+        else
+        {
+            cfg.num_localities_x = static_cast<uint> (sqrt(cfg.num_localities));
+            cfg.num_localities_y = cfg.num_localities_x;
+        }
+    
+        pugi::xml_document doc;
 
         pugi::xml_parse_result result = doc.load_file(path);
 
@@ -62,6 +77,26 @@ namespace nast_hpx { namespace io {
         }
         else {
             std::cerr << "Error: jRes not set!" << std::endl;
+            std::exit(1);
+        }
+        
+        cfg.num_local_partitions_x = cfg.i_res;
+        cfg.num_local_partitions_y = cfg.j_res;
+        cfg.num_local_partitions = cfg.num_local_partitions_x * cfg.num_local_partitions_y;
+        
+        cfg.cells_x_per_partition = (cfg.i_max + 2) / cfg.num_localities_x / cfg.num_local_partitions_x;
+        
+        if (cfg.cells_x_per_partition * cfg.num_localities_x * cfg.num_local_partitions_x != cfg.i_max + 2)
+        {
+            std::cerr << "Error: localities_x * num_local_partitions_x does not divide i_max + 2 evenly!" << std::endl;
+            std::exit(1);
+        }        
+        
+        cfg.cells_y_per_partition = (cfg.j_max + 2) / cfg.num_localities_y / cfg.num_local_partitions_y;
+        
+        if (cfg.cells_y_per_partition * cfg.num_localities_y * cfg.num_local_partitions_y != cfg.j_max + 2)
+        {
+            std::cerr << "Error: localities_y * num_local_partitions_y does not divide j_max + 2 evenly!" << std::endl;
             std::exit(1);
         }
 
@@ -465,11 +500,75 @@ namespace nast_hpx { namespace io {
 
             std::ifstream file(
                 config_node.child("gridFile").first_attribute().as_string());
-
-            uint i_max = 0;
-            uint j_max = 0;
             
             cfg.num_fluid_cells = 0;
+
+            std::size_t flag_res_x = cfg.num_local_partitions_x * cfg.cells_x_per_partition + 2;
+            std::size_t flag_res_y = cfg.num_local_partitions_y * cfg.cells_y_per_partition + 2;
+            
+          //  std::cout << "resx " << flag_res_x << " resy " << flag_res_y << std::endl;
+
+            cfg.flag_grid.resize(flag_res_x * flag_res_y);
+                                    
+          //  std::cout << "s " << cfg.flag_grid.size() << std::endl;
+            std::size_t i = 0;
+            std::size_t j = cfg.j_max + 1;
+            
+            std::size_t start_i = (rank % cfg.num_localities_x) * cfg.num_local_partitions_x * cfg.cells_x_per_partition;
+            std::size_t end_i = start_i + cfg.num_local_partitions_x * cfg.cells_x_per_partition;            
+            
+            std::size_t start_j = (rank / cfg.num_localities_x) * cfg.num_local_partitions_y * cfg.cells_y_per_partition;
+            std::size_t end_j = start_j + cfg.num_local_partitions_y * cfg.cells_y_per_partition;
+            
+           // std::cout <<  " starti " << start_i << " endi " << end_i << std::endl;
+           // std::cout <<  " startj " << start_j << " endj " << end_j << std::endl;
+            
+            std::size_t offset_x = 0;
+            std::size_t offset_y = flag_res_y - 1;
+            
+            if (start_i == 0)
+            {
+                for (std::size_t j = 0; j < flag_res_y; ++j)
+                    cfg.flag_grid[j * flag_res_x + 0] = std::bitset<6>("000000");
+
+                ++offset_x;
+            }
+            else
+                --start_i;
+            
+            if (start_j == 0)
+            {
+                for (std::size_t i = 0; i < flag_res_x; ++i)
+                    cfg.flag_grid[0 * flag_res_x + i] = std::bitset<6>("000000");
+
+            }
+            else
+                --start_j; 
+
+                
+            if (end_i == cfg.i_max + 2)
+            {
+                for (std::size_t j = 0; j < flag_res_y; ++j)
+                    cfg.flag_grid[j * flag_res_x + flag_res_x - 1] = std::bitset<6>("000000");
+                    
+                --end_i;
+            }  
+              
+            if (end_j == cfg.j_max + 2)
+            {
+                for (std::size_t i = 0; i < flag_res_x; ++i)
+                    cfg.flag_grid[(flag_res_y - 1) * flag_res_x + i] = std::bitset<6>("000000");
+                    
+                --end_j;
+                --offset_y;
+            }
+                
+          //  std::cout <<  " starti " << start_i << " endi " << end_i << std::endl;
+            //std::cout <<  " startj " << start_j << " endj " << end_j << std::endl;
+
+                
+            std::size_t insert_i = 0;
+            std::size_t insert_j = offset_y;
 
             while (true)
             {
@@ -478,38 +577,50 @@ namespace nast_hpx { namespace io {
 
                 if (!file.good())
                     break;
-                i_max = 0;
 
                 std::stringstream iss(line);
-
+                i = 0;
+                insert_i = offset_x;
                 while (true)
                 {
                     std::string cell_val;
                     std::getline(iss, cell_val, ',');
                     
-                    std::bitset<5> flag(std::stoi(cell_val));
+                    std::bitset<6> flag(std::stoi(cell_val));
 
                     if (flag.test(4))
                         cfg.num_fluid_cells++;
                     
-                    cfg.flag_grid.emplace_back(flag);
+                    if (i >= start_i && i <= end_i && j >= start_j && j <= end_j)
+                    {
+                        cfg.flag_grid[insert_j * flag_res_x + insert_i] = flag;
+                        ++insert_i;
+                    }
                     
-                    i_max++;
-
                     if (!iss.good())
                         break;
+                    ++i;
                 }
+                
+                if (j >= start_j && j <= end_j)
+                    --insert_j;
 
-                j_max++;
+                --j;
             }
-
-            cfg.i_max = i_max - 2;
-            cfg.j_max = j_max - 2;
-
+            
+         /*   for (uint j = flag_res_y - 1; j < flag_res_y; --j)
+            {
+                for (uint i = 0; i < flag_res_x; ++i)
+                    std::cout << cfg.flag_grid[j * flag_res_x + i].to_ulong() << " ";
+                std::cout << "\n";
+                    
+            }*/
+            
+            std::cout << std::endl;
         }
         else
         {
-            std::cerr << "Error: geometry file given not set!" << std::endl;
+            std::cerr << "Error: geometry file not set!" << std::endl;
             std::exit(1);
         }
 

@@ -44,8 +44,9 @@ namespace nast_hpx { namespace grid {
             HPX_ASSERT(dest_);
             
             buffer_type buffer;
+
             pack_buffer<dir>::call(p, buffer);
-            
+
             hpx::apply(Action(), dest_, buffer, step, var);
         }
 

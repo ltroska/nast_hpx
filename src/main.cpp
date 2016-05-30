@@ -4,9 +4,20 @@
 #include "io/config.hpp"
 #include "stepper/stepper.hpp"
 
+#include <hpx/lcos/when_each.hpp>
+
 int hpx_main(boost::program_options::variables_map& vm)
 {
-    nast_hpx::stepper::stepper step;
+   nast_hpx::stepper::stepper step;
+    
+  /*  std::vector<hpx::future<int> > a;
+    a.push_back(hpx::make_ready_future(1)); 
+    a.push_back(hpx::make_ready_future(2)); 
+    
+    auto f1 = [](hpx::future<int> f) {std::cout << "got " << f.get() << " on first " << std::endl;};
+    auto f2 = [](int idx, hpx::future<int> f) {std::cout << "got " << f.get() << " with index " << idx << "on second" << std::endl;};
+    
+    hpx::when_each_n(f2, a.begin(), 1);*/
         
     const auto cfg_path = vm["cfg"].as<std::string>();
         

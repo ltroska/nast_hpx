@@ -18,7 +18,7 @@ struct partition
     partition(hpx::id_type where, io::config& cfg, std::size_t idx, std::size_t idy)
         : base_type(hpx::new_<server::partition_server>(where, cfg, idx, idy))
     {
-        std::cout << "registering " << idy * cfg.num_localities_x + idx << std::endl;
+        std::cout << "registering " << idy * cfg.num_localities_x + idx << " " << idx << " " << idy <<  std::endl;
         hpx::register_with_basename(server::partition_basename, get_id(),
                                         idy * cfg.num_localities_x + idx);    
     }
@@ -56,7 +56,7 @@ struct partition
         hpx::apply(act, get_id());  
     }
 
-    hpx::future<void> do_timestep(Real dt) 
+    hpx::future<std::pair<Real, Real> > do_timestep(Real dt) 
     {
         typename server::partition_server::do_timestep_action act;
         return hpx::async(act, get_id(), dt);

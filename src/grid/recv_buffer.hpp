@@ -52,7 +52,7 @@ namespace nast_hpx { namespace grid {
             HPX_ASSERT(valid_);
             
             buffer_type buffer = buffer_.receive(step).get();
-            
+                        
             unpack_buffer<dir>::call(p, buffer);
         }
 

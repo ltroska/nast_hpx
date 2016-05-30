@@ -89,6 +89,7 @@ namespace nast_hpx { namespace io {
         if (cfg.cells_x_per_partition * cfg.num_localities_x * cfg.num_local_partitions_x != cfg.i_max + 2)
         {
             std::cerr << "Error: localities_x * num_local_partitions_x does not divide i_max + 2 evenly!" << std::endl;
+            std::cerr << "localities_x = " << cfg.num_localities_x << ", num_local_partitions_x = " << cfg.num_local_partitions_x << ", i_max + 2 = " << cfg.i_max + 2 << std::endl;
             std::exit(1);
         }        
         
@@ -97,6 +98,7 @@ namespace nast_hpx { namespace io {
         if (cfg.cells_y_per_partition * cfg.num_localities_y * cfg.num_local_partitions_y != cfg.j_max + 2)
         {
             std::cerr << "Error: localities_y * num_local_partitions_y does not divide j_max + 2 evenly!" << std::endl;
+            std::cerr << "localities_y = " << cfg.num_localities_y << ", num_local_partitions_y = " << cfg.num_local_partitions_y << ", j_max + 2 = " << cfg.j_max + 2 << std::endl;
             std::exit(1);
         }
 
@@ -119,6 +121,9 @@ namespace nast_hpx { namespace io {
             std::cerr << "Error: yLength not set!" << std::endl;
             std::exit(1);
         }
+        
+        cfg.dx = cfg.x_length / cfg.i_max;
+        cfg.dy = cfg.y_length / cfg.j_max;
 
         if(config_node.child("Re") != NULL)
         {

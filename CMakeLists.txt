@@ -30,8 +30,8 @@ target_link_libraries(config pugixml)
 
 add_hpx_component(
     partition_server
-    SOURCES src/grid/server/partition_server.cpp
-    HEADERS src/grid/server/partition_server.hpp
+    SOURCES src/grid/server/partition_server.cpp src/io/writer.cpp
+    HEADERS src/grid/server/partition_server.hpp src/io/writer.hpp
 )
 
 add_hpx_component(

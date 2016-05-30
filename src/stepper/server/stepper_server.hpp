@@ -10,9 +10,7 @@
 namespace nast_hpx { namespace stepper { namespace server {
 
 char const* stepper_basename = "/nast_hpx/stepper/";
-char const* residual_basename = "/nast_hpx/gather/residual";
 char const* velocity_basename = "/nast_hpx/gather/velocity";
-char const* dt_basename = "/nast_hpx/gather/dt";
 
 /// Component responsible for the timestepping and communication of data.
 struct HPX_COMPONENT_EXPORT stepper_server
@@ -26,9 +24,13 @@ struct HPX_COMPONENT_EXPORT stepper_server
         void setup(io::config&& cfg);
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, setup, setup_action);
         
+        void set_dt(uint step, Real dt);
+        HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_dt, set_dt_action);
+        
     private:
         uint num_localities, num_localities_x, num_localities_y;
         grid::partition part;
+        hpx::lcos::local::receive_buffer<Real> dt_buffer;
 };
 
 }//namespace server

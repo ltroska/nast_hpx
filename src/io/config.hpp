@@ -33,6 +33,8 @@ struct config
         Real beta;
         Real gx;
         Real gy;
+        Real dx;
+        Real dy;
 
         bool vtk;
         uint output_skip_size;
@@ -80,7 +82,7 @@ struct config
                 & sub_iterations & iter_max & wfe & gx & gy & num_localities
                 & num_localities_x & num_localities_y & num_local_partitions
                 & num_local_partitions_x & num_local_partitions_y & cells_x_per_partition 
-                & cells_y_per_partition & rank;
+                & cells_y_per_partition & rank & dx & dy;
             //& u_bnd & v_bnd & data_type
             //& temp_bnd & temp_data_type & ti & with_flag_grid & flag_grid
             //& with_initial_uv_grid & initial_uv_grid;
@@ -93,6 +95,8 @@ struct config
                 << "\nGEOMETRY:"
                 << "\n\tiMax = " << config.i_max
                 << "\n\tjMax = " << config.j_max
+                << "\n\tdx = " << config.dx
+                << "\n\tdy = " << config.dy
                 << "\n\tnum_localities = " << config.num_localities
                 << "\n\tnum_localities_x = " << config.num_localities_x
                 << "\n\tnum_localities_y = " << config.num_localities_y                

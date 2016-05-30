@@ -13,6 +13,7 @@
 namespace nast_hpx { namespace grid { namespace server {
 
 char const* partition_basename = "/nast_hpx/partition/";
+char const* residual_basename = "/nast/hpx/partition/residual";
 
     
 /// component encapsulates partition_data, making it remotely available
@@ -29,6 +30,9 @@ public:
     static const std::size_t NUM_VARIABLES = 5;
 
     typedef hpx::serialization::serialize_buffer<Real> buffer_type;
+    typedef std::vector<hpx::shared_future<void> > future_vector;
+    typedef std::vector<future_vector> future_grid;
+
 
     partition_server() {}
 
@@ -38,7 +42,7 @@ public:
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, init, init_action);
 
     /// return the sliced data appropriate for given direction
-    void do_timestep(Real dt);
+    std::pair<Real, Real> do_timestep(Real dt);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, do_timestep, do_timestep_action);
     
     void set_left_boundary(buffer_type buffer, std::size_t step, std::size_t var)
@@ -97,48 +101,59 @@ public:
         
 protected:
     template<direction dir>
-    void send_boundary(std::size_t step, std::vector<hpx::shared_future<void> >& send_futures, std::size_t var);
+    void send_boundary(std::size_t step, std::size_t var, future_vector& send_future);
 
     template<std::size_t var>
-    void send_right_and_top_boundaries(std::size_t step, std::vector<std::vector<hpx::shared_future<void> > >& send_futures);
+    void send_right_and_top_boundaries(std::size_t step, future_grid& send_futures);
     
     template<std::size_t var>
-    void send_cross_boundaries(std::size_t step, std::vector<std::vector<hpx::shared_future<void> > >& send_futures);
+    void send_cross_boundaries(std::size_t step, future_grid& send_futures);
     
     template<std::size_t var>
-    void send_all_boundaries(std::size_t step, std::vector<std::vector<hpx::shared_future<void> > >& send_futures);
+    void send_all_boundaries(std::size_t step, future_grid& send_futures);
     
     template<direction dir>
-    hpx::shared_future<void> receive_boundary(std::size_t step, std::size_t var);
+    void receive_boundary(std::size_t step, std::size_t var, future_vector& recv_futures);
     
     template<std::size_t var>
-    void receive_left_and_bottom_boundaries(std::size_t step, std::vector<hpx::shared_future<void> >& recv_futures);
+    void receive_left_and_bottom_boundaries(std::size_t step, future_vector& recv_futures);
      
     template<std::size_t var>
-    void receive_cross_boundaries(std::size_t step, std::vector<hpx::shared_future<void> >& recv_futures);
+    void receive_cross_boundaries(std::size_t step, future_vector& recv_futures);
     
     template<std::size_t var>
-    void receive_all_boundaries(std::size_t step, std::vector<hpx::shared_future<void> >& recv_futures);
+    void receive_all_boundaries(std::size_t step, future_vector& recv_futures);
+    
+    void wait_all_boundaries(future_vector& recv_futures);
     
     template<direction dir>
     hpx::shared_future<void> get_dependency(std::size_t idx_block,
-        std::size_t idy_block, std::vector<hpx::shared_future<void> > const& recv_futures,
+        std::size_t idy_block, future_vector const& recv_futures,
         partition_data<hpx::shared_future<void> > const& calc_futures);
 
 private:
+    
     partition_data<Real> data_[NUM_VARIABLES];
+    partition_data<Real> rhs_data_;
     partition_data<std::bitset<6> > cell_types_;
     std::vector<hpx::id_type> ids_;
     std::size_t rank_, num_partitions_, num_partitions_x_, num_partitions_y_;
     std::size_t cells_x_, cells_y_;
     std::size_t num_x_blocks_, num_y_blocks_, cells_per_x_block_, cells_per_y_block_;
+    std::size_t num_fluid_cells_;
     std::size_t idx_, idy_;
-    
-    Real dx_, dy_, alpha_, beta_, re_, gx_, gy_, eps_sq_;
+    std::size_t step_;
+    std::size_t i_max_, j_max_;
+    std::size_t iter_max_;
+    std::size_t outcount_;
+        
+    Real dx_, dy_, dx_sq_, dy_sq_, over_dx_sq_, over_dy_sq_, over_dx_, over_dy_,
+        part1_, part2_, alpha_, beta_, re_, gx_, gy_, eps_sq_, t_, delta_vec_,
+        next_out_;
     
     boundary_data u_bnd_, v_bnd_, uv_bnd_type_;
     
-    bool is_left_, is_right_, is_bottom_, is_top_;
+    bool is_left_, is_right_, is_bottom_, is_top_, vtk_;
 };
 
 }//namespace server

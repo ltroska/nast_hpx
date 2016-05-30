@@ -41,7 +41,7 @@ for row in range(len(in_grid)):
 			type_int = 4 + 32
 
 		elif (col == 0 and row == 0) or (col == 0 and row == len(in_grid) - 1) or (col == len(in_grid[0]) - 1 and row == 0) or (col == len(in_grid[0]) - 1 and row == len(in_grid) - 1):
-			type_int = 32
+			type_int = 0
 
 		else:
 			count = 0

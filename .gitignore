@@ -7,7 +7,6 @@ nbproject
 
 .codelite/
 *.project
-settings/
 
 nast_hpx*
 .cmake*

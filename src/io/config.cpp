@@ -494,6 +494,14 @@ namespace nast_hpx { namespace io {
             std::ifstream file(
                 config_node.child("gridFile").first_attribute().as_string());
 
+            if (!file)
+            {
+                std::cerr << "Could not open grid file at "
+                    << config_node.child("gridFile").first_attribute().as_string()
+                    << "!" << std::endl;
+                std::exit(1);
+            }
+
             cfg.num_fluid_cells = 0;
 
             std::size_t flag_res_x = cfg.num_x_blocks * cfg.cells_x_per_block + 2;
@@ -624,6 +632,14 @@ namespace nast_hpx { namespace io {
             std::ifstream file(
                 config_node.child("initialUVFile")
                     .first_attribute().as_string());
+
+            if (!file)
+            {
+                std::cerr << "Could not open initial velocity file at "
+                    << config_node.child("initialUVFile").first_attribute().as_string()
+                    << "!" << std::endl;
+                std::exit(1);
+            }
 
             while (true)
             {

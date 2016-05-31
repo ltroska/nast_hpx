@@ -22,5 +22,5 @@
 	<UO value="1"/>
 	<subIterations value="1"/>
 	<withForEach value="0"/>
-	<gridFile value="../settings/geometry/driven_cavity_128_128.csv"/>
+	<gridFile value="../examples/geometry/driven_cavity_128_128.csv"/>
 </SimulationConfig>

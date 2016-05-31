@@ -118,15 +118,17 @@ void partition_server::init()
         recv_buffer_top_[V].valid_ = true;
     }
 
+    /*
     for (uint i = 0; i < data_[P].size_x_ ; i++)
         for (uint j = 0; j < data_[P].size_y_; ++j)
         {
-          //  data_[U](i, j) = 100*(c.idy*c.num_partitions_x + c.idx)+i+0.01*j;
-          /*  data_[V](i, j) = 100*(c.idy*c.num_partitions_x + c.idx)+i+0.01*j;
+            data_[U](i, j) = 100*(c.idy*c.num_partitions_x + c.idx)+i+0.01*j;
+            data_[V](i, j) = 100*(c.idy*c.num_partitions_x + c.idx)+i+0.01*j;
             data_[F](i, j) = 100*(c.idy*c.num_partitions_x + c.idx)+i+0.01*j;
             data_[G](i, j) = 100*(c.idy*c.num_partitions_x + c.idx)+i+0.01*j;
-            data_[P](i, j) = 100*(c.idy*c.num_partitions_x + c.idx)+i+0.01*j;*/
+            data_[P](i, j) = 100*(c.idy*c.num_partitions_x + c.idx)+i+0.01*j;
         }
+    */
 }
 
 template<>

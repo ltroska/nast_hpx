@@ -25,5 +25,5 @@
 	<WT value="3"/>
 	<subIterations value="1"/>
 	<withForEach value="0"/>
-	<gridFile value="../settings/geometry/junction.csv"/>
+	<gridFile value="../examples/geometry/junction.csv"/>
 </SimulationConfig>

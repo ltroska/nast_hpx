@@ -24,6 +24,6 @@
 	<UL value="1"/>
 	<subIterations value="1"/>
 	<withForEach value="0"/>
-	<gridFile value="../settings/geometry/step_22_102.csv"/>
-	<initialUVFile value="../settings/step_initial_uv.csv"/>
+	<gridFile value="../examples/geometry/step_22_102.csv"/>
+	<initialUVFile value="../examples/step_initial_uv.csv"/>
 </SimulationConfig>

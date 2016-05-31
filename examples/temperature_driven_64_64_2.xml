@@ -32,5 +32,5 @@
 	<vtk value="1"/>
 	<subIterations value="1"/>
 	<withForEach value="0"/>
-	<gridFile value="../settings/geometry/temperature_driven_6464.csv"/>
+	<gridFile value="../examples/geometry/temperature_driven_6464.csv"/>
 </SimulationConfig>

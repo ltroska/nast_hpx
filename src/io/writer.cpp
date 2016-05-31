@@ -7,22 +7,22 @@
 #include "writer.hpp"
 
 namespace nast_hpx { namespace io {
- 
+
 void writer::write_vtk(grid_type const& p_data, grid_type const& u_data, grid_type const& v_data,
     std::size_t res_x, std::size_t res_y, std::size_t i_max, std::size_t j_max,
     Real dx, Real dy, std::size_t step, std::size_t loc)
 {
     std::size_t num_localities = res_x * res_y;
-    
+
     std::size_t cells_x = p_data.size_x_;
     std::size_t cells_y = p_data.size_y_;
     std::size_t partitions_x = 1;
     std::size_t partitions_y = 1;
-    
+
     if (loc == 0)
     {
         std::string filename;
-        //filename.append ("./fields/");
+        filename.append ("./fields/");
         filename.append ("field_");
         filename.append (std::to_string(step));
         filename.append (".pvtr");
@@ -34,8 +34,8 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data, grid_ty
         os  << "<?xml version=\"1.0\"?>" << std::endl
             << "<VTKFile type=\"PRectilinearGrid\" version=\"0.1\" byte_order=\"LittleEndian\">"
                 << std::endl
-            << "<PRectilinearGrid WholeExtent=\"1 " 
-                << i_max + 1 << " 1 " << j_max + 1 
+            << "<PRectilinearGrid WholeExtent=\"1 "
+                << i_max + 1 << " 1 " << j_max + 1
                 << " 0 0\" GhostLevel=\"0\">" << std::endl
             << "<PPointData>" << std::endl
           //  << "<DataArray type=\"Float32\" Name=\"vorticity\" />" << std::endl
@@ -71,11 +71,11 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data, grid_ty
         os << "</PRectilinearGrid>" << std::endl
             << "</VTKFile>" << std::endl;
 
-        fb.close(); 
+        fb.close();
     }
-    
+
     std::string filename;
- //  filename.append ("./fields/");
+    filename.append ("./fields/");
     filename.append ("field_");
     filename.append (std::to_string(step));
     filename.append ("_locality_");
@@ -186,18 +186,18 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data, grid_ty
                 {
                     p_stream
                         << p_data(i, j)  << "\n";
-                        
+
                     if (i == 0)
                         uv_stream << "0 ";
                     else
-                        uv_stream << (u_data(i, j) - u_data(i - 1, j)) / 2. << " ";                        
-                    
+                        uv_stream << (u_data(i, j) - u_data(i - 1, j)) / 2. << " ";
+
                     if (j == 0)
                         uv_stream << "0\n";
                     else
                         uv_stream << (v_data(i, j) - v_data(i, j - 1)) / 2. << "\n";
-                    
-                    
+
+
                 }
             }
 
@@ -282,6 +282,6 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data, grid_ty
 
     fb.close();
 }
-   
+
 }
 }

@@ -1,8 +1,11 @@
-#pragma once
-#ifndef BOUNDARY_DATA_HPP_
-#define BOUNDARY_DATA_HPP_
+#ifndef NAST_HPX_GRID_BOUNDARY_DATA_HPP_
+#define NAST_HPX_GRID_BOUNDARY_DATA_HPP_
 
 #include <iostream>
+
+#include "util/typedefs.hpp"
+
+namespace nast_hpx { namespace grid {
 
 /// This class represents one set of boundary conditions.
 struct boundary_data
@@ -34,5 +37,8 @@ struct boundary_data
         return os;
     }
 };
+
+}
+}
 
 #endif

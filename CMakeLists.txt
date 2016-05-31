@@ -14,8 +14,6 @@ find_package(HPX)
 
 enable_testing()
 
-#include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeSettings.txt)
-
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/
 			${CMAKE_CURRENT_SOURCE_DIR}/libs
 			)
@@ -38,13 +36,13 @@ add_hpx_component(
     stepper_server
     SOURCES src/stepper/server/stepper_server.cpp
     HEADERS src/stepper/server/stepper_server.hpp
-    COMPILE_FLAGS -DCUSTOM_GRAIN_SIZE
+#    COMPILE_FLAGS -DCUSTOM_GRAIN_SIZE
     COMPONENT_DEPENDENCIES iostreams partition_server)
 
 add_hpx_executable(
-    main
+    nast_hpx
     ESSENTIAL
-    SOURCES src/main.cpp
+    SOURCES src/nast_hpx.cpp
     DEPENDENCIES config
     COMPONENT_DEPENDENCIES stepper_server
 )

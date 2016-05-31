@@ -1,13 +1,14 @@
 /** All stencils are provided in this header as inline methods
  */
-#ifndef COMPUTATION_STENCILS_HPP
-#define COMPUTATION_STENCILS_HPP
+#ifndef NAST_HPX_UTIL_FD_STENCILS_HPP
+#define NAST_HPX_UTIL_FD_STENCILS_HPP
 
-#include "util/typedefs.hpp"
 #include <cmath>
 #include <cstdlib>
 
-namespace computation {
+#include "util/typedefs.hpp"
+
+namespace nast_hpx { namespace util { namespace fd_stencils {
 
 inline Real second_derivative_fwd_bkwd_x(
     Real right, Real middle, Real left, Real dx)
@@ -85,9 +86,9 @@ inline Real first_derivative_of_product_y(
     Real v_bottomright, Real u_bottom, Real u_middle,
     Real u_top, Real dy, Real alpha = 0.9)
 {
-    return 1./dy * ((v_middle + v_right)  * (u_middle + u_top) / 4. 
+    return 1./dy * ((v_middle + v_right)  * (u_middle + u_top) / 4.
             - (v_bottom + v_bottomright) * (u_bottom + u_middle) / 4.)
-            + alpha / dy * (std::abs(v_middle + v_right) 
+            + alpha / dy * (std::abs(v_middle + v_right)
                 * (u_middle - u_top) / 4.
             - std::abs(v_bottom + v_bottomright) * (u_bottom - u_middle) / 4.);
 }
@@ -96,14 +97,14 @@ inline Real first_derivative_u_temp_x(
     Real u_center, Real u_left, Real t_center, Real t_right,
     Real t_left, Real dx, Real alpha = 0.9)
 {
-    return 1./dx * (u_center * (t_center + t_right) / 2. 
+    return 1./dx * (u_center * (t_center + t_right) / 2.
                 - u_left * (t_left + t_center) / 2.)
             + alpha / dx * (std::abs(u_center)*(t_center - t_right) / 2.
             - std::abs(u_left) * (t_left - t_center) / 2.);
 }
 
 inline Real first_derivative_v_temp_y(
-    Real v_center, Real v_bottom, Real t_center, Real t_top, 
+    Real v_center, Real v_bottom, Real t_center, Real t_top,
     Real t_bottom, Real dy, Real alpha = 0.9)
 {
     return 1./dy * (v_center * (t_center + t_top)/ 2.
@@ -113,6 +114,7 @@ inline Real first_derivative_v_temp_y(
                 - std::abs(v_bottom)*(t_bottom - t_center)/2.);
 }
 
-
-}//namespace computation
+}
+}
+}
 #endif

@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "util/typedefs.hpp"
-#include "util/boundary_data.hpp"
+#include "grid/boundary_data.hpp"
 
 namespace nast_hpx { namespace io {
 
@@ -70,12 +70,12 @@ struct config
         std::size_t idx;
         std::size_t idy;
 
-        boundary_data u_bnd;
-        boundary_data v_bnd;
-        boundary_data data_type;
+        grid::boundary_data u_bnd;
+        grid::boundary_data v_bnd;
+        grid::boundary_data data_type;
 
-        boundary_data temp_bnd;
-        boundary_data temp_data_type;
+        grid::boundary_data temp_bnd;
+        grid::boundary_data temp_data_type;
         Real ti;
 
         bool with_flag_grid;
@@ -107,6 +107,12 @@ struct config
                 << "\n\tj_max = " << config.j_max
                 << "\n\tdx = " << config.dx
                 << "\n\tdy = " << config.dy
+                << "\n\tdx_sq = " << config.dx_sq
+                << "\n\tdy_sq = " << config.dy_sq
+                << "\n\tover_dx = " << config.over_dx
+                << "\n\tover_dy = " << config.over_dy
+                << "\n\tover_dx_sq = " << config.over_dx_sq
+                << "\n\tover_dy_sq = " << config.over_dy_sq
                 << "\n\tnum_localities = " << config.num_localities
                 << "\n\tnum_localities_x = " << config.num_localities_x
                 << "\n\tnum_localities_y = " << config.num_localities_y

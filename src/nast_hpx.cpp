@@ -9,7 +9,7 @@ int hpx_main(boost::program_options::variables_map& vm)
    nast_hpx::stepper::stepper step;
 
     std::cout << "Threads on locality " << hpx::get_locality_id()
-        << " = " << hpx::threads::hardware_concurrency() << std::endl;
+        << " = " << hpx::get_os_thread_count() << std::endl;
 
     const auto cfg_path = vm["cfg"].as<std::string>();
 

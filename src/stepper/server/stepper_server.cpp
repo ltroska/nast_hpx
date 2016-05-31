@@ -90,14 +90,14 @@ void stepper_server::setup(io::config&& cfg)
                         std::min(dx / global_max_uv.first,
                                 dy / global_max_uv.second)
                 );
-
+/*
             // special case for temperature driven flow
             if (pr)
                 new_dt = std::min(new_dt,
                                 (re * pr) / 2. * 1.
                                 / (1. / std::pow(dx, 2)
                                 + 1. / std::pow(dy, 2)));
-
+*/
             new_dt *= tau;
 
 

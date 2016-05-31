@@ -12,15 +12,15 @@ struct partition
 {
     typedef hpx::components::client_base<partition, server::partition_server>
         base_type;
-    
+
     partition() {}
 
-    partition(hpx::id_type where, io::config& cfg, std::size_t idx, std::size_t idy)
-        : base_type(hpx::new_<server::partition_server>(where, cfg, idx, idy))
+    partition(hpx::id_type where, io::config&& cfg)
+        : base_type(hpx::new_<server::partition_server>(where, std::move(cfg)))
     {
-        std::cout << "registering " << idy * cfg.num_localities_x + idx << " " << idx << " " << idy <<  std::endl;
+        std::cout << "registering " << cfg.idy * cfg.num_localities_x + cfg.idx << " " << cfg.idx << " " << cfg.idy <<  std::endl;
         hpx::register_with_basename(server::partition_basename, get_id(),
-                                        idy * cfg.num_localities_x + idx);    
+                                        cfg.idy * cfg.num_localities_x + cfg.idx);
     }
 
     // Create a new component on the locality co-located to the id 'where'. The
@@ -43,20 +43,20 @@ struct partition
     partition(partition const& other)
       : base_type(other)
     {}
-    
+
     hpx::future<void> init()
     {
         typename server::partition_server::init_action act;
-        return hpx::async(act, get_id());  
-    }    
-    
+        return hpx::async(act, get_id());
+    }
+
     void init_sync()
     {
         typename server::partition_server::init_action act;
-        hpx::apply(act, get_id());  
+        hpx::apply(act, get_id());
     }
 
-    hpx::future<std::pair<Real, Real> > do_timestep(Real dt) 
+    hpx::future<std::pair<Real, Real> > do_timestep(Real dt)
     {
         typename server::partition_server::do_timestep_action act;
         return hpx::async(act, get_id(), dt);

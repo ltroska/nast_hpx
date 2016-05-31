@@ -31,27 +31,34 @@ void stepper_server::setup(io::config&& cfg)
     // of localities
     auto rank = hpx::get_locality_id();
 
-    std::cout << cfg << std::endl;
-    std::size_t idx, idy;
-    
-    
-    idx = (rank % cfg.num_localities_x);
-    idy = (rank / cfg.num_localities_x);
-    part = grid::partition(hpx::find_here(), cfg, idx, idy);
+    cfg.idx = (rank % cfg.num_localities_x);
+    cfg.idy = (rank / cfg.num_localities_x);
+
+    cfg.num_partitions_x = cfg.num_localities_x;
+    cfg.num_partitions_y = cfg.num_localities_y;
+    cfg.num_partitions = cfg.num_localities;
+
+    Real dt = cfg.initial_dt;
+    Real dx = cfg.dx;
+    Real dy = cfg.dy;
+    Real re = cfg.re;
+    Real pr = cfg.pr;
+    Real tau = cfg.tau;
+
+    part = grid::partition(hpx::find_here(), std::move(cfg));
     part.init_sync();
-    
+
     std::size_t step = 0;
-    
-     std::vector<hpx::naming::id_type> localities;
-     for (uint loc = 0; loc < num_localities; loc++)
+
+    std::vector<hpx::naming::id_type> localities;
+    for (uint loc = 0; loc < num_localities; loc++)
         localities.push_back(hpx::find_from_basename(stepper_basename, loc).get());
-    
-    Real dt = cfg.dt;
+
     for (Real t = 0; ; step++)
-    {        
+    {
         hpx::future<std::pair<Real, Real> > local_max_velocity =
             part.do_timestep(dt);
-    
+
         // if this is the root locality gather all remote residuals and sum up
         if (hpx::get_locality_id() == 0)
         {
@@ -77,23 +84,23 @@ void stepper_server::setup(io::config&& cfg)
             }
 
             Real new_dt =
-                std::min(cfg.re / 2. * 1. / (1. / std::pow(cfg.dx, 2)
-                            + 1. / std::pow(cfg.dy, 2))
+                std::min(re / 2. * 1. / (1. / std::pow(dx, 2)
+                            + 1. / std::pow(dy, 2))
                         ,
-                        std::min(cfg.dx / global_max_uv.first,
-                                cfg.dy / global_max_uv.second)
+                        std::min(dx / global_max_uv.first,
+                                dy / global_max_uv.second)
                 );
 
             // special case for temperature driven flow
-            if (cfg.pr)
+            if (pr)
                 new_dt = std::min(new_dt,
-                                (cfg.re * cfg.pr) / 2. * 1.
-                                / (1. / std::pow(cfg.dx, 2)
-                                + 1. / std::pow(cfg.dy, 2)));
+                                (re * pr) / 2. * 1.
+                                / (1. / std::pow(dx, 2)
+                                + 1. / std::pow(dy, 2)));
 
-            new_dt *= cfg.tau;
+            new_dt *= tau;
 
-                    
+
 
             hpx::lcos::broadcast_apply<set_dt_action>(localities, step, new_dt);
         }
@@ -103,11 +110,11 @@ void stepper_server::setup(io::config&& cfg)
 
         if (t >= cfg.t_end)
             break;
-            
+
         dt = dt_buffer.receive(step).get();
         t += dt;
     }
-   
+
 }
 
 void stepper_server::set_dt(uint step, Real dt)

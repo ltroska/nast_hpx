@@ -16,7 +16,7 @@ namespace nast_hpx { namespace io {
         config cfg;
         cfg.num_localities = num_localities;
         cfg.rank = rank;
-        
+
         if (cfg.num_localities == 2)
         {
             cfg.num_localities_x = 2;
@@ -27,7 +27,7 @@ namespace nast_hpx { namespace io {
             cfg.num_localities_x = static_cast<uint> (sqrt(cfg.num_localities));
             cfg.num_localities_y = cfg.num_localities_x;
         }
-    
+
         pugi::xml_document doc;
 
         pugi::xml_parse_result result = doc.load_file(path);
@@ -39,8 +39,8 @@ namespace nast_hpx { namespace io {
 
         pugi::xml_node config_node = doc.child("SimulationConfig");
         if (config_node == NULL) {
-            std::cerr 
-                << "Error: A simulation configuration must be defined!" 
+            std::cerr
+                << "Error: A simulation configuration must be defined!"
                 << std::endl;
             std::exit(1);
         }
@@ -64,7 +64,7 @@ namespace nast_hpx { namespace io {
 
         if(config_node.child("iRes") != NULL)
         {
-            cfg.i_res = config_node.child("iRes").first_attribute().as_int();
+            cfg.num_x_blocks = config_node.child("iRes").first_attribute().as_int();
         }
         else {
             std::cerr << "Error: iRes not set!" << std::endl;
@@ -73,32 +73,28 @@ namespace nast_hpx { namespace io {
 
         if(config_node.child("jRes") != NULL)
         {
-            cfg.j_res = config_node.child("jRes").first_attribute().as_int();
+            cfg.num_y_blocks = config_node.child("jRes").first_attribute().as_int();
         }
         else {
             std::cerr << "Error: jRes not set!" << std::endl;
             std::exit(1);
         }
-        
-        cfg.num_local_partitions_x = cfg.i_res;
-        cfg.num_local_partitions_y = cfg.j_res;
-        cfg.num_local_partitions = cfg.num_local_partitions_x * cfg.num_local_partitions_y;
-        
-        cfg.cells_x_per_partition = (cfg.i_max + 2) / cfg.num_localities_x / cfg.num_local_partitions_x;
-        
-        if (cfg.cells_x_per_partition * cfg.num_localities_x * cfg.num_local_partitions_x != cfg.i_max + 2)
+
+        cfg.cells_x_per_block = (cfg.i_max + 2) / cfg.num_localities_x / cfg.num_x_blocks;
+
+        if (cfg.cells_x_per_block * cfg.num_localities_x * cfg.num_x_blocks != cfg.i_max + 2)
         {
-            std::cerr << "Error: localities_x * num_local_partitions_x does not divide i_max + 2 evenly!" << std::endl;
-            std::cerr << "localities_x = " << cfg.num_localities_x << ", num_local_partitions_x = " << cfg.num_local_partitions_x << ", i_max + 2 = " << cfg.i_max + 2 << std::endl;
+            std::cerr << "Error: localities_x * num_x_blocks does not divide i_max + 2 evenly!" << std::endl;
+            std::cerr << "localities_x = " << cfg.num_localities_x << ", num_x_blocks = " << cfg.num_x_blocks << ", i_max + 2 = " << cfg.i_max + 2 << std::endl;
             std::exit(1);
-        }        
-        
-        cfg.cells_y_per_partition = (cfg.j_max + 2) / cfg.num_localities_y / cfg.num_local_partitions_y;
-        
-        if (cfg.cells_y_per_partition * cfg.num_localities_y * cfg.num_local_partitions_y != cfg.j_max + 2)
+        }
+
+        cfg.cells_y_per_block = (cfg.j_max + 2) / cfg.num_localities_y / cfg.num_y_blocks;
+
+        if (cfg.cells_y_per_block * cfg.num_localities_y * cfg.num_y_blocks != cfg.j_max + 2)
         {
-            std::cerr << "Error: localities_y * num_local_partitions_y does not divide j_max + 2 evenly!" << std::endl;
-            std::cerr << "localities_y = " << cfg.num_localities_y << ", num_local_partitions_y = " << cfg.num_local_partitions_y << ", j_max + 2 = " << cfg.j_max + 2 << std::endl;
+            std::cerr << "Error: localities_y * num_y_blocks does not divide j_max + 2 evenly!" << std::endl;
+            std::cerr << "localities_y = " << cfg.num_localities_y << ", num_y_blocks = " << cfg.num_y_blocks << ", j_max + 2 = " << cfg.j_max + 2 << std::endl;
             std::exit(1);
         }
 
@@ -121,9 +117,18 @@ namespace nast_hpx { namespace io {
             std::cerr << "Error: yLength not set!" << std::endl;
             std::exit(1);
         }
-        
+
         cfg.dx = cfg.x_length / cfg.i_max;
         cfg.dy = cfg.y_length / cfg.j_max;
+
+        cfg.dx_sq = std::pow(cfg.dx, 2);
+        cfg.dy_sq = std::pow(cfg.dy, 2);
+
+        cfg.over_dx = 1. / cfg.dx;
+        cfg.over_dy = 1. / cfg.dy;
+
+        cfg.over_dx_sq = 1. / cfg.dx_sq;
+        cfg.over_dy_sq = 1. / cfg.dy_sq;
 
         if(config_node.child("Re") != NULL)
         {
@@ -133,7 +138,7 @@ namespace nast_hpx { namespace io {
             std::cerr << "Error: Re not set!" << std::endl;
             std::exit(1);
         }
-           
+
 
         if(config_node.child("Pr") != NULL)
         {
@@ -154,7 +159,10 @@ namespace nast_hpx { namespace io {
             std::cerr << "Error: Omega not set!" << std::endl;
             std::exit(1);
         }
-        
+
+        cfg.part1 = 1. - cfg.omega;
+        cfg.part2 = cfg.omega * cfg.dx_sq * cfg.dy_sq / (2. * (cfg.dx_sq + cfg.dy_sq));
+
         if(config_node.child("tau") != NULL)
         {
             cfg.tau = config_node.child("tau").first_attribute().as_double();
@@ -174,7 +182,7 @@ namespace nast_hpx { namespace io {
             std::cerr << "Error: Eps not set!" << std::endl;
             std::exit(1);
         }
-        
+
         if(config_node.child("alpha") != NULL)
         {
             cfg.alpha =
@@ -217,20 +225,10 @@ namespace nast_hpx { namespace io {
 
         if(config_node.child("dt") != NULL)
         {
-            cfg.dt = config_node.child("dt").first_attribute().as_double();
+            cfg.initial_dt = config_node.child("dt").first_attribute().as_double();
         }
         else
-            cfg.dt = 0.01;
-
-        if(config_node.child("outputSkipSize") != NULL)
-        {
-            cfg.output_skip_size =
-                config_node.child("outputSkipSize").first_attribute().as_int();
-        }
-        else
-        {
-            cfg.output_skip_size = 1;
-        }
+            cfg.initial_dt = 0.01;
 
         if(config_node.child("subIterations") != NULL)
         {
@@ -240,16 +238,6 @@ namespace nast_hpx { namespace io {
         else
         {
             cfg.sub_iterations = 1;
-        }
-
-        if(config_node.child("withForEach") != NULL)
-        {
-            cfg.wfe =
-                config_node.child("withForEach").first_attribute().as_int();
-        }
-        else
-        {
-            cfg.wfe = 1;
         }
 
         if(config_node.child("vtk") != NULL)
@@ -505,32 +493,32 @@ namespace nast_hpx { namespace io {
 
             std::ifstream file(
                 config_node.child("gridFile").first_attribute().as_string());
-            
+
             cfg.num_fluid_cells = 0;
 
-            std::size_t flag_res_x = cfg.num_local_partitions_x * cfg.cells_x_per_partition + 2;
-            std::size_t flag_res_y = cfg.num_local_partitions_y * cfg.cells_y_per_partition + 2;
-            
+            std::size_t flag_res_x = cfg.num_x_blocks * cfg.cells_x_per_block + 2;
+            std::size_t flag_res_y = cfg.num_y_blocks * cfg.cells_y_per_block + 2;
+
           //  std::cout << "resx " << flag_res_x << " resy " << flag_res_y << std::endl;
 
             cfg.flag_grid.resize(flag_res_x * flag_res_y);
-                                    
+
           //  std::cout << "s " << cfg.flag_grid.size() << std::endl;
             std::size_t i = 0;
             std::size_t j = cfg.j_max + 1;
-            
-            std::size_t start_i = (rank % cfg.num_localities_x) * cfg.num_local_partitions_x * cfg.cells_x_per_partition;
-            std::size_t end_i = start_i + cfg.num_local_partitions_x * cfg.cells_x_per_partition;            
-            
-            std::size_t start_j = (rank / cfg.num_localities_x) * cfg.num_local_partitions_y * cfg.cells_y_per_partition;
-            std::size_t end_j = start_j + cfg.num_local_partitions_y * cfg.cells_y_per_partition;
-            
+
+            std::size_t start_i = (rank % cfg.num_localities_x) * cfg.num_x_blocks * cfg.cells_x_per_block;
+            std::size_t end_i = start_i + cfg.num_x_blocks * cfg.cells_x_per_block;
+
+            std::size_t start_j = (rank / cfg.num_localities_x) * cfg.num_y_blocks * cfg.cells_y_per_block;
+            std::size_t end_j = start_j + cfg.num_y_blocks * cfg.cells_y_per_block;
+
            // std::cout <<  " starti " << start_i << " endi " << end_i << std::endl;
            // std::cout <<  " startj " << start_j << " endj " << end_j << std::endl;
-            
+
             std::size_t offset_x = 0;
             std::size_t offset_y = flag_res_y - 1;
-            
+
             if (start_i == 0)
             {
                 for (std::size_t j = 0; j < flag_res_y; ++j)
@@ -540,7 +528,7 @@ namespace nast_hpx { namespace io {
             }
             else
                 --start_i;
-            
+
             if (start_j == 0)
             {
                 for (std::size_t i = 0; i < flag_res_x; ++i)
@@ -548,30 +536,30 @@ namespace nast_hpx { namespace io {
 
             }
             else
-                --start_j; 
+                --start_j;
 
-                
+
             if (end_i == cfg.i_max + 2)
             {
                 for (std::size_t j = 0; j < flag_res_y; ++j)
                     cfg.flag_grid[j * flag_res_x + flag_res_x - 1] = std::bitset<6>("000000");
-                    
+
                 --end_i;
-            }  
-              
+            }
+
             if (end_j == cfg.j_max + 2)
             {
                 for (std::size_t i = 0; i < flag_res_x; ++i)
                     cfg.flag_grid[(flag_res_y - 1) * flag_res_x + i] = std::bitset<6>("000000");
-                    
+
                 --end_j;
                 --offset_y;
             }
-                
+
           //  std::cout <<  " starti " << start_i << " endi " << end_i << std::endl;
             //std::cout <<  " startj " << start_j << " endj " << end_j << std::endl;
 
-                
+
             std::size_t insert_i = 0;
             std::size_t insert_j = offset_y;
 
@@ -590,37 +578,37 @@ namespace nast_hpx { namespace io {
                 {
                     std::string cell_val;
                     std::getline(iss, cell_val, ',');
-                    
+
                     std::bitset<6> flag(std::stoi(cell_val));
 
                     if (flag.test(4))
                         cfg.num_fluid_cells++;
-                    
+
                     if (i >= start_i && i <= end_i && j >= start_j && j <= end_j)
                     {
                         cfg.flag_grid[insert_j * flag_res_x + insert_i] = flag;
                         ++insert_i;
                     }
-                    
+
                     if (!iss.good())
                         break;
                     ++i;
                 }
-                
+
                 if (j >= start_j && j <= end_j)
                     --insert_j;
 
                 --j;
             }
-            
+
          /*   for (uint j = flag_res_y - 1; j < flag_res_y; --j)
             {
                 for (uint i = 0; i < flag_res_x; ++i)
                     std::cout << cfg.flag_grid[j * flag_res_x + i].to_ulong() << " ";
                 std::cout << "\n";
-                    
+
             }*/
-            
+
             std::cout << std::endl;
         }
         else
@@ -677,6 +665,6 @@ namespace nast_hpx { namespace io {
 
         return cfg;
     }
-        
+
 }
 }

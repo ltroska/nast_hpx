@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<SimulationConfig>
+	<iMax value="1022"/>
+	<jMax value="1022"/>
+	<iRes value="4"/>
+	<jRes value="4"/>
+	<xLength value="6"/>
+	<yLength value="6"/>
+	<Re value="1000"/>
+	<omega value="1.7"/>
+	<tau value="0.5"/>
+	<eps value="0.001"/>
+	<alpha value="0.9"/>
+	<iterMax value="500"/>
+	<dt value="0.002"/>
+	<tEnd value="0.1"/>
+	<GX value="0"/>
+	<GY value="0"/>
+	<deltaVec value="0.2"/>
+	<vtk value="0"/>
+	<UO value="1"/>
+	<subIterations value="1"/>
+	<withForEach value="0"/>
+	<gridFile value="../examples/geometry/driven_cavity_1024_1024.csv"/>
+</SimulationConfig>

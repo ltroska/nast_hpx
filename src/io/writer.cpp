@@ -8,14 +8,14 @@
 
 namespace nast_hpx { namespace io {
 
-void writer::write_vtk(grid_type const& p_data, grid_type const& u_data, grid_type const& v_data,
+void writer::write_vtk(grid_type const& p_data, grid_type const& u_data, grid_type const& v_data, type_grid const& cell_types,
     std::size_t res_x, std::size_t res_y, std::size_t i_max, std::size_t j_max,
     Real dx, Real dy, std::size_t step, std::size_t loc)
 {
     std::size_t num_localities = res_x * res_y;
 
-    std::size_t cells_x = p_data.size_x_;
-    std::size_t cells_y = p_data.size_y_;
+    std::size_t cells_x = p_data.size_x_ - 2;
+    std::size_t cells_y = p_data.size_y_ - 2;
     std::size_t partitions_x = 1;
     std::size_t partitions_y = 1;
 
@@ -175,27 +175,36 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data, grid_ty
 
     for (uint l = 0; l < partitions_y; ++l)
     {
-        for (uint j = 0; j < cells_y; ++j)
+        for (uint j = 1; j < cells_y + 1; ++j)
         {
             p_stream << "0\n";
             uv_stream << "0 0\n";
 
             for (uint k = 0; k < partitions_x; ++k)
             {
-                for (uint i = 0; i < cells_x; ++i)
+                for (uint i = 1; i < cells_x + 1; ++i)
                 {
+                    if (cell_types(i, j).count() == 1 || cell_types(i, j).none())
+                    {
+                        p_stream << "0\n";
+                        uv_stream << "0 0\n";
+                    }
+                    else
+                    {
                     p_stream
                         << p_data(i, j)  << "\n";
+                        
 
                     if (i == 0)
                         uv_stream << "0 ";
                     else
-                        uv_stream << (u_data(i, j) - u_data(i - 1, j)) / 2. << " ";
+                        uv_stream << (u_data(i, j) + u_data(i - 1, j)) / 2. << " ";
 
                     if (j == 0)
                         uv_stream << "0\n";
                     else
-                        uv_stream << (v_data(i, j) - v_data(i, j - 1)) / 2. << "\n";
+                        uv_stream << (v_data(i, j) + v_data(i, j - 1)) / 2. << "\n";
+                    }
 
 
                 }

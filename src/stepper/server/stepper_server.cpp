@@ -45,7 +45,7 @@ void stepper_server::setup(io::config&& cfg)
     Real pr = cfg.pr;
     Real tau = cfg.tau;
 
-    part = grid::partition(hpx::find_here(), std::move(cfg));
+    grid::partition part(hpx::find_here(), std::move(cfg));
     part.init_sync();
 
     std::size_t step = 0;

@@ -10,11 +10,12 @@
 
 #include "io/config.hpp"
 
+#include "util/cancellation_token.hpp"
+
 namespace nast_hpx { namespace grid { namespace server {
 
 char const* partition_basename = "/nast_hpx/partition/";
 char const* residual_basename = "/nast/hpx/partition/residual";
-
 
 /// component encapsulates partition_data, making it remotely available
 struct HPX_COMPONENT_EXPORT partition_server
@@ -81,6 +82,12 @@ public:
     }
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_top_left_boundary, set_top_left_boundary_action);
 
+    void cancel()
+    {
+        token.cancel();
+    }
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, cancel, cancel_action);
+
     send_buffer<buffer_type, LEFT, set_right_boundary_action> send_buffer_left_;
     recv_buffer<buffer_type, LEFT> recv_buffer_left_[NUM_VARIABLES];
 
@@ -136,6 +143,11 @@ private:
     partition_data<Real> data_[NUM_VARIABLES];
     partition_data<Real> rhs_data_;
     partition_data<std::bitset<6> > cell_type_data_;
+
+    std::vector<std::pair<std::size_t, std::size_t> > fluid_cells_;
+    std::vector<std::pair<std::size_t, std::size_t> > boundary_cells_;
+    std::vector<std::pair<std::size_t, std::size_t> > obstacle_cells_;
+
     std::vector<hpx::id_type> ids_;
 
     io::config c;
@@ -146,6 +158,8 @@ private:
     std::size_t outcount_;
 
     Real t_, next_out_;
+
+    util::cancellation_token token;
 
     bool is_left_, is_right_, is_bottom_, is_top_;
 };

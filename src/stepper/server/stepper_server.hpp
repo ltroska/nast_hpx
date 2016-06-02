@@ -29,7 +29,6 @@ struct HPX_COMPONENT_EXPORT stepper_server
         
     private:
         uint num_localities, num_localities_x, num_localities_y;
-        grid::partition part;
         hpx::lcos::local::receive_buffer<Real> dt_buffer;
 };
 

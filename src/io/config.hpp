@@ -31,6 +31,7 @@ struct config
 
         Real part1;
         Real part2;
+        Real factor_jacobi;
 
         Real re;
         Real pr;
@@ -89,7 +90,7 @@ struct config
         {
             ar & i_max & j_max & num_fluid_cells & x_length
                 & y_length & dx & dy & over_dx & over_dy
-                & dx_sq & dy_sq & part1 & part2 & re & pr & omega & tau & alpha
+                & dx_sq & dy_sq & part1 & part2 & factor_jacobi & re & pr & omega & tau & alpha
                 & beta & gx & gy & vtk & delta_vec & t_end & initial_dt
                 & sub_iterations & iter_max & eps & eps_sq & num_localities
                 & num_localities_x & num_localities_y & num_partitions
@@ -151,6 +152,7 @@ struct config
                 << "\n\tbeta = " << config.beta
                 << "\n\tpart1 = " << config.part1
                 << "\n\tpart2 = " << config.part2
+                << "\n\tfactor_jacobi = " << config.factor_jacobi
                 << "\n\tdelta_vec = " << config.delta_vec
                 << "\n\titer_max = " << config.iter_max
                 << "\n\tsub_iterations = " << config.sub_iterations

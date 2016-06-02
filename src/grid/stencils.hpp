@@ -5,6 +5,7 @@
 
 #include "partition_data.hpp"
 #include "util/fd_stencils.hpp"
+#include "util/cancellation_token.hpp"
 
 namespace nast_hpx { namespace grid {
 
@@ -18,9 +19,10 @@ namespace nast_hpx { namespace grid {
     static const std::size_t STENCIL_COMPUTE_FG = 27;
     static const std::size_t STENCIL_COMPUTE_RHS = 28;
     static const std::size_t STENCIL_SET_P = 29;
-    static const std::size_t STENCIL_SOR_CYCLE = 30;
-    static const std::size_t STENCIL_SOR_RESIDUAL = 31;
-    static const std::size_t STENCIL_UPDATE_VELOCITY = 32;
+    static const std::size_t STENCIL_SOR = 30;
+    static const std::size_t STENCIL_JACOBI = 31;
+    static const std::size_t STENCIL_COMPUTE_RESIDUAL = 32;
+    static const std::size_t STENCIL_UPDATE_VELOCITY = 33;
 
     typedef std::pair<std::size_t, std::size_t> range_type;
 
@@ -76,7 +78,7 @@ namespace nast_hpx { namespace grid {
                                 case instream:
                                         dst_u(x, y) = u_bnd.left;
                                         dst_v(x, y) = 2 * v_bnd.left - src_v(x, y);
-                                        break;  
+                                        break;
                                 }
                             }
 
@@ -94,13 +96,13 @@ namespace nast_hpx { namespace grid {
                                         break;
                                 case outstream:
                                         dst_u(x - 1, y) = dst_u(x - 2, y);
-                                        dst_v(x, y) = src_v(x - 1, y);              
+                                        dst_v(x, y) = src_v(x - 1, y);
                                         break;
                                 case instream:
                                         dst_u(x - 1, y) = u_bnd.right;
                                         dst_v(x, y) = 2 * v_bnd.right - src_v(x - 1, y);
-                                        break;  
-                                }      
+                                        break;
+                                }
                             }
 
                             else if (cell_type.test(has_fluid_north))
@@ -122,7 +124,7 @@ namespace nast_hpx { namespace grid {
                                 case instream:
                                         dst_u(x, y) = 2 * u_bnd.bottom - src_u(x, y + 1);
                                         dst_v(x, y) = v_bnd.bottom;
-                                        break;  
+                                        break;
                                 }
                             }
 
@@ -145,8 +147,8 @@ namespace nast_hpx { namespace grid {
                                 case instream:
                                         dst_u(x, y) = 2 * u_bnd.top - src_u(x, y - 1);
                                         dst_v(x, y - 1) = v_bnd.top;
-                                        break;  
-                                }  
+                                        break;
+                                }
                             }
                         }
 
@@ -292,10 +294,9 @@ namespace nast_hpx { namespace grid {
         static void call(partition_data<Real>& dst_p,
             partition_data<std::bitset<6> > const& cell_types,
             std::size_t idx, std::size_t idy,
-            range_type x_range, range_type y_range)
+            range_type x_range, range_type y_range, std::size_t iter, util::cancellation_token token)
         {
-         //   std::cout << "set p " << idx << " " << idy << std::endl;
-
+            if (!token.was_cancelled())
             for (std::size_t y = y_range.first; y < y_range.second; ++y)
                 for (std::size_t x = x_range.first; x < x_range.second; ++x)
                 {
@@ -321,7 +322,7 @@ namespace nast_hpx { namespace grid {
     };
 
     template<>
-    struct stencils<STENCIL_SOR_CYCLE>
+    struct stencils<STENCIL_SOR>
     {
         //TODO remove idx, idy (was for debug)
         static void call(partition_data<Real>& dst_p,
@@ -329,60 +330,83 @@ namespace nast_hpx { namespace grid {
             partition_data<std::bitset<6> > const& cell_types,
             Real part1, Real part2, Real dx_sq, Real dy_sq,
             std::size_t idx, std::size_t idy, std::size_t iter,
-            range_type x_range, range_type y_range)
+            range_type x_range, range_type y_range, util::cancellation_token token)
         {
-           /* std::cout << "sor in iteration " << iter << " " << idx << " " << idy << std::endl;
-            if (hpx::get_locality_id() == 0)
-                hpx::this_thread::sleep_for(boost::chrono::milliseconds(10000));
-            else
-            hpx::this_thread::sleep_for(boost::chrono::milliseconds(10000));*/
+            if (!token.was_cancelled())
+                for (std::size_t y = y_range.first; y < y_range.second; ++y)
+                    for (std::size_t x = x_range.first; x < x_range.second; ++x)
+                    {
+                        auto const& cell_type = cell_types(x, y);
 
-            for (std::size_t y = y_range.first; y < y_range.second; ++y)
-                for (std::size_t x = x_range.first; x < x_range.second; ++x)
-                {
-                    auto const& cell_type = cell_types(x, y);
-
-                    if (cell_type.test(is_fluid))
-                        dst_p(x, y) =
-                            part1 * dst_p(x, y)
-                            + part2 * (
-                                    (dst_p(x + 1, y) + dst_p(x - 1, y)) / dx_sq
-                                    + (dst_p(x, y + 1) + dst_p(x, y - 1)) / dy_sq
-                                    - src_rhs(x, y)
-                            );
-                }
+                        if (cell_type.test(is_fluid))
+                            dst_p(x, y) =
+                                part1 * dst_p(x, y)
+                                + part2 * (
+                                        (dst_p(x + 1, y) + dst_p(x - 1, y)) / dx_sq
+                                        + (dst_p(x, y + 1) + dst_p(x, y - 1)) / dy_sq
+                                        - src_rhs(x, y)
+                                );
+                    }
         }
     };
 
     template<>
-    struct stencils<STENCIL_SOR_RESIDUAL>
+    struct stencils<STENCIL_JACOBI>
+    {
+        //TODO remove idx, idy (was for debug)
+        static void call(partition_data<Real>& dst_p,
+            partition_data<Real> const& src_rhs,
+            partition_data<std::bitset<6> > const& cell_types,
+            Real factor, Real dx_sq, Real dy_sq,
+            std::size_t idx, std::size_t idy, std::size_t iter,
+            range_type x_range, range_type y_range, util::cancellation_token token)
+        {
+            if (!token.was_cancelled())
+                for (std::size_t y = y_range.first; y < y_range.second; ++y)
+                    for (std::size_t x = x_range.first; x < x_range.second; ++x)
+                    {
+                        auto const& cell_type = cell_types(x, y);
+
+                        if (cell_type.test(is_fluid))
+                            dst_p(x, y) =
+                                 ( (dst_p(x + 1, y) + dst_p(x - 1, y)) * dy_sq
+                                    + (dst_p(x, y + 1) + dst_p(x, y - 1)) * dx_sq
+                                    - dx_sq * dy_sq * src_rhs(x, y))
+                                /
+                                (2 * (dx_sq + dy_sq));
+
+                                
+                    }
+        }
+    };
+
+    template<>
+    struct stencils<STENCIL_COMPUTE_RESIDUAL>
     {
         static Real call(partition_data<Real> const& src_p,
             partition_data<Real> const& src_rhs,
             partition_data<std::bitset<6> > const& cell_types,
             Real over_dx_sq, Real over_dy_sq,
-            range_type x_range, range_type y_range)
+            range_type x_range, range_type y_range, std::size_t iter, util::cancellation_token token)
         {
-           // std::cout << "sor in " << idx << " " << idy << std::endl;
-
-
             Real local_residual = 0;
 
-            for (std::size_t y = y_range.first; y < y_range.second; ++y)
-                for (std::size_t x = x_range.first; x < x_range.second; ++x)
-                {
-                    auto const& cell_type = cell_types(x, y);
-
-                    if (cell_type.test(is_fluid))
+            if (!token.was_cancelled())
+                for (std::size_t y = y_range.first; y < y_range.second; ++y)
+                    for (std::size_t x = x_range.first; x < x_range.second; ++x)
                     {
-                        Real tmp =
-                            (src_p(x + 1, y) - 2 * src_p(x, y) + src_p(x - 1, y)) * over_dx_sq
-                            + (src_p(x, y + 1) - 2 * src_p(x, y) + src_p(x, y - 1)) * over_dy_sq
-                            - src_rhs(x, y);
+                        auto const& cell_type = cell_types(x, y);
 
-                        local_residual += std::pow(tmp, 2);
+                        if (cell_type.test(is_fluid))
+                        {
+                            Real tmp =
+                                (src_p(x + 1, y) - 2 * src_p(x, y) + src_p(x - 1, y)) * over_dx_sq
+                                + (src_p(x, y + 1) - 2 * src_p(x, y) + src_p(x, y - 1)) * over_dy_sq
+                                - src_rhs(x, y);
+
+                            local_residual += std::pow(tmp, 2);
+                        }
                     }
-                }
 
             return local_residual;
         }
@@ -400,8 +424,6 @@ namespace nast_hpx { namespace grid {
             Real dt, Real over_dx, Real over_dy,
             range_type x_range, range_type y_range)
         {
-           // std::cout << "sor in " << idx << " " << idy << std::endl;
-
             Real max_u = 0;
             Real max_v = 0;
 

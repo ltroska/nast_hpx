@@ -24,73 +24,6 @@ namespace nast_hpx { namespace grid {
 
     typedef std::pair<std::size_t, std::size_t> range_type;
 
-    namespace detail
-    {
-        namespace velocity
-        {
-            template<direction dir>
-            void set_noslip(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
-                partition_data<Real> const& src_u, partition_data<Real> const& src_v,
-                range_type indices, Real u_boundary, Real v_boundary);
-
-            template<>
-            void set_noslip<LEFT>(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
-                partition_data<Real> const& src_u, partition_data<Real> const& src_v,
-                range_type indices, Real u_boundary, Real v_boundary)
-            {
-                constexpr std::size_t x = 1;
-                for (std::size_t y = indices.first; y < indices.second; ++y)
-                {
-                    dst_u(x, y) = 0;
-                    dst_v(x, y) = -src_v(x + 1, y);
-                }
-
-            }
-
-            template<>
-            void set_noslip<RIGHT>(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
-                partition_data<Real> const& src_u, partition_data<Real> const& src_v,
-                range_type indices, Real u_boundary, Real v_boundary)
-            {
-                const std::size_t x = src_u.size_x_ - 2;
-                for (std::size_t y = indices.first; y < indices.second; ++y)
-                {
-                    dst_u(x - 1, y) = 0;
-                    dst_v(x, y) = -src_v(x - 1, y);
-                }
-
-            }
-
-            template<>
-            void set_noslip<BOTTOM>(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
-                partition_data<Real> const& src_u, partition_data<Real> const& src_v,
-                range_type indices, Real u_boundary, Real v_boundary)
-            {
-                constexpr std::size_t y = 1;
-                for (std::size_t x = indices.first; x < indices.second; ++x)
-                {
-                    dst_u(x, y) = -src_u(x, y + 1);
-                    dst_v(x, y) = 0;
-                }
-
-            }
-
-            template<>
-            void set_noslip<TOP>(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
-                partition_data<Real> const& src_u, partition_data<Real> const& src_v,
-                range_type indices, Real u_boundary, Real v_boundary)
-            {
-                const std::size_t y = src_u.size_y_ - 2;
-                for (std::size_t x = indices.first; x < indices.second; ++x)
-                {
-                    dst_u(x, y) = 2 * u_boundary - src_u(x, y - 1);
-                    dst_v(x, y - 1) = 0;
-                }
-
-            }
-        }
-    }
-
     template <std::size_t stencil>
     struct stencils;
 
@@ -109,63 +42,13 @@ namespace nast_hpx { namespace grid {
     };
 
     template<>
-    struct stencils<STENCIL_SET_VELOCITY_BOUNDARY_NOSLIP>
-    {
-        template<direction dir>
-        static void call(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
-            partition_data<Real> const& src_u, partition_data<Real> const& src_v,
-            range_type indices, Real u_boundary, Real v_boundary)
-            {
-                detail::velocity::set_noslip<dir>(dst_u, dst_v, src_u, src_v, indices, u_boundary, v_boundary);
-            }
-    };
-
-    template<>
-    struct stencils<STENCIL_SET_VELOCITY_OBSTACLE>
-    {
-        static void call(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
-            partition_data<Real> const& src_u, partition_data<Real> const& src_v,
-            partition_data<std::bitset<6> > const& cell_types,
-            range_type x_range, range_type y_range)
-            {
-                for (std::size_t y = y_range.first; y < y_range.second; ++y)
-                    for (std::size_t x = x_range.first; x < x_range.second; ++x)
-                    {
-                        auto const& cell_type = cell_types(x, y);
-
-                        if (cell_type.test(is_fluid))
-                        {
-                            // only set fluid cells adjacent to obstacle
-                            // fluid adjacent to boundary is set in boundary
-                            // stencil
-                            if (!cell_type.test(has_fluid_east) && cell_types(x + 1, y).test(has_fluid_west))
-                                dst_u(x, y) = 0;
-
-                            if (!cell_type.test(has_fluid_north) && cell_types(x, y + 1).test(has_fluid_south))
-                                dst_v(x, y) = 0;
-                        }
-                        else
-                        {
-                            dst_u(x, y) =
-                                - src_u(x, y - 1) * cell_type.test(has_fluid_south)
-                                - src_u(x, y + 1) * cell_type.test(has_fluid_north);
-
-                            dst_v(x, y) =
-                                - src_v(x - 1, y) * cell_type.test(has_fluid_west)
-                                - src_v(x + 1, y) * cell_type.test(has_fluid_east);
-                        }
-                    }
-            }
-    };
-
-    template<>
     struct stencils<STENCIL_SET_VELOCITY>
     {
         static void call(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
             partition_data<Real> const& src_u, partition_data<Real> const& src_v,
             partition_data<std::bitset<6> > const& cell_types,
-            boundary_data u_bnd, boundary_data v_bnd, range_type x_range,
-            range_type y_range)
+            boundary_data u_bnd, boundary_data v_bnd, boundary_type bnd_type,
+            range_type x_range, range_type y_range)
             {
                 for (std::size_t y = y_range.first; y < y_range.second; ++y)
                     for (std::size_t x = x_range.first; x < x_range.second; ++x)
@@ -176,26 +59,94 @@ namespace nast_hpx { namespace grid {
                         {
                             if (cell_type.test(has_fluid_east))
                             {
-                                dst_u(x, y) = 0;
-                                dst_v(x, y) = -src_v(x + 1, y);
+                                switch(bnd_type.left)
+                                {
+                                case noslip:
+                                        dst_u(x, y) = 0;
+                                        dst_v(x, y) = -src_v(x + 1, y);
+                                        break;
+                                case slip:
+                                        dst_u(x, y) = 0;
+                                        dst_v(x, y) = src_v(x + 1, y);
+                                        break;
+                                case outstream:
+                                        dst_u(x, y) = src_u(x + 1, y);
+                                        dst_v(x, y) = src_v(x + 1, y);
+                                        break;
+                                case instream:
+                                        dst_u(x, y) = u_bnd.left;
+                                        dst_v(x, y) = 2 * v_bnd.left - src_v(x, y);
+                                        break;  
+                                }
                             }
 
                             else if (cell_type.test(has_fluid_west))
                             {
-                                dst_u(x - 1, y) = 0;
-                                dst_v(x, y) = -src_v(x - 1, y);
+                                switch(bnd_type.right)
+                                {
+                                case noslip:
+                                        dst_u(x - 1, y) = 0;
+                                        dst_v(x, y) = -src_v(x - 1, y);
+                                        break;
+                                case slip:
+                                        dst_u(x - 1, y) = 0;
+                                        dst_v(x, y) = src_v(x - 1, y);
+                                        break;
+                                case outstream:
+                                        dst_u(x - 1, y) = dst_u(x - 2, y);
+                                        dst_v(x, y) = src_v(x - 1, y);              
+                                        break;
+                                case instream:
+                                        dst_u(x - 1, y) = u_bnd.right;
+                                        dst_v(x, y) = 2 * v_bnd.right - src_v(x - 1, y);
+                                        break;  
+                                }      
                             }
 
                             else if (cell_type.test(has_fluid_north))
                             {
-                                dst_u(x, y) = -src_u(x, y + 1);
-                                dst_v(x, y) = 0;
+                                switch(bnd_type.bottom)
+                                {
+                                case noslip:
+                                        dst_u(x, y) = -src_u(x, y + 1);
+                                        dst_v(x, y) = 0;
+                                        break;
+                                case slip:
+                                        dst_u(x, y) = src_u(x, y + 1);
+                                        dst_v(x, y) = 0;
+                                        break;
+                                case outstream:
+                                        dst_u(x, y) = src_u(x, y + 1);
+                                        dst_v(x, y) = src_v(x, y + 1);
+                                        break;
+                                case instream:
+                                        dst_u(x, y) = 2 * u_bnd.bottom - src_u(x, y + 1);
+                                        dst_v(x, y) = v_bnd.bottom;
+                                        break;  
+                                }
                             }
 
                             else if (cell_type.test(has_fluid_south))
                             {
-                                dst_u(x, y) = 2 * u_bnd.top - src_u(x, y - 1);
-                                dst_v(x, y - 1) = 0;
+                                switch(bnd_type.top)
+                                {
+                                case noslip:
+                                        dst_u(x, y) = 2 * u_bnd.top - src_u(x, y - 1);
+                                        dst_v(x, y - 1) = 0;
+                                        break;
+                                case slip:
+                                        dst_u(x, y) = src_u(x, y - 1);
+                                        dst_v(x, y - 1) = 0;
+                                        break;
+                                case outstream:
+                                        dst_u(x, y) = src_u(x, y - 1);
+                                        dst_v(x, y - 1) = src_v(x, y - 1);
+                                        break;
+                                case instream:
+                                        dst_u(x, y) = 2 * u_bnd.top - src_u(x, y - 1);
+                                        dst_v(x, y - 1) = v_bnd.top;
+                                        break;  
+                                }  
                             }
                         }
 

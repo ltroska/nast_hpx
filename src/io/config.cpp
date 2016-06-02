@@ -268,10 +268,10 @@ namespace nast_hpx { namespace io {
             cfg.gy = 0;
         }
 
-        if(config_node.child("UO") != NULL)
+        if(config_node.child("UT") != NULL)
         {
             cfg.u_bnd.top =
-                config_node.child("UO").first_attribute().as_double();
+                config_node.child("UT").first_attribute().as_double();
         }
         else
         {
@@ -308,10 +308,10 @@ namespace nast_hpx { namespace io {
             cfg.u_bnd.right = 0;
         }
 
-        if(config_node.child("VO") != NULL)
+        if(config_node.child("VT") != NULL)
         {
             cfg.v_bnd.top =
-                config_node.child("VO").first_attribute().as_double();
+                config_node.child("VT").first_attribute().as_double();
         }
         else
         {
@@ -348,7 +348,7 @@ namespace nast_hpx { namespace io {
             cfg.v_bnd.right = 0;
         }
 
-        if(config_node.child("TO") != NULL)
+        if(config_node.child("TT") != NULL)
         {
             cfg.temp_bnd.top =
                 config_node.child("TO").first_attribute().as_double();
@@ -439,42 +439,42 @@ namespace nast_hpx { namespace io {
 
         if(config_node.child("WL") != NULL)
         {
-            cfg.data_type.left =
+            cfg.bnd_type.left =
                 config_node.child("WL").first_attribute().as_double();
         }
         else
         {
-            cfg.data_type.left = 1;
+            cfg.bnd_type.left = 1;
         }
 
         if(config_node.child("WR") != NULL)
         {
-            cfg.data_type.right =
+            cfg.bnd_type.right =
                 config_node.child("WR").first_attribute().as_double();
         }
         else
         {
-            cfg.data_type.right = 1;
+            cfg.bnd_type.right = 1;
         }
 
         if(config_node.child("WB") != NULL)
         {
-            cfg.data_type.bottom =
+            cfg.bnd_type.bottom =
                 config_node.child("WB").first_attribute().as_double();
         }
         else
         {
-            cfg.data_type.bottom = 1;
+            cfg.bnd_type.bottom = 1;
         }
 
         if(config_node.child("WT") != NULL)
         {
-            cfg.data_type.top =
+            cfg.bnd_type.top =
                 config_node.child("WT").first_attribute().as_double();
         }
         else
         {
-            cfg.data_type.top = 1;
+            cfg.bnd_type.top = 1;
         }
 
         if(config_node.child("deltaVec") != NULL)

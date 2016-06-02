@@ -19,7 +19,7 @@
 	<outputSkipSize value="1"/>
 	<deltaVec value="0"/>
 	<vtk value="1"/>
-	<UO value="1"/>
+	<UT value="1"/>
 	<subIterations value="1"/>
 	<withForEach value="0"/>
 	<gridFile value="../examples/geometry/driven_cavity_128_128.csv"/>

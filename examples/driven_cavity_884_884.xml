@@ -18,7 +18,7 @@
 	<GY value="0"/>
 	<deltaVec value="0.2"/>
 	<vtk value="0"/>
-	<UO value="1"/>
+	<UT value="1"/>
 	<subIterations value="1"/>
 	<withForEach value="0"/>
 	<gridFile value="../examples/geometry/driven_cavity_884_884.csv"/>

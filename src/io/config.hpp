@@ -72,10 +72,10 @@ struct config
 
         grid::boundary_data u_bnd;
         grid::boundary_data v_bnd;
-        grid::boundary_data data_type;
+        grid::boundary_type bnd_type;
 
         grid::boundary_data temp_bnd;
-        grid::boundary_data temp_data_type;
+        grid::boundary_type temp_data_type;
         Real ti;
 
         bool with_flag_grid;
@@ -139,7 +139,7 @@ struct config
                 << "\n\tdt = " << config.initial_dt
                 << "\n\tu_bnd " << config.u_bnd
                 << "\n\tv_bnd " << config.v_bnd
-                << "\n\tbnd_data_type " << config.data_type
+                << "\n\tbnd_type " << config.bnd_type
                 << "\n\ttemp_bnd " << config.temp_bnd
                 << "\n\ttemp_data_type " << config.temp_data_type
                 << "\n\tt_inital = " << config.ti

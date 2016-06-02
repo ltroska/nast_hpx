@@ -62,8 +62,8 @@ public:
     inline T const& operator()(unsigned idx, unsigned idy) const
     {return data_[idy * size_x_ + idx];}
 
-    T* begin() { return data_.begin(); }
-    T* end() { return data_.end(); }
+    typename std::vector<T>::iterator begin() { return data_.begin(); }
+    typename std::vector<T>::iterator end() { return data_.end(); }
 
     friend std::ostream& operator<<(std::ostream& os,
         partition_data<T> const& data)

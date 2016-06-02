@@ -2,8 +2,8 @@
 <SimulationConfig>
 	<iMax value="50"/>
 	<jMax value="50"/>
-	<iRes value="1"/>
-	<jRes value="1"/>
+	<iRes value="4"/>
+	<jRes value="4"/>
 	<xLength value="12.0"/>
 	<yLength value="12.0"/>
 	<Re value="100"/>
@@ -25,5 +25,5 @@
 	<WT value="3"/>
 	<subIterations value="1"/>
 	<withForEach value="0"/>
-	<gridFile value="../examples/geometry/junction.csv"/>
+	<gridFile value="../examples/geometry/junction_52_52.csv"/>
 </SimulationConfig>

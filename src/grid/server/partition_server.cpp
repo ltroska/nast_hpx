@@ -541,7 +541,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                         boost::ref(data_[U]), boost::ref(data_[V]),
                         boost::ref(data_[U]), boost::ref(data_[V]),
                         boost::ref(cell_type_data_), c.u_bnd, c.v_bnd,
-                        x_range, y_range
+                        c.bnd_type, x_range, y_range
                     )
                 );
 
@@ -611,7 +611,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
             hpx::launch::async,
             hpx::util::bind(
                 &io::writer::write_vtk,
-                boost::ref(data_[P]), boost::ref(data_[U]), boost::ref(data_[V]),
+                boost::ref(data_[P]), boost::ref(data_[U]), boost::ref(data_[V]), boost::ref(cell_type_data_),
                 c.num_partitions_x, c.num_partitions_y, c.i_max, c.j_max, c.dx, c.dx, outcount_++,
                 c.rank
             )
@@ -806,7 +806,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
             }
         }
 
-      //  hpx::wait_all(set_p_futures.data_);
+     //   hpx::wait_all(set_p_futures.data_);
 
       //  std::cout << "After set P\n" << data_[P] << std::endl;
 
@@ -855,7 +855,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
             }
         }
 
-       // hpx::wait_all(sor_cycle_futures[current].data_);
+        //hpx::wait_all(sor_cycle_futures[current].data_);
       //  std::cout << "after sor P\n" << data_[P] << std::endl;
 
         send_cross_boundaries<P>(iter, send_futures_P);
@@ -935,7 +935,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                     )
                 );
 
-            if (iter == 249)
+            if (iter == c.iter_max - 1)
                 rres = residual.get();
 
             // decide if SOR should keep running or not
@@ -946,7 +946,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
         // if not root locality, send residual to root locality
         else
             hpx::lcos::gather_there(residual_basename, std::move(local_residual),
-                                        step_ * c.iter_max + iter).wait();
+                                        step_ * c.iter_max + iter);
     }
 
 
@@ -971,7 +971,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
            //    << " " << y_range.second << std::endl;
 
             dependencies.clear();
-            dependencies.reserve(3);
+            dependencies.reserve(2);
             dependencies.push_back(get_dependency<RIGHT>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last]));
             dependencies.push_back(get_dependency<TOP>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last]));
 

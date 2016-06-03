@@ -293,13 +293,17 @@ namespace nast_hpx { namespace grid {
     {
         static void call(partition_data<Real>& dst_p,
             partition_data<std::bitset<6> > const& cell_types,
-            std::size_t idx, std::size_t idy,
-            range_type x_range, range_type y_range, std::size_t iter, util::cancellation_token token)
+            std::vector<std::pair<std::size_t, std::size_t> > const& boundary_cells,
+            std::vector<std::pair<std::size_t, std::size_t> > const& obstacle_cells,
+            util::cancellation_token token)
         {
             if (!token.was_cancelled())
-            for (std::size_t y = y_range.first; y < y_range.second; ++y)
-                for (std::size_t x = x_range.first; x < x_range.second; ++x)
+            {
+                for (auto& idx_pair : boundary_cells)
                 {
+                    auto x = idx_pair.first;
+                    auto y = idx_pair.second;
+                        
                     auto const& cell_type = cell_types(x, y);
 
                     if (!cell_type.test(is_fluid) && !cell_type.none())
@@ -317,7 +321,32 @@ namespace nast_hpx { namespace grid {
                                 + cell_type.test(has_fluid_south)
                                 + cell_type.test(has_fluid_north)
                             );
-                }
+                }                
+                
+                for (auto& idx_pair : obstacle_cells)
+                {
+                    auto x = idx_pair.first;
+                    auto y = idx_pair.second;
+                        
+                    auto const& cell_type = cell_types(x, y);
+
+                    if (!cell_type.test(is_fluid) && !cell_type.none())
+                        dst_p(x, y) =
+                            (
+                                dst_p(x - 1, y) * cell_type.test(has_fluid_west)
+                                + dst_p(x + 1, y) * cell_type.test(has_fluid_east)
+                                + dst_p(x, y - 1) * cell_type.test(has_fluid_south)
+                                + dst_p(x, y + 1) * cell_type.test(has_fluid_north)
+                            )
+                            /
+                            (
+                                cell_type.test(has_fluid_west)
+                                + cell_type.test(has_fluid_east)
+                                + cell_type.test(has_fluid_south)
+                                + cell_type.test(has_fluid_north)
+                            );
+                }                
+            }
         }
     };
 
@@ -327,26 +356,24 @@ namespace nast_hpx { namespace grid {
         //TODO remove idx, idy (was for debug)
         static void call(partition_data<Real>& dst_p,
             partition_data<Real> const& src_rhs,
-            partition_data<std::bitset<6> > const& cell_types,
+            std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
             Real part1, Real part2, Real dx_sq, Real dy_sq,
-            std::size_t idx, std::size_t idy, std::size_t iter,
-            range_type x_range, range_type y_range, util::cancellation_token token)
+            util::cancellation_token token)
         {
             if (!token.was_cancelled())
-                for (std::size_t y = y_range.first; y < y_range.second; ++y)
-                    for (std::size_t x = x_range.first; x < x_range.second; ++x)
-                    {
-                        auto const& cell_type = cell_types(x, y);
-
-                        if (cell_type.test(is_fluid))
-                            dst_p(x, y) =
-                                part1 * dst_p(x, y)
-                                + part2 * (
-                                        (dst_p(x + 1, y) + dst_p(x - 1, y)) / dx_sq
-                                        + (dst_p(x, y + 1) + dst_p(x, y - 1)) / dy_sq
-                                        - src_rhs(x, y)
-                                );
-                    }
+                for (auto& idx_pair : fluid_cells)
+                {
+                    auto x = idx_pair.first;
+                    auto y = idx_pair.second;
+                    
+                    dst_p(x, y) =
+                        part1 * dst_p(x, y)
+                        + part2 * (
+                                (dst_p(x + 1, y) + dst_p(x - 1, y)) / dx_sq
+                                + (dst_p(x, y + 1) + dst_p(x, y - 1)) / dy_sq
+                                - src_rhs(x, y)
+                        );
+                }
         }
     };
 
@@ -356,27 +383,22 @@ namespace nast_hpx { namespace grid {
         //TODO remove idx, idy (was for debug)
         static void call(partition_data<Real>& dst_p,
             partition_data<Real> const& src_rhs,
-            partition_data<std::bitset<6> > const& cell_types,
-            Real factor, Real dx_sq, Real dy_sq,
-            std::size_t idx, std::size_t idy, std::size_t iter,
-            range_type x_range, range_type y_range, util::cancellation_token token)
+            std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
+            Real dx_sq, Real dy_sq, util::cancellation_token token)
         {
             if (!token.was_cancelled())
-                for (std::size_t y = y_range.first; y < y_range.second; ++y)
-                    for (std::size_t x = x_range.first; x < x_range.second; ++x)
-                    {
-                        auto const& cell_type = cell_types(x, y);
+                for (auto& idx_pair : fluid_cells)
+                {
+                    auto x = idx_pair.first;
+                    auto y = idx_pair.second;
 
-                        if (cell_type.test(is_fluid))
-                            dst_p(x, y) =
-                                 ( (dst_p(x + 1, y) + dst_p(x - 1, y)) * dy_sq
-                                    + (dst_p(x, y + 1) + dst_p(x, y - 1)) * dx_sq
-                                    - dx_sq * dy_sq * src_rhs(x, y))
-                                /
-                                (2 * (dx_sq + dy_sq));
-
-                                
-                    }
+                    dst_p(x, y) =
+                         ( (dst_p(x + 1, y) + dst_p(x - 1, y)) * dy_sq
+                            + (dst_p(x, y + 1) + dst_p(x, y - 1)) * dx_sq
+                            - dx_sq * dy_sq * src_rhs(x, y))
+                        /
+                        (2 * (dx_sq + dy_sq));
+                }
         }
     };
 
@@ -385,28 +407,24 @@ namespace nast_hpx { namespace grid {
     {
         static Real call(partition_data<Real> const& src_p,
             partition_data<Real> const& src_rhs,
-            partition_data<std::bitset<6> > const& cell_types,
-            Real over_dx_sq, Real over_dy_sq,
-            range_type x_range, range_type y_range, std::size_t iter, util::cancellation_token token)
+            std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
+            Real over_dx_sq, Real over_dy_sq, util::cancellation_token token)
         {
             Real local_residual = 0;
 
             if (!token.was_cancelled())
-                for (std::size_t y = y_range.first; y < y_range.second; ++y)
-                    for (std::size_t x = x_range.first; x < x_range.second; ++x)
-                    {
-                        auto const& cell_type = cell_types(x, y);
+                for (auto& idx_pair : fluid_cells)
+                {
+                    auto x = idx_pair.first;
+                    auto y = idx_pair.second;
+                    
+                    Real tmp =
+                        (src_p(x + 1, y) - 2 * src_p(x, y) + src_p(x - 1, y)) * over_dx_sq
+                        + (src_p(x, y + 1) - 2 * src_p(x, y) + src_p(x, y - 1)) * over_dy_sq
+                        - src_rhs(x, y);
 
-                        if (cell_type.test(is_fluid))
-                        {
-                            Real tmp =
-                                (src_p(x + 1, y) - 2 * src_p(x, y) + src_p(x - 1, y)) * over_dx_sq
-                                + (src_p(x, y + 1) - 2 * src_p(x, y) + src_p(x, y - 1)) * over_dy_sq
-                                - src_rhs(x, y);
-
-                            local_residual += std::pow(tmp, 2);
-                        }
-                    }
+                    local_residual += std::pow(tmp, 2);
+                }
 
             return local_residual;
         }

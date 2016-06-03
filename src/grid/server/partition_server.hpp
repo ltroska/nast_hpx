@@ -144,9 +144,9 @@ private:
     partition_data<Real> rhs_data_;
     partition_data<std::bitset<6> > cell_type_data_;
 
-    std::vector<std::pair<std::size_t, std::size_t> > fluid_cells_;
-    std::vector<std::pair<std::size_t, std::size_t> > boundary_cells_;
-    std::vector<std::pair<std::size_t, std::size_t> > obstacle_cells_;
+    partition_data<std::vector<std::pair<std::size_t, std::size_t> > > fluid_cells_;
+    partition_data<std::vector<std::pair<std::size_t, std::size_t> > > boundary_cells_;
+    partition_data<std::vector<std::pair<std::size_t, std::size_t> > > obstacle_cells_;
 
     std::vector<hpx::id_type> ids_;
 

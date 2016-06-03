@@ -4,6 +4,7 @@ build
 *.layout
 *.txt
 nbproject
+*.workspace
 
 .codelite/
 *.project
@@ -12,3 +13,4 @@ nbproject
 CMakeFiles/
 
 *(copy)*
+

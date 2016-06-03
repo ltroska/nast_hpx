@@ -26,16 +26,9 @@ target_link_libraries(config pugixml)
 
 # --------------- MAIN --------------- #
 add_hpx_component(
-    cancellation_token
-    SOURCES src/util/server/cancellation_token_server.cpp
-    HEADERS  src/util/server/cancellation_token_serve.hpp
-)
-
-add_hpx_component(
     partition_server_jacobi
     SOURCES src/grid/server/partition_server.cpp src/io/writer.cpp
     HEADERS src/grid/server/partition_server.hpp src/io/writer.hpp
-    COMPONENT_DEPENDENCIES cancellation_token
 )
 
 add_hpx_component(
@@ -58,7 +51,6 @@ add_hpx_component(
     COMPILE_FLAGS -DWITH_SOR
     SOURCES src/grid/server/partition_server.cpp src/io/writer.cpp
     HEADERS src/grid/server/partition_server.hpp src/io/writer.hpp
-    COMPONENT_DEPENDENCIES cancellation_token
 )
 
 add_hpx_component(
@@ -75,13 +67,4 @@ add_hpx_executable(
     DEPENDENCIES config
     COMPONENT_DEPENDENCIES stepper_server_sor
 )
-#add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
-
-#add_hpx_executable(
-#    test_get_neighbor_cell
-#    ESSENTIAL
-#    SOURCES tests/test_get_neighbor_cell.cpp
-#    COMPONENT_DEPENDENCIES partition_server
-#)
-#add_test(get_neighbor_cell test_get_neighbor_cell -t4)
 

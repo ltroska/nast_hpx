@@ -1046,6 +1046,8 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
 
     t_ += dt;
     ++step_;
+    
+    hpx::wait_all(compute_res_futures.data_);
 
     return local_max_uv.get();
 }

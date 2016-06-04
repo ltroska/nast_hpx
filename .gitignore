@@ -14,3 +14,5 @@ CMakeFiles/
 
 *(copy)*
 
+*.pyc
+*.png

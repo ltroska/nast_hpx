@@ -38,7 +38,7 @@ partition_server::partition_server(io::config&& cfg)
     outcount_(0)
 {
     std::cout << c << std::endl;
-    
+
 #ifdef WITH_SOR
     std::cout << "Solver: SOR" << std::endl;
 #else
@@ -52,7 +52,7 @@ partition_server::partition_server(io::config&& cfg)
     data_[P].resize(cells_x_, cells_y_);
     rhs_data_.resize(cells_x_, cells_y_);
     cell_type_data_.resize(cells_x_,cells_y_);
-    
+
     fluid_cells_.resize(c.num_x_blocks, c.num_y_blocks);
     boundary_cells_.resize(c.num_x_blocks, c.num_y_blocks);
     obstacle_cells_.resize(c.num_x_blocks, c.num_y_blocks);
@@ -64,7 +64,7 @@ partition_server::partition_server(io::config&& cfg)
         for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
         {
             range_type x_range(x, std::min(x + c.cells_x_per_block, cells_x_ - 1));
-            
+
             for (std::size_t j = y_range.first; j < y_range.second; ++j)
                 for (std::size_t i = x_range.first; i < x_range.second; ++i)
                 {
@@ -77,15 +77,15 @@ partition_server::partition_server(io::config&& cfg)
                     else if (!cell_type_data_(i, j).none())
                         obstacle_cells_(nx_block, ny_block).emplace_back(i, j);
                 }
-            
+
         }
     }
 
     c.flag_grid.clear();
-    
+
     for (std::size_t idy_block = 0; idy_block < c.num_y_blocks; ++idy_block)
         for (std::size_t idx_block = 0; idx_block < c.num_x_blocks; ++idx_block)
-            std::cout << "BLOCK " << idx_block << " " << idy_block 
+            std::cout << "BLOCK " << idx_block << " " << idy_block
             << "\nnum_fluid = " << fluid_cells_(idx_block, idy_block).size()
             << "\nnum_boundary = " << boundary_cells_(idx_block, idy_block).size()
             << "\nnum_obstacle = " << obstacle_cells_(idx_block, idy_block).size()
@@ -404,7 +404,7 @@ void partition_server::wait_all_boundaries(future_vector& recv_futures)
 
     if (!is_right_)
         recv_futures[RIGHT].wait();
-        
+
     if (!is_bottom_)
     {
         recv_futures[BOTTOM].wait();
@@ -528,16 +528,41 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
         {
             range_type x_range(x, std::min(x + c.cells_x_per_block, cells_x_ - 1));
 
-            hpx::shared_future<void> calc_future =
+            hpx::shared_future<void> calc_future1 =
                 hpx::async(
                     hpx::util::bind(
-                        &stencils<STENCIL_SET_VELOCITY>::call,
+                        &stencils<STENCIL_SET_VELOCITY_BOUNDARY>::call,
                         boost::ref(data_[U]), boost::ref(data_[V]),
                         boost::ref(data_[U]), boost::ref(data_[V]),
-                        boost::ref(cell_type_data_), c.u_bnd, c.v_bnd,
-                        c.bnd_type, x_range, y_range
+                        boost::ref(cell_type_data_), boost::ref(boundary_cells_(nx_block, ny_block)),
+                        c.u_bnd, c.v_bnd, c.bnd_type
                     )
                 );
+
+            hpx::shared_future<void> calc_future2 =
+                hpx::async(
+                    hpx::util::bind(
+                        &stencils<STENCIL_SET_VELOCITY_OBSTACLE>::call,
+                        boost::ref(data_[U]), boost::ref(data_[V]),
+                        boost::ref(data_[U]), boost::ref(data_[V]),
+                        boost::ref(cell_type_data_), boost::ref(obstacle_cells_(nx_block, ny_block))
+                    )
+                );
+
+            hpx::shared_future<void> calc_future3 =
+                hpx::async(
+                    hpx::util::bind(
+                        &stencils<STENCIL_SET_VELOCITY_FLUID>::call,
+                        boost::ref(data_[U]), boost::ref(data_[V]),
+                        boost::ref(data_[U]), boost::ref(data_[V]),
+                        boost::ref(cell_type_data_), boost::ref(fluid_cells_(nx_block, ny_block))
+                    )
+                );
+
+            hpx::shared_future<void> calc_future =
+                hpx::when_all(calc_future1, calc_future2, calc_future3).then(
+                    [](hpx::lcos::future<hpx::util::tuple<hpx::lcos::shared_future<void>, hpx::lcos::shared_future<void>, hpx::lcos::shared_future<void> > >)
+                    {return;});
 
             set_velocity_futures(nx_block, ny_block) = calc_future;
 
@@ -637,7 +662,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                     , get_dependency<TOP>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
                     , get_dependency<TOP>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
                     , get_dependency<TOP_LEFT>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
-                    , get_dependency<BOTTOM_RIGHT>(nx_block, ny_block, recv_futures_V, set_velocity_futures)                  
+                    , get_dependency<BOTTOM_RIGHT>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
                 );
 
             compute_fg_futures(nx_block, ny_block) = calc_future;
@@ -674,7 +699,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
         for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
         {
             range_type x_range(x, std::min(x + c.cells_x_per_block, cells_x_ - 1));
-            
+
             compute_rhs_futures(nx_block, ny_block) =
                 hpx::dataflow(
                     hpx::util::unwrapped(
@@ -682,7 +707,8 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                             &stencils<STENCIL_COMPUTE_RHS>::call,
                             boost::ref(rhs_data_), boost::ref(data_[F]),
                             boost::ref(data_[G]), boost::ref(cell_type_data_),
-                            c.dx, c.dy, dt, x_range, y_range
+                            boost::ref(fluid_cells_(nx_block, ny_block)),
+                            c.dx, c.dy, dt
                         )
                     )
                     , compute_fg_futures(nx_block, ny_block)
@@ -722,7 +748,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
 
     Real rres;
     token.reset();
-    
+
     for (std::size_t iter = 0; iter < c.iter_max; ++iter)
     {
         future_grid send_futures_P(NUM_DIRECTIONS);
@@ -735,14 +761,14 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
             for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
             {
                 range_type x_range(x, std::min(x + c.cells_x_per_block, cells_x_ - 1));
-                
+
                 set_p_futures(nx_block, ny_block) =
                     hpx::dataflow(
                         hpx::util::unwrapped(
                             hpx::util::bind(
                                 &stencils<STENCIL_SET_P>::call,
                                 boost::ref(data_[P]), boost::ref(cell_type_data_),
-                                boost::ref(boundary_cells_(nx_block, ny_block)), 
+                                boost::ref(boundary_cells_(nx_block, ny_block)),
                                 boost::ref(obstacle_cells_(nx_block, ny_block)),
                                 token
                             )
@@ -807,7 +833,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
             for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
             {
                 range_type x_range(x, std::min(x + c.cells_x_per_block, cells_x_ - 1));
-                
+
                 compute_res_futures(nx_block, ny_block) =
                     hpx::dataflow(
                         hpx::util::unwrapped(
@@ -853,7 +879,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                     );
             }
         }
-        
+
         for (std::size_t y = 1, ny_block = 0; y < cells_y_ - 1; y += c.cells_y_per_block, ++ny_block)
         {
             range_type y_range(y, std::min(y + c.cells_y_per_block, cells_y_ - 1));
@@ -861,7 +887,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
             for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
             {
                 range_type x_range(x, std::min(x + c.cells_x_per_block, cells_x_ - 1));
-    
+
                 hpx::shared_future<void> calc_future =
                     hpx::dataflow(
                         hpx::util::unwrapped(
@@ -891,7 +917,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                     send_futures_P[TOP].push_back(calc_future);
             }
         }
-        
+
         send_cross_boundaries<P>(iter, send_futures_P);
         receive_cross_boundaries<P>(iter, recv_futures_P[current]);
 
@@ -902,7 +928,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
             for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
             {
                 range_type x_range(x, std::min(x + c.cells_x_per_block, cells_x_ - 1));
-               
+
                 compute_res_futures(nx_block, ny_block) =
                     hpx::dataflow(
                         hpx::util::unwrapped(
@@ -921,7 +947,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                     );
             }
         }
-  
+
 #endif
         std::swap(current, last);
 
@@ -1044,7 +1070,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
 
     t_ += dt;
     ++step_;
-    
+
     hpx::wait_all(compute_res_futures.data_);
 
     return local_max_uv.get();

@@ -10,19 +10,16 @@
 namespace nast_hpx { namespace grid {
 
     static const std::size_t STENCIL_NONE = 20;
-    static const std::size_t STENCIL_SET_VELOCITY_BOUNDARY_NOSLIP = 21;
-    static const std::size_t STENCIL_SET_VELOCITY_BOUNDARY_SLIP = 22;
-    static const std::size_t STENCIL_SET_VELOCITY_BOUNDARY_OUTSTREAM = 23;
-    static const std::size_t STENCIL_SET_VELOCITY_BOUNDARY_INSTREAM = 24;
-    static const std::size_t STENCIL_SET_VELOCITY_OBSTACLE = 25;
-    static const std::size_t STENCIL_SET_VELOCITY = 26;
-    static const std::size_t STENCIL_COMPUTE_FG = 27;
-    static const std::size_t STENCIL_COMPUTE_RHS = 28;
-    static const std::size_t STENCIL_SET_P = 29;
-    static const std::size_t STENCIL_SOR = 30;
-    static const std::size_t STENCIL_JACOBI = 31;
-    static const std::size_t STENCIL_COMPUTE_RESIDUAL = 32;
-    static const std::size_t STENCIL_UPDATE_VELOCITY = 33;
+    static const std::size_t STENCIL_SET_VELOCITY_BOUNDARY = 21;
+    static const std::size_t STENCIL_SET_VELOCITY_OBSTACLE = 22;
+    static const std::size_t STENCIL_SET_VELOCITY_FLUID = 23;
+    static const std::size_t STENCIL_COMPUTE_FG = 24;
+    static const std::size_t STENCIL_COMPUTE_RHS = 25;
+    static const std::size_t STENCIL_SET_P = 26;
+    static const std::size_t STENCIL_SOR = 27;
+    static const std::size_t STENCIL_JACOBI = 28;
+    static const std::size_t STENCIL_COMPUTE_RESIDUAL = 29;
+    static const std::size_t STENCIL_UPDATE_VELOCITY = 30;
 
     typedef std::pair<std::size_t, std::size_t> range_type;
 
@@ -44,136 +41,166 @@ namespace nast_hpx { namespace grid {
     };
 
     template<>
-    struct stencils<STENCIL_SET_VELOCITY>
+    struct stencils<STENCIL_SET_VELOCITY_BOUNDARY>
     {
         static void call(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
             partition_data<Real> const& src_u, partition_data<Real> const& src_v,
             partition_data<std::bitset<6> > const& cell_types,
-            boundary_data u_bnd, boundary_data v_bnd, boundary_type bnd_type,
-            range_type x_range, range_type y_range)
+            std::vector<std::pair<std::size_t, std::size_t> > boundary_cells,
+            boundary_data u_bnd, boundary_data v_bnd, boundary_type bnd_type)
             {
-                for (std::size_t y = y_range.first; y < y_range.second; ++y)
-                    for (std::size_t x = x_range.first; x < x_range.second; ++x)
+                for (auto const& idx_pair : boundary_cells)
+                {
+                    auto x = idx_pair.first;
+                    auto y = idx_pair.second;
+
+                    auto const& cell_type = cell_types(x, y);
+
+                    if (cell_type.test(has_fluid_east))
                     {
-                        auto const& cell_type = cell_types(x, y);
-
-                        if (cell_type.test(is_boundary) /*&& !cell_type.test(is_fluid)*/)
+                        switch(bnd_type.left)
                         {
-                            if (cell_type.test(has_fluid_east))
-                            {
-                                switch(bnd_type.left)
-                                {
-                                case noslip:
-                                        dst_u(x, y) = 0;
-                                        dst_v(x, y) = -src_v(x + 1, y);
-                                        break;
-                                case slip:
-                                        dst_u(x, y) = 0;
-                                        dst_v(x, y) = src_v(x + 1, y);
-                                        break;
-                                case outstream:
-                                        dst_u(x, y) = src_u(x + 1, y);
-                                        dst_v(x, y) = src_v(x + 1, y);
-                                        break;
-                                case instream:
-                                        dst_u(x, y) = u_bnd.left;
-                                        dst_v(x, y) = 2 * v_bnd.left - src_v(x, y);
-                                        break;
-                                }
-                            }
-
-                            else if (cell_type.test(has_fluid_west))
-                            {
-                                switch(bnd_type.right)
-                                {
-                                case noslip:
-                                        dst_u(x - 1, y) = 0;
-                                        dst_v(x, y) = -src_v(x - 1, y);
-                                        break;
-                                case slip:
-                                        dst_u(x - 1, y) = 0;
-                                        dst_v(x, y) = src_v(x - 1, y);
-                                        break;
-                                case outstream:
-                                        dst_u(x - 1, y) = dst_u(x - 2, y);
-                                        dst_v(x, y) = src_v(x - 1, y);
-                                        break;
-                                case instream:
-                                        dst_u(x - 1, y) = u_bnd.right;
-                                        dst_v(x, y) = 2 * v_bnd.right - src_v(x - 1, y);
-                                        break;
-                                }
-                            }
-
-                            else if (cell_type.test(has_fluid_north))
-                            {
-                                switch(bnd_type.bottom)
-                                {
-                                case noslip:
-                                        dst_u(x, y) = -src_u(x, y + 1);
-                                        dst_v(x, y) = 0;
-                                        break;
-                                case slip:
-                                        dst_u(x, y) = src_u(x, y + 1);
-                                        dst_v(x, y) = 0;
-                                        break;
-                                case outstream:
-                                        dst_u(x, y) = src_u(x, y + 1);
-                                        dst_v(x, y) = src_v(x, y + 1);
-                                        break;
-                                case instream:
-                                        dst_u(x, y) = 2 * u_bnd.bottom - src_u(x, y + 1);
-                                        dst_v(x, y) = v_bnd.bottom;
-                                        break;
-                                }
-                            }
-
-                            else if (cell_type.test(has_fluid_south))
-                            {
-                                switch(bnd_type.top)
-                                {
-                                case noslip:
-                                        dst_u(x, y) = 2 * u_bnd.top - src_u(x, y - 1);
-                                        dst_v(x, y - 1) = 0;
-                                        break;
-                                case slip:
-                                        dst_u(x, y) = src_u(x, y - 1);
-                                        dst_v(x, y - 1) = 0;
-                                        break;
-                                case outstream:
-                                        dst_u(x, y) = src_u(x, y - 1);
-                                        dst_v(x, y - 1) = src_v(x, y - 1);
-                                        break;
-                                case instream:
-                                        dst_u(x, y) = 2 * u_bnd.top - src_u(x, y - 1);
-                                        dst_v(x, y - 1) = v_bnd.top;
-                                        break;
-                                }
-                            }
-                        }
-
-                        else if (!cell_type.test(is_fluid) && !cell_type.none())
-                        {
-                            dst_u(x, y) =
-                                - src_u(x, y - 1) * cell_type.test(has_fluid_south)
-                                - src_u(x, y + 1) * cell_type.test(has_fluid_north);
-
-                            dst_v(x, y) =
-                                - src_v(x - 1, y) * cell_type.test(has_fluid_west)
-                                - src_v(x + 1, y) * cell_type.test(has_fluid_east);
-                        }
-
-                        else
-                        {
-                            // only set fluid cells adjacent to obstacle
-                            // fluid adjacent to boundary is set above
-                            if (!cell_type.test(has_fluid_east) && !cell_types(x + 1, y).test(is_boundary))
+                        case noslip:
                                 dst_u(x, y) = 0;
-
-                            if (!cell_type.test(has_fluid_north) && !cell_types(x, y + 1).test(is_boundary))
-                                dst_v(x, y) = 0;
+                                dst_v(x, y) = -src_v(x + 1, y);
+                                break;
+                        case slip:
+                                dst_u(x, y) = 0;
+                                dst_v(x, y) = src_v(x + 1, y);
+                                break;
+                        case outstream:
+                                dst_u(x, y) = src_u(x + 1, y);
+                                dst_v(x, y) = src_v(x + 1, y);
+                                break;
+                        case instream:
+                                dst_u(x, y) = u_bnd.left;
+                                dst_v(x, y) = 2 * v_bnd.left - src_v(x, y);
+                                break;
                         }
                     }
+
+                    else if (cell_type.test(has_fluid_west))
+                    {
+                        switch(bnd_type.right)
+                        {
+                        case noslip:
+                                dst_u(x - 1, y) = 0;
+                                dst_v(x, y) = -src_v(x - 1, y);
+                                break;
+                        case slip:
+                                dst_u(x - 1, y) = 0;
+                                dst_v(x, y) = src_v(x - 1, y);
+                                break;
+                        case outstream:
+                                dst_u(x - 1, y) = dst_u(x - 2, y);
+                                dst_v(x, y) = src_v(x - 1, y);
+                                break;
+                        case instream:
+                                dst_u(x - 1, y) = u_bnd.right;
+                                dst_v(x, y) = 2 * v_bnd.right - src_v(x - 1, y);
+                                break;
+                        }
+                    }
+
+                    else if (cell_type.test(has_fluid_north))
+                    {
+                        switch(bnd_type.bottom)
+                        {
+                        case noslip:
+                                dst_u(x, y) = -src_u(x, y + 1);
+                                dst_v(x, y) = 0;
+                                break;
+                        case slip:
+                                dst_u(x, y) = src_u(x, y + 1);
+                                dst_v(x, y) = 0;
+                                break;
+                        case outstream:
+                                dst_u(x, y) = src_u(x, y + 1);
+                                dst_v(x, y) = src_v(x, y + 1);
+                                break;
+                        case instream:
+                                dst_u(x, y) = 2 * u_bnd.bottom - src_u(x, y + 1);
+                                dst_v(x, y) = v_bnd.bottom;
+                                break;
+                        }
+                    }
+
+                    else if (cell_type.test(has_fluid_south))
+                    {
+                        switch(bnd_type.top)
+                        {
+                        case noslip:
+                                dst_u(x, y) = 2 * u_bnd.top - src_u(x, y - 1);
+                                dst_v(x, y - 1) = 0;
+                                break;
+                        case slip:
+                                dst_u(x, y) = src_u(x, y - 1);
+                                dst_v(x, y - 1) = 0;
+                                break;
+                        case outstream:
+                                dst_u(x, y) = src_u(x, y - 1);
+                                dst_v(x, y - 1) = src_v(x, y - 1);
+                                break;
+                        case instream:
+                                dst_u(x, y) = 2 * u_bnd.top - src_u(x, y - 1);
+                                dst_v(x, y - 1) = v_bnd.top;
+                                break;
+                        }
+                    }
+                }
+            }
+    };
+
+    template<>
+    struct stencils<STENCIL_SET_VELOCITY_OBSTACLE>
+    {
+        static void call(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
+            partition_data<Real> const& src_u, partition_data<Real> const& src_v,
+            partition_data<std::bitset<6> > const& cell_types,
+            std::vector<std::pair<std::size_t, std::size_t> > const& obstacle_cells)
+            {
+                for (auto const& idx_pair : obstacle_cells)
+                {
+                    auto const x = idx_pair.first;
+                    auto const y = idx_pair.second;
+
+                    auto const& cell_type = cell_types(x, y);
+
+                    dst_u(x, y) =
+                        - src_u(x, y - 1) * cell_type.test(has_fluid_south)
+                        - src_u(x, y + 1) * cell_type.test(has_fluid_north);
+
+                    dst_v(x, y) =
+                        - src_v(x - 1, y) * cell_type.test(has_fluid_west)
+                        - src_v(x + 1, y) * cell_type.test(has_fluid_east);
+
+                }
+            }
+    };
+
+    template<>
+    struct stencils<STENCIL_SET_VELOCITY_FLUID>
+    {
+        static void call(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
+            partition_data<Real> const& src_u, partition_data<Real> const& src_v,
+            partition_data<std::bitset<6> > const& cell_types,
+            std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells)
+            {
+                for (auto const& idx_pair : fluid_cells)
+                {
+                    auto const x = idx_pair.first;
+                    auto const y = idx_pair.second;
+
+                    auto const& cell_type = cell_types(x, y);
+
+                    // only set fluid cells adjacent to obstacle
+                    // fluid adjacent to boundary is set above
+                    if (!cell_type.test(has_fluid_east) && !cell_types(x + 1, y).test(is_boundary))
+                        dst_u(x, y) = 0;
+
+                    if (!cell_type.test(has_fluid_north) && !cell_types(x, y + 1).test(is_boundary))
+                        dst_v(x, y) = 0;
+                }
             }
     };
 
@@ -270,21 +297,22 @@ namespace nast_hpx { namespace grid {
         static void call(partition_data<Real>& dst_rhs,
             partition_data<Real> const& src_f, partition_data<Real> const& src_g,
             partition_data<std::bitset<6> > const& cell_types,
-            Real dx, Real dy, Real dt, range_type x_range, range_type y_range)
+            std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
+            Real dx, Real dy, Real dt)
         {
-            for (std::size_t y = y_range.first; y < y_range.second; ++y)
-                for (std::size_t x = x_range.first; x < x_range.second; ++x)
-                {
-                    auto const& cell_type = cell_types(x, y);
+            for (auto const& idx_pair : fluid_cells)
+            {
+                auto const x = idx_pair.first;
+                auto const y = idx_pair.second;
+                auto const& cell_type = cell_types(x, y);
 
-                    if (cell_type.test(is_fluid))
-                        dst_rhs(x, y) =
-                            1. / dt *   (
-                                            (src_f(x, y) - src_f(x - 1, y)) / dx
-                                            +
-                                            (src_g(x, y) - src_g(x, y - 1)) / dy
-                                        );
-                }
+                dst_rhs(x, y) =
+                    1. / dt *   (
+                                    (src_f(x, y) - src_f(x - 1, y)) / dx
+                                    +
+                                    (src_g(x, y) - src_g(x, y - 1)) / dy
+                                );
+            }
         }
     };
 
@@ -303,7 +331,7 @@ namespace nast_hpx { namespace grid {
                 {
                     auto x = idx_pair.first;
                     auto y = idx_pair.second;
-                        
+
                     auto const& cell_type = cell_types(x, y);
 
                     if (!cell_type.test(is_fluid) && !cell_type.none())
@@ -321,13 +349,13 @@ namespace nast_hpx { namespace grid {
                                 + cell_type.test(has_fluid_south)
                                 + cell_type.test(has_fluid_north)
                             );
-                }                
-                
+                }
+
                 for (auto& idx_pair : obstacle_cells)
                 {
                     auto x = idx_pair.first;
                     auto y = idx_pair.second;
-                        
+
                     auto const& cell_type = cell_types(x, y);
 
                     if (!cell_type.test(is_fluid) && !cell_type.none())
@@ -345,7 +373,7 @@ namespace nast_hpx { namespace grid {
                                 + cell_type.test(has_fluid_south)
                                 + cell_type.test(has_fluid_north)
                             );
-                }                
+                }
             }
         }
     };
@@ -365,7 +393,7 @@ namespace nast_hpx { namespace grid {
                 {
                     auto x = idx_pair.first;
                     auto y = idx_pair.second;
-                    
+
                     dst_p(x, y) =
                         part1 * dst_p(x, y)
                         + part2 * (
@@ -417,7 +445,7 @@ namespace nast_hpx { namespace grid {
                 {
                     auto x = idx_pair.first;
                     auto y = idx_pair.second;
-                    
+
                     Real tmp =
                         (src_p(x + 1, y) - 2 * src_p(x, y) + src_p(x - 1, y)) * over_dx_sq
                         + (src_p(x, y + 1) - 2 * src_p(x, y) + src_p(x, y - 1)) * over_dy_sq

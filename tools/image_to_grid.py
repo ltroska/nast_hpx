@@ -18,12 +18,8 @@ gray = col.convert('L')
 arr = np.array(gray)
 
 
-print(arr)
-
 m = len(arr)
 n = len(arr[0])
-
-print(n, m)
 
 with open(outfile, 'wb') as csvfile:
 	gridwriter = csv.writer(csvfile, delimiter=',', quotechar='"')

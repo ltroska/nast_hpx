@@ -21,10 +21,10 @@ with open(infile_path, 'rb') as csvfile:
   in_grid = csv.reader(csvfile, delimiter=',', quotechar='"')
 
   for j, row in enumerate(in_grid):
-  if j == 0:
-    n = len(row)	  
-    img = Image.new('RGB', (n, m), "white")
-    pixels = img.load()
+		if j == 0:
+		  n = len(row)	  
+		  img = Image.new('RGB', (n, m), "white")
+		  pixels = img.load()
 
   for i, col in enumerate(row):
     if col == '1':

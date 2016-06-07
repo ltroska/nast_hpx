@@ -91,7 +91,7 @@ with open(outfile_path, 'wb') as csvfile:
 			
 			if count > 2 and cell == 0:
 				print("FAILURE (illegal grid): obstacle cell is neighbors with more than two fluid cells at index i =",col, ", j =",row, " (origin top left)!", file=sys.stderr)
-				sys.exit(0)
+				#sys.exit(0)
 			
 			if count + other_count == 0:
 				type_int = 0

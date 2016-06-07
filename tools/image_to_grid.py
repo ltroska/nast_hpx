@@ -14,12 +14,10 @@ infile = sys.argv[1]
 outfile = sys.argv[2]
 
 col = Image.open(infile)
-gray = col.convert('L')
-arr = np.array(gray)
+pixels = col.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.ROTATE_90).load()
 
 
-m = len(arr)
-n = len(arr[0])
+n, m = col.size
 
 with open(outfile, 'wb') as csvfile:
 	gridwriter = csv.writer(csvfile, delimiter=',', quotechar='"')
@@ -32,13 +30,14 @@ with open(outfile, 'wb') as csvfile:
 		if add_boundary:
 			row.append(1)
 		for j in range(n):
-			row.append(0 if arr[i][j] > 128 else 1)
+			row.append(1 if pixels[i,j] != (255, 255, 255, 255) else 0)
 
 		if add_boundary:
 			row.append(1)
-		gridwriter.writerow(row)		
+		gridwriter.writerow(row)
 
 	if add_boundary:
 		gridwriter.writerow([1]*(n+2))
 
-#gray.point(lambda x: 0 if x<128 else 255, '1').save("result_bw.png")
+col.save("bw.png")
+

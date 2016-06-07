@@ -39,8 +39,8 @@ while count < num_beads:
   radius = random.randint(min_radius, max_radius)
   
   success = g.add_shape(circle([center_x, center_y], radius), distance, include_boundary) 
-  
   count += success
+  print("trying to add", center_x, center_y, radius, "now at", count)
   failed += 1 - success
   
   if failed > max_fails:

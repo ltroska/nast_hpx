@@ -641,15 +641,41 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
         {
             range_type x_range(x, std::min(x + c.cells_x_per_block, cells_x_ - 1));
 
-            hpx::shared_future<void> calc_future =
+            hpx::shared_future<void> calc_future1 =
                 hpx::dataflow(
                     hpx::util::unwrapped(
                         hpx::util::bind(
-                            &stencils<STENCIL_COMPUTE_FG>::call,
+                            &stencils<STENCIL_COMPUTE_FG_BOUNDARY_AND_OBSTACLE>::call,
                             boost::ref(data_[F]), boost::ref(data_[G]),
                             boost::ref(data_[U]), boost::ref(data_[V]),
-                            boost::ref(cell_type_data_), c.re, c.gx, c.gy, c.beta, c.dx,
-                            c.dy, dt, c.alpha, x_range, y_range
+                            boost::ref(cell_type_data_),
+                            boost::ref(boundary_cells_(nx_block, ny_block)),
+                            boost::ref(obstacle_cells_(nx_block, ny_block))
+                        )
+                    )
+                    , set_velocity_futures(nx_block, ny_block)
+                    , get_dependency<LEFT>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
+                    , get_dependency<LEFT>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
+                    , get_dependency<RIGHT>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
+                    , get_dependency<RIGHT>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
+                    , get_dependency<BOTTOM>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
+                    , get_dependency<BOTTOM>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
+                    , get_dependency<TOP>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
+                    , get_dependency<TOP>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
+                    , get_dependency<TOP_LEFT>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
+                    , get_dependency<BOTTOM_RIGHT>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
+                );           
+                
+            hpx::shared_future<void> calc_future2 =
+                hpx::dataflow(
+                    hpx::util::unwrapped(
+                        hpx::util::bind(
+                            &stencils<STENCIL_COMPUTE_FG_FLUID>::call,
+                            boost::ref(data_[F]), boost::ref(data_[G]),
+                            boost::ref(data_[U]), boost::ref(data_[V]),
+                            boost::ref(cell_type_data_),
+                            boost::ref(fluid_cells_(nx_block, ny_block)),
+                            c.re, c.gx, c.gy, c.beta, c.dx, c.dy, dt, c.alpha
                         )
                     )
                     , set_velocity_futures(nx_block, ny_block)
@@ -664,6 +690,11 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                     , get_dependency<TOP_LEFT>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
                     , get_dependency<BOTTOM_RIGHT>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
                 );
+                
+            hpx::shared_future<void> calc_future =
+                hpx::when_all(calc_future1, calc_future2).then(
+                    [](hpx::lcos::future<hpx::util::tuple<hpx::lcos::shared_future<void>, hpx::lcos::shared_future<void>> >)
+                    {return;});
 
             compute_fg_futures(nx_block, ny_block) = calc_future;
 
@@ -986,7 +1017,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                             for (std::size_t i = 0; i < local_residuals.size(); ++i)
                                 residual += local_residuals[i];
 
-                            return residual;
+                            return std::sqrt(residual);
                         }
                     )
                 );
@@ -995,7 +1026,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                 hpx::util::unwrapped(
                     [dt, iter, step = step_, t = t_, this](Real residual)
                     {
-                        if ((residual < c.eps_sq || iter == c.iter_max - 1)
+                        if ((residual < c.eps || iter == c.iter_max - 1)
                             && !token.was_cancelled())
                         {
                             std::cout << "step = " << step
@@ -1034,8 +1065,9 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                             &stencils<STENCIL_UPDATE_VELOCITY>::call,
                             boost::ref(data_[U]), boost::ref(data_[V]), boost::ref(data_[F]),
                             boost::ref(data_[G]), boost::ref(data_[P]),
-                            boost::ref(cell_type_data_), dt, c.over_dx, c.over_dy,
-                            x_range, y_range
+                            boost::ref(cell_type_data_),
+                            boost::ref(fluid_cells_(nx_block, ny_block)),
+                            dt, c.over_dx, c.over_dy
                         )
                     )
                     , get_dependency<LEFT>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])

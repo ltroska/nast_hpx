@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<SimulationConfig>
+	<iMax value="254"/>
+	<jMax value="254"/>
+	<iRes value="2"/>
+	<jRes value="2"/>
+	<xLength value="4"/>
+	<yLength value="4"/>
+	<Re value="1000"/>
+	<omega value="1.7"/>
+	<tau value="0.5"/>
+	<eps value="0.001"/>
+	<alpha value="0.9"/>
+	<iterMax value="250"/>
+	<dt value="0.002"/>
+	<tEnd value="100"/>
+	<GX value="0"/>
+	<GY value="0"/>
+	<deltaVec value="0"/>
+	<vtk value="1"/>
+	<WL value="4"/>
+	<UL value="1"/>
+	<WT value="4"/>
+	<VT value="-1"/>
+	<WR value="3"/>
+	<WB value="3"/>
+	<subIterations value="1"/>
+	<withForEach value="0"/>
+	<gridFile value="../examples/geometry/uniform_rect_256_256.csv"/>
+</SimulationConfig>

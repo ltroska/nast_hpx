@@ -13,7 +13,7 @@
 	<alpha value="0.9"/>
 	<iterMax value="250"/>
 	<dt value="0.002"/>
-	<tEnd value="2"/>
+	<tEnd value="10"/>
 	<GX value="0"/>
 	<GY value="0"/>
 	<outputSkipSize value="1"/>

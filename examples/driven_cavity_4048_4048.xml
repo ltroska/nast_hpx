@@ -13,7 +13,7 @@
 	<alpha value="0.9"/>
 	<iterMax value="500"/>
 	<dt value="0.002"/>
-	<tEnd value="0.5"/>
+	<tEnd value="0.1"/>
 	<GX value="0"/>
 	<GY value="0"/>
 	<deltaVec value="0.2"/>

@@ -22,10 +22,10 @@ with open(infile_path, 'rb') as csvfile:
   for row in in_grid:
     n = len(row)
     for col in row:
-      if (int(col) & (1 << 5)) != 0:
-	boundary += 1
-      elif (int(col) & (1 << 4)) == 0 or col == "0":
-	obstacle += 1
+			if (int(col) & (1 << 5)) != 0:
+				boundary += 1
+			elif (int(col) & (1 << 4)) == 0 or col == "0":
+				obstacle += 1
 
 	
 total = m*n

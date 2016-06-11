@@ -2,10 +2,10 @@
 <SimulationConfig>
 	<iMax value="126"/>
 	<jMax value="126"/>
-	<iRes value="1"/>
-	<jRes value="1"/>
-	<xLength value="2"/>
-	<yLength value="2"/>
+	<iRes value="2"/>
+	<jRes value="2"/>
+	<xLength value="1"/>
+	<yLength value="1"/>
 	<Re value="1000"/>
 	<omega value="1.7"/>
 	<tau value="0.5"/>
@@ -13,11 +13,11 @@
 	<alpha value="0.9"/>
 	<iterMax value="250"/>
 	<dt value="0.002"/>
-	<tEnd value="2"/>
+	<tEnd value="100"/>
 	<GX value="0"/>
 	<GY value="0"/>
 	<outputSkipSize value="1"/>
-	<deltaVec value="0"/>
+	<deltaVec value="1"/>
 	<vtk value="1"/>
 	<UT value="1"/>
 	<subIterations value="1"/>

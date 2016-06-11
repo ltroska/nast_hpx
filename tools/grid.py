@@ -109,12 +109,57 @@ class rectangle(object):
 	distance = 0
 
       return distance - 1 if distance != 0 else 0
+
+class zigzag(object):
+  def __init__(self, bottomleft, width, distance):
+    self.bottomleft = bottomleft
+    self.width = width
+    self.distance = distance
+    self.indices = []
+
+    start_i = bottomleft[0] if width > 0 else bottomleft[0] + abs(width) - 1
+
+    if distance > 0:
+      i_order = 1 if width > 0 else -1    
+
+      width = abs(width)
+    
+      j = bottomleft[1]
+
+      count = 0
+      while(count < width + distance):
+        for i in range(start_i, start_i + i_order * min(bottomleft[1] + distance - j + width, width), i_order):
+          self.indices.append([i, j])
+        
+        count += 1
+        start_i += i_order
+        j += 1
+
+    if distance < 0:
+      i_order = 1 if width > 0 else -1    
+
+      width = abs(width)
+      abs_distance = abs(distance)
+    
+      j = bottomleft[1]
+
+      count = 0
+      while(count < width + abs_distance):
+        for i in range(start_i, start_i + i_order * min(j - (bottomleft[1] - abs_distance - width), width), i_order):
+          self.indices.append([i, j])
+        
+        count += 1
+        start_i += i_order
+        j -= 1
+		
     
 class grid:
-  def __init__(self, cols, rows, eps = 1e-14):
+  def __init__(self, cols, rows, inverted = False, eps = 1e-14):
+    self.__setval = 1 if not inverted else 0
+
     self.__data = [[1] * cols]    
     for j in range(1, rows - 1):
-      self.__data.append([1] + [0] * (cols - 2) + [1])
+      self.__data.append([1] + [1 - self.__setval] * (cols - 2) + [1])
     self.__data.append([1] * cols)
     
     self.cols = cols
@@ -122,6 +167,7 @@ class grid:
     self.eps = 1e-14
     self.circles = []
     self.rectangles = []
+    self.zigzags = []
     self.boundaries = []
     #left
     self.boundaries.append(rectangle([0, 0], [0, rows - 1]))
@@ -160,8 +206,8 @@ class grid:
     self.rectangles = []
 	
   def apply_shapes(self):
-    for shape in itertools.chain(self.circles, self.rectangles):
-      self.set_indices(shape.indices, 1)
+    for shape in itertools.chain(self.circles, itertools.chain(self.rectangles, self.zigzags)):
+      self.set_indices(shape.indices)
     
   def write_to(self, file_path):
     with open(file_path, 'wb') as csvfile:
@@ -182,18 +228,20 @@ class grid:
     
     return True
   
-  def set_indices(self, indices, val):
+  def set_indices(self, indices):
     for index in indices:
       x, y = index
       if 0 <= x < self.cols and 0 <= y < self.rows:
-	self[x, y] = val
+	      self[x, y] = self.__setval
 	
   def add_shape(self, shape, distance = 0, include_boundary = False):
     if self.is_viable(shape, distance, include_boundary):
       if type(shape) is circle:
-	self.circles.append(shape)
+	      self.circles.append(shape)
       elif type(shape) is rectangle:
-	self.rectangles.append(shape)      
+	      self.rectangles.append(shape)
+      elif type(shape) is zigzag:
+        self.zigzags.append(shape)      
       
       return True
    
@@ -202,14 +250,15 @@ class grid:
 if __name__ == "__main__":
   cols = 30
   rows = 30
-  g = grid(cols, rows)
+  g = grid(cols, rows, True)
   #print(g.add_shape(rectangle([2, 2], [5, 5])))
   #print(g.add_shape(rectangle([8, 2], [10, 5]), 1))
-  print(g.add_shape(circle([10, 10], 2)))
+  #print(g.add_shape(circle([10, 10], 2)))
   #print(g.add_shape(rectangle([8, 16], [10, 23]), 1))
-  print(g.add_shape(rectangle([3, 8], [6, 23]), 1))
-
-
+  #print(g.add_shape(rectangle([3, 8], [6, 23]), 1))
+  z = zigzag([10, 10], [20, 20], 4)
+  print(z.indices)
+  g.add_shape(z)
 
   g.apply_shapes()
   print(g)

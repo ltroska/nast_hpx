@@ -11,7 +11,7 @@
 	<tau value="0.5"/>
 	<eps value="0.001"/>
 	<alpha value="0.9"/>
-	<iterMax value="500"/>
+	<iterMax value="20"/>
 	<dt value="0.002"/>
 	<tEnd value="0.1"/>
 	<GX value="0"/>

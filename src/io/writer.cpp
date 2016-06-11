@@ -39,7 +39,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data, grid_ty
                 << " 0 0\" GhostLevel=\"0\">" << std::endl
             << "<PPointData>" << std::endl
           //  << "<DataArray type=\"Float32\" Name=\"vorticity\" />" << std::endl
-          //  << "<DataArray type=\"Float32\" Name=\"strom\" />" << std::endl
+            << "<DataArray type=\"Float32\" Name=\"strom\" />" << std::endl
           //  << "<DataArray type=\"Float32\" Name=\"heat\" />" << std::endl
             << "</PPointData>" << std::endl
             << "<PCellData>" << std::endl
@@ -74,6 +74,8 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data, grid_ty
 
         fb.close();
     }
+    
+    std::vector<Real> strom(cells_x + 2, 0);
 
     std::string filename;
     filename.append ("./fields/");
@@ -186,6 +188,10 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data, grid_ty
             p_stream << "0\n";
             obstacle_stream << "0\n";
             uv_stream << "0 0\n";
+            vorticity_stream << "0\n";
+            vorticity_stream << "0\n";
+            strom_stream << "0\n";
+            strom_stream << "0\n";
 
             for (uint k = 0; k < partitions_x; ++k)
             {
@@ -217,6 +223,18 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data, grid_ty
                     else
                         uv_stream << (v_data(i, j) + v_data(i, j - 1)) / 2. << "\n";
                     }
+                    
+                    if (cell_types(i, j).test(is_fluid))
+                    {
+                        Real tmp = strom[i] + u_data(i, j) * dy;
+                        strom_stream << tmp << "\n";
+                        
+                        strom[i] = tmp;
+                    }                    
+                    else
+                    {
+                        strom_stream << "0\n";
+                    }
 
 
                 }
@@ -226,9 +244,17 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data, grid_ty
             obstacle_stream << "0\n";
             uv_stream << "0 0\n";
 
+            vorticity_stream << "0\n";
+            strom_stream << "0\n";
+
         }
 
     }
+
+    vorticity_stream << "0\n";
+    vorticity_stream << "0\n";
+    strom_stream << "0\n";
+    strom_stream << "0\n";
 
     p_stream << "0\n";
     obstacle_stream << "0\n";
@@ -236,16 +262,22 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data, grid_ty
 
     for (uint i = 0; i < cells_x * partitions_x; i++)
     {
+        vorticity_stream << "0\n";
+        strom_stream << "0\n";
+            
         p_stream << "0\n";
-    obstacle_stream << "0\n";
+        obstacle_stream << "0\n";
 
-    uv_stream << "0 0\n";
-
+        uv_stream << "0 0\n";
     }
+    
     uv_stream << "0 0\n";
     obstacle_stream << "0\n";
 
     p_stream << "0\n";
+    
+    vorticity_stream << "0\n";
+    strom_stream << "0\n";
 
 
     std::string pdatastring = p_stream.str();
@@ -269,9 +301,9 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data, grid_ty
        // << "<DataArray type=\"Float32\" Name=\"vorticity\">" << std::endl
         //<< vorticitystring << std::endl
         //<< "</DataArray>" << std::endl
-      /*  << "<DataArray type=\"Float32\" Name=\"strom\">" << std::endl
+        << "<DataArray type=\"Float32\" Name=\"strom\">" << std::endl
         << stromstring << std::endl
-        << "</DataArray>" << std::endl
+        << "</DataArray>" << std::endl/*
         << "<DataArray type=\"Float32\" Name=\"heat\">" << std::endl
         << heatstring << std::endl
         << "</DataArray>" << std::endl*/

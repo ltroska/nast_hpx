@@ -150,8 +150,7 @@ class zigzag(object):
         
         count += 1
         start_i += i_order
-        j -= 1
-		
+        j -= 1		
     
 class grid:
   def __init__(self, cols, rows, inverted = False, eps = 1e-14):
@@ -217,14 +216,22 @@ class grid:
 	gridwriter.writerow(row)
 	
   def is_viable(self, shape, distance, include_boundary):
-    for other in itertools.chain(self.circles, self.rectangles):
-      if distance != 0 and shape.distance_to(other) < distance:
-	return False
+    if type(shape) is zigzag and distance != 0:
+      for other in self.zigzags:
+        for idx in shape.indices:
+          for idy in other.indices:
+            if idx[0] == idy[0] and idx[1] == idy[1]:
+              return False      
+
+    else:
+      for other in itertools.chain(self.circles, self.rectangles):
+        if distance != 0 and shape.distance_to(other) < distance:
+          return False
       
-    if include_boundary:
-      for bnd in self.boundaries:
-	if distance != 0 and shape.distance_to(bnd) < distance:
-	  return False
+      if include_boundary:
+        for bnd in self.boundaries:
+          if distance != 0 and shape.distance_to(bnd) < distance:
+            return False
     
     return True
   
@@ -248,6 +255,15 @@ class grid:
     return False
   
 if __name__ == "__main__":
+
+  b = set([1])
+
+  if b:
+    print("blabla")
+  else:
+    print("bubub")
+
+   
   cols = 30
   rows = 30
   g = grid(cols, rows, True)
@@ -256,10 +272,10 @@ if __name__ == "__main__":
   #print(g.add_shape(circle([10, 10], 2)))
   #print(g.add_shape(rectangle([8, 16], [10, 23]), 1))
   #print(g.add_shape(rectangle([3, 8], [6, 23]), 1))
-  z = zigzag([10, 10], [20, 20], 4)
-  print(z.indices)
-  g.add_shape(z)
-
-  g.apply_shapes()
-  print(g)
+  #z = zigzag([10, 10], [20, 20], 4)
+  #print(z.indices)
+ # g.add_shape(z)
+#
+ # g.apply_shapes()
+  #print(g)
  

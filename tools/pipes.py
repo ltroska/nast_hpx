@@ -31,11 +31,11 @@ def make_branch(grid, pos, width, distance, n):
 		distrand = random.randint(distancelow, distancehigh)
 		grid.add_shape(rectangle(pos, [pos[0] + lengthrand, pos[1] + width - 1]))
 		if random.randint(0, 100) >= dead_perc:
-			grid.add_shape(zigzag([pos[0] + 1 + lengthrand - width, pos[1] + width], width, distrand))
-			make_branch(grid, [pos[0] + 1 + lengthrand + distrand, pos[1] + distrand + width], width, distrand, n + 1)
+			if grid.add_shape(zigzag([pos[0] + 1 + lengthrand - width, pos[1] + width], width, distrand), 1):
+				make_branch(grid, [pos[0] + 1 + lengthrand + distrand, pos[1] + distrand + width], width, distrand, n + 1)
 		if random.randint(0, 100) >= dead_perc:
-			grid.add_shape(zigzag([pos[0] + 1 + lengthrand - width, pos[1] - 1], width, -distrand))
-			make_branch(grid, [pos[0] + 1 + lengthrand + distrand, pos[1] - 1 - distrand - width], width, distrand, n + 1)
+			if grid.add_shape(zigzag([pos[0] + 1 + lengthrand - width, pos[1] - 1], width, -distrand), 1):
+				make_branch(grid, [pos[0] + 1 + lengthrand + distrand, pos[1] - 1 - distrand - width], width, distrand, n + 1)
 
 g = grid(num_cols, num_rows, inverted=True)
 

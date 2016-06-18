@@ -123,20 +123,49 @@ protected:
     void receive_boundary(std::size_t step, std::size_t var, future_vector& recv_futures);
 
     template<std::size_t var>
-    void receive_left_and_bottom_boundaries(std::size_t step, future_vector& recv_futures);
+    void receive_left_and_bottom_boundaries(std::size_t step, future_grid& recv_futures);
 
     template<std::size_t var>
-    void receive_cross_boundaries(std::size_t step, future_vector& recv_futures);
+    void receive_cross_boundaries(std::size_t step, future_grid& recv_futures);
 
     template<std::size_t var>
-    void receive_all_boundaries(std::size_t step, future_vector& recv_futures);
+    void receive_all_boundaries(std::size_t step, future_grid& recv_futures);
 
-    void wait_all_boundaries(future_vector& recv_futures);
+    void wait_all_boundaries(future_grid& recv_futures);
 
     template<direction dir>
     hpx::shared_future<void> get_dependency(std::size_t idx_block,
-        std::size_t idy_block, future_vector const& recv_futures,
+        std::size_t idy_block, future_grid const& recv_futures,
         partition_data<hpx::shared_future<void> > const& calc_futures);
+
+    void init_future_grid(future_grid& grid)
+    {
+        grid[LEFT].resize(c.num_y_blocks);
+        grid[RIGHT].resize(c.num_y_blocks);
+        grid[BOTTOM].resize(c.num_x_blocks);
+        grid[TOP].resize(c.num_x_blocks);
+        grid[BOTTOM_RIGHT].resize(1);
+        grid[TOP_LEFT].resize(1);
+    }
+
+    void clear_and_reserve(future_grid& grid)
+    {
+        for (std::size_t dir = 0; dir != NUM_DIRECTIONS; ++dir)
+            grid[dir].clear();
+
+        grid[LEFT].reserve(c.num_y_blocks);
+        grid[RIGHT].reserve(c.num_y_blocks);
+        grid[BOTTOM].reserve(c.num_x_blocks);
+        grid[TOP].reserve(c.num_x_blocks);
+        grid[BOTTOM_RIGHT].reserve(1);
+        grid[TOP_LEFT].reserve(1);
+    }
+
+    void clear(future_grid& grid)
+    {
+        for (std::size_t dir = 0; dir != NUM_DIRECTIONS; ++dir)
+            grid[dir].clear();
+    }
 
 private:
 
@@ -147,6 +176,32 @@ private:
     partition_data<std::vector<std::pair<std::size_t, std::size_t> > > fluid_cells_;
     partition_data<std::vector<std::pair<std::size_t, std::size_t> > > boundary_cells_;
     partition_data<std::vector<std::pair<std::size_t, std::size_t> > > obstacle_cells_;
+
+    partition_data<hpx::shared_future<void> > set_velocity_futures;
+    future_grid send_futures_U;
+    future_grid send_futures_V;
+    future_grid recv_futures_U;
+    future_grid recv_futures_V;
+
+    partition_data<hpx::shared_future<void> > compute_fg_futures;
+    future_grid send_futures_F;
+    future_grid send_futures_G;
+    future_grid recv_futures_F;
+    future_grid recv_futures_G;
+
+    partition_data<hpx::shared_future<void> > compute_rhs_futures;
+
+    partition_data<hpx::shared_future<Real> > compute_res_futures;
+
+    std::size_t current;
+    std::size_t last;
+
+    partition_data<hpx::shared_future<void> > set_p_futures;
+    future_grid send_futures_P;
+    std::array<future_grid, 2> recv_futures_P;
+    std::array<partition_data<hpx::shared_future<void> >, 2> sor_cycle_futures;
+
+    std::vector<hpx::future<std::pair<Real, Real> > > local_max_uvs;
 
     std::vector<hpx::id_type> ids_;
 

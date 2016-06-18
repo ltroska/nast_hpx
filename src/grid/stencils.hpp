@@ -219,7 +219,7 @@ namespace nast_hpx { namespace grid {
             {
                 auto const x = idx_pair.first;
                 auto const y = idx_pair.second;
-                
+
                 auto const& cell_type = cell_types(x, y);
 
                 if (cell_type.test(has_fluid_east))
@@ -227,13 +227,13 @@ namespace nast_hpx { namespace grid {
 
                 if (cell_type.test(has_fluid_north))
                     dst_g(x, y) = src_v(x, y);
-            }            
-            
+            }
+
             for (auto const& idx_pair : obstacle_cells)
             {
                 auto const x = idx_pair.first;
                 auto const y = idx_pair.second;
-                
+
                 auto const& cell_type = cell_types(x, y);
 
                 if (cell_type.test(has_fluid_east))
@@ -244,7 +244,7 @@ namespace nast_hpx { namespace grid {
             }
         }
     };
-    
+
     template<>
     struct stencils<STENCIL_COMPUTE_FG_FLUID>
     {
@@ -259,10 +259,10 @@ namespace nast_hpx { namespace grid {
             {
                 auto const x = idx_pair.first;
                 auto const y = idx_pair.second;
-                
+
                 auto const& cell_type = cell_types(x, y);
 
-                    
+
                 dst_f(x, y) = src_u(x, y) + cell_type.test(has_fluid_east)
                     * ( dt * (
                         1. / re * (
@@ -416,9 +416,15 @@ namespace nast_hpx { namespace grid {
             partition_data<Real> const& src_rhs,
             std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
             Real part1, Real part2, Real dx_sq, Real dy_sq,
-            util::cancellation_token token)
+            util::cancellation_token token, std::size_t xd, std::size_t yd, std::size_t iter)
         {
+
             if (!token.was_cancelled())
+            {
+          //       std::cout << "SOR " << iter << " | " << xd << " " << yd << std::endl;
+          //  hpx::this_thread::sleep_for(boost::chrono::milliseconds(3000));
+
+
                 for (auto& idx_pair : fluid_cells)
                 {
                     auto x = idx_pair.first;
@@ -432,6 +438,7 @@ namespace nast_hpx { namespace grid {
                                 - src_rhs(x, y)
                         );
                 }
+            }
         }
     };
 
@@ -442,9 +449,16 @@ namespace nast_hpx { namespace grid {
         static void call(partition_data<Real>& dst_p,
             partition_data<Real> const& src_rhs,
             std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
-            Real dx_sq, Real dy_sq, util::cancellation_token token)
+            Real dx_sq, Real dy_sq, util::cancellation_token token, std::size_t xd, std::size_t yd, std::size_t iter)
         {
             if (!token.was_cancelled())
+            {
+               // std::cout << "jacobi " << iter << " | " << xd << " " << yd << std::endl;
+              //  hpx::this_thread::sleep_for(boost::chrono::milliseconds(3000));
+
+              //  if (hpx::get_locality_id() == 1)
+              //      hpx::this_thread::sleep_for(boost::chrono::milliseconds(4000));
+
                 for (auto& idx_pair : fluid_cells)
                 {
                     auto x = idx_pair.first;
@@ -457,6 +471,7 @@ namespace nast_hpx { namespace grid {
                         /
                         (2 * (dx_sq + dy_sq));
                 }
+            }
         }
     };
 
@@ -508,9 +523,9 @@ namespace nast_hpx { namespace grid {
             {
                 auto const x = idx_pair.first;
                 auto const y = idx_pair.second;
-                
+
                 auto const& cell_type = cell_types(x, y);
-                
+
                 if (cell_type.test(has_fluid_east))
                 {
                     dst_u(x, y) = src_f(x, y) - dt * over_dx *
@@ -526,7 +541,7 @@ namespace nast_hpx { namespace grid {
 
                     max_v = std::abs(dst_v(x, y)) > max_v ? std::abs(dst_v(x, y)) : max_v;
                 }
-            }                   
+            }
 
             return std::make_pair(max_u, max_v);
         }

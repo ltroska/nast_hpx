@@ -9,7 +9,7 @@
 #include "unpack_buffer.hpp"
 
 namespace nast_hpx { namespace grid {
-    
+
     template <typename BufferType, direction dir>
     struct recv_buffer
     {
@@ -47,13 +47,13 @@ namespace nast_hpx { namespace grid {
         {
         }
 
-        void operator()(partition_data<value_type>& p, std::size_t step)
+        void operator()(partition_data<value_type>& p, std::size_t step, std::size_t offset = 0)
         {
             HPX_ASSERT(valid_);
-            
+
             buffer_type buffer = buffer_.receive(step).get();
-                        
-            unpack_buffer<dir>::call(p, buffer);
+
+            unpack_buffer<dir>::call(p, buffer, offset);
         }
 
         void set_buffer(buffer_type buffer, std::size_t step)
@@ -65,7 +65,7 @@ namespace nast_hpx { namespace grid {
         hpx::lcos::local::receive_buffer<buffer_type, mutex_type> buffer_;
         bool valid_;
     };
-    
+
 }
 }
 

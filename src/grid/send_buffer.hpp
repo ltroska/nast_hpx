@@ -8,7 +8,7 @@
 #include "pack_buffer.hpp"
 
 namespace nast_hpx { namespace grid {
-    
+
     template <typename BufferType, direction dir, typename Action>
     struct send_buffer
     {
@@ -39,20 +39,20 @@ namespace nast_hpx { namespace grid {
             return *this;
         }
 
-        void operator()(partition_data<value_type> const& p, std::size_t step, std::size_t var)
+        void operator()(partition_data<value_type> const& p, std::size_t step, std::size_t var, std::size_t offset = 0, std::size_t size = 0)
         {
             HPX_ASSERT(dest_);
-            
+
             buffer_type buffer;
 
-            pack_buffer<dir>::call(p, buffer);
+            pack_buffer<dir>::call(p, buffer, offset, size);
 
             hpx::apply(Action(), dest_, buffer, step, var);
         }
 
         hpx::id_type dest_;
     };
-    
+
 }
 }
 

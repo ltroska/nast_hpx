@@ -46,6 +46,8 @@ partition_server::partition_server(io::config&& cfg)
     recv_futures_G(NUM_DIRECTIONS),
     current(1),
     last(0),
+    curr(1),
+    lst(0),
     send_futures_P(NUM_DIRECTIONS)
 {
     std::cout << c << std::endl;
@@ -54,6 +56,12 @@ partition_server::partition_server(io::config&& cfg)
     std::cout << "Solver: SOR" << std::endl;
 #else
     std::cout << "Solver: blockwise Jacobi" << std::endl;
+#endif
+
+#ifdef WITH_FOR_EACH
+    std::cout << "Parallelization: hpx::parallel::for_each" << std::endl;
+#else
+    std::cout << "Parellelization: custom grain size" << std::endl;
 #endif
 
     data_[U].resize(cells_x_, cells_y_);
@@ -1101,7 +1109,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
     t_ += dt;
     ++step_;
 
-    hpx::wait_all(compute_res_futures.data_);
+   // hpx::wait_all(compute_res_futures.data_);
 
     return local_max_uv.get();
 }

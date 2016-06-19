@@ -177,6 +177,9 @@ private:
     partition_data<std::vector<std::pair<std::size_t, std::size_t> > > boundary_cells_;
     partition_data<std::vector<std::pair<std::size_t, std::size_t> > > obstacle_cells_;
 
+    std::size_t curr;
+    std::size_t lst;
+
     partition_data<hpx::shared_future<void> > set_velocity_futures;
     future_grid send_futures_U;
     future_grid send_futures_V;

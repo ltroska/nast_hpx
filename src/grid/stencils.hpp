@@ -3,6 +3,12 @@
 
 #include <vector>
 
+#ifdef WITH_FOR_EACH
+#include <hpx/parallel/algorithms/for_each.hpp>
+#include <hpx/parallel/algorithms/reduce.hpp>
+#include <hpx/parallel/algorithms/transform_reduce.hpp>
+#endif
+
 #include "partition_data.hpp"
 #include "util/fd_stencils.hpp"
 #include "util/cancellation_token.hpp"
@@ -50,8 +56,16 @@ namespace nast_hpx { namespace grid {
             std::vector<std::pair<std::size_t, std::size_t> > boundary_cells,
             boundary_data u_bnd, boundary_data v_bnd, boundary_type bnd_type)
             {
+                #ifdef WITH_FOR_EACH
+                hpx::parallel::for_each(
+                hpx::parallel::par,
+                std::begin(boundary_cells), std::end(boundary_cells),
+                [&](auto const& idx_pair)
+                {
+                #else
                 for (auto const& idx_pair : boundary_cells)
                 {
+                #endif
                     auto x = idx_pair.first;
                     auto y = idx_pair.second;
 
@@ -75,7 +89,7 @@ namespace nast_hpx { namespace grid {
                                 break;
                         case instream:
                                 dst_u(x, y) = u_bnd.left;
-                                dst_v(x, y) = 2 * v_bnd.left - src_v(x, y);
+                                dst_v(x, y) = 2 * v_bnd.left - src_v(x + 1, y);
                                 break;
                         }
                     }
@@ -149,6 +163,9 @@ namespace nast_hpx { namespace grid {
                         }
                     }
                 }
+                #ifdef WITH_FOR_EACH
+                );
+                #endif
             }
     };
 
@@ -160,8 +177,16 @@ namespace nast_hpx { namespace grid {
             partition_data<std::bitset<6> > const& cell_types,
             std::vector<std::pair<std::size_t, std::size_t> > const& obstacle_cells)
             {
+                #ifdef WITH_FOR_EACH
+                hpx::parallel::for_each(
+                hpx::parallel::par,
+                std::begin(obstacle_cells), std::end(obstacle_cells),
+                [&](auto const& idx_pair)
+                {
+                #else
                 for (auto const& idx_pair : obstacle_cells)
                 {
+                #endif
                     auto const x = idx_pair.first;
                     auto const y = idx_pair.second;
 
@@ -176,6 +201,9 @@ namespace nast_hpx { namespace grid {
                         - src_v(x + 1, y) * cell_type.test(has_fluid_east);
 
                 }
+                #ifdef WITH_FOR_EACH
+                );
+                #endif
             }
     };
 
@@ -187,8 +215,16 @@ namespace nast_hpx { namespace grid {
             partition_data<std::bitset<6> > const& cell_types,
             std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells)
             {
+                #ifdef WITH_FOR_EACH
+                hpx::parallel::for_each(
+                hpx::parallel::par,
+                std::begin(fluid_cells), std::end(fluid_cells),
+                [&](auto const& idx_pair)
+                {
+                #else
                 for (auto const& idx_pair : fluid_cells)
                 {
+                #endif
                     auto const x = idx_pair.first;
                     auto const y = idx_pair.second;
 
@@ -202,6 +238,9 @@ namespace nast_hpx { namespace grid {
                     if (!cell_type.test(has_fluid_north) && !cell_types(x, y + 1).test(is_boundary))
                         dst_v(x, y) = 0;
                 }
+                #ifdef WITH_FOR_EACH
+                );
+                #endif
             }
     };
 
@@ -215,8 +254,16 @@ namespace nast_hpx { namespace grid {
             std::vector<std::pair<std::size_t, std::size_t> > const& obstacle_cells
            )
         {
+            #ifdef WITH_FOR_EACH
+            auto f1 = hpx::parallel::for_each(
+            hpx::parallel::par(hpx::parallel::task),
+            std::begin(boundary_cells), std::end(boundary_cells),
+            [&](auto const& idx_pair)
+            {
+            #else
             for (auto const& idx_pair : boundary_cells)
             {
+            #endif
                 auto const x = idx_pair.first;
                 auto const y = idx_pair.second;
 
@@ -228,9 +275,18 @@ namespace nast_hpx { namespace grid {
                 if (cell_type.test(has_fluid_north))
                     dst_g(x, y) = src_v(x, y);
             }
+            #ifdef WITH_FOR_EACH
+            );
 
+            auto f2 = hpx::parallel::for_each(
+            hpx::parallel::par(hpx::parallel::task),
+            std::begin(obstacle_cells), std::end(obstacle_cells),
+            [&](auto const& idx_pair)
+            {
+            #else
             for (auto const& idx_pair : obstacle_cells)
             {
+            #endif
                 auto const x = idx_pair.first;
                 auto const y = idx_pair.second;
 
@@ -242,6 +298,11 @@ namespace nast_hpx { namespace grid {
                 if (cell_type.test(has_fluid_north))
                     dst_g(x, y) = src_v(x, y);
             }
+            #ifdef WITH_FOR_EACH
+            );
+
+            hpx::wait_all(f1, f2);
+            #endif
         }
     };
 
@@ -255,8 +316,16 @@ namespace nast_hpx { namespace grid {
             Real re, Real gx, Real gy, Real beta, Real dx, Real dy, Real dt,
             Real alpha)
         {
+            #ifdef WITH_FOR_EACH
+            hpx::parallel::for_each(
+            hpx::parallel::par,
+            std::begin(fluid_cells), std::end(fluid_cells),
+            [&](auto const& idx_pair)
+            {
+            #else
             for (auto const& idx_pair : fluid_cells)
             {
+            #endif
                 auto const x = idx_pair.first;
                 auto const y = idx_pair.second;
 
@@ -321,6 +390,9 @@ namespace nast_hpx { namespace grid {
                                         * gy*/
                 );
             }
+            #ifdef WITH_FOR_EACH
+            );
+            #endif
         }
     };
 
@@ -333,8 +405,16 @@ namespace nast_hpx { namespace grid {
             std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
             Real dx, Real dy, Real dt)
         {
+            #ifdef WITH_FOR_EACH
+            hpx::parallel::for_each(
+            hpx::parallel::par,
+            std::begin(fluid_cells), std::end(fluid_cells),
+            [&](auto const& idx_pair)
+            {
+            #else
             for (auto const& idx_pair : fluid_cells)
             {
+            #endif
                 auto const x = idx_pair.first;
                 auto const y = idx_pair.second;
 
@@ -345,6 +425,9 @@ namespace nast_hpx { namespace grid {
                                     (src_g(x, y) - src_g(x, y - 1)) / dy
                                 );
             }
+            #ifdef WITH_FOR_EACH
+            );
+            #endif
         }
     };
 
@@ -359,8 +442,16 @@ namespace nast_hpx { namespace grid {
         {
             if (!token.was_cancelled())
             {
+                #ifdef WITH_FOR_EACH
+                hpx::parallel::for_each(
+                hpx::parallel::par,
+                std::begin(boundary_cells), std::end(boundary_cells),
+                [&](auto const& idx_pair)
+                {
+                #else
                 for (auto& idx_pair : boundary_cells)
                 {
+                #endif
                     auto x = idx_pair.first;
                     auto y = idx_pair.second;
 
@@ -381,9 +472,18 @@ namespace nast_hpx { namespace grid {
                             + cell_type.test(has_fluid_north)
                         );
                 }
+                #ifdef WITH_FOR_EACH
+                );
 
+                hpx::parallel::for_each(
+                hpx::parallel::par,
+                std::begin(obstacle_cells), std::end(obstacle_cells),
+                [&](auto const& idx_pair)
+                {
+                #else
                 for (auto& idx_pair : obstacle_cells)
                 {
+                #endif
                     auto x = idx_pair.first;
                     auto y = idx_pair.second;
 
@@ -404,6 +504,9 @@ namespace nast_hpx { namespace grid {
                             + cell_type.test(has_fluid_north)
                         );
                 }
+                #ifdef WITH_FOR_EACH
+                );
+                #endif
             }
         }
     };
@@ -424,9 +527,16 @@ namespace nast_hpx { namespace grid {
           //       std::cout << "SOR " << iter << " | " << xd << " " << yd << std::endl;
           //  hpx::this_thread::sleep_for(boost::chrono::milliseconds(3000));
 
-
+                #ifdef WITH_FOR_EACH
+                hpx::parallel::for_each(
+                hpx::parallel::par,
+                std::begin(fluid_cells), std::end(fluid_cells),
+                [&](auto const& idx_pair)
+                {
+                #else
                 for (auto& idx_pair : fluid_cells)
                 {
+                #endif
                     auto x = idx_pair.first;
                     auto y = idx_pair.second;
 
@@ -438,6 +548,9 @@ namespace nast_hpx { namespace grid {
                                 - src_rhs(x, y)
                         );
                 }
+                #ifdef WITH_FOR_EACH
+                );
+                #endif
             }
         }
     };
@@ -458,9 +571,16 @@ namespace nast_hpx { namespace grid {
 
               //  if (hpx::get_locality_id() == 1)
               //      hpx::this_thread::sleep_for(boost::chrono::milliseconds(4000));
-
+                #ifdef WITH_FOR_EACH
+                hpx::parallel::for_each(
+                hpx::parallel::par,
+                std::begin(fluid_cells), std::end(fluid_cells),
+                [&](auto const& idx_pair)
+                {
+                #else
                 for (auto& idx_pair : fluid_cells)
                 {
+                #endif
                     auto x = idx_pair.first;
                     auto y = idx_pair.second;
 
@@ -471,6 +591,9 @@ namespace nast_hpx { namespace grid {
                         /
                         (2 * (dx_sq + dy_sq));
                 }
+                #ifdef WITH_FOR_EACH
+                );
+                #endif
             }
         }
     };
@@ -486,18 +609,44 @@ namespace nast_hpx { namespace grid {
             Real local_residual = 0;
 
             if (!token.was_cancelled())
-                for (auto& idx_pair : fluid_cells)
+            #ifdef WITH_FOR_EACH
+                local_residual =
+                hpx::parallel::transform_reduce(
+                hpx::parallel::par,
+                std::begin(fluid_cells), std::end(fluid_cells),
+                [&](auto const& idx_pair) -> Real
                 {
                     auto x = idx_pair.first;
                     auto y = idx_pair.second;
 
                     Real tmp =
-                        (src_p(x + 1, y) - 2 * src_p(x, y) + src_p(x - 1, y)) * over_dx_sq
-                        + (src_p(x, y + 1) - 2 * src_p(x, y) + src_p(x, y - 1)) * over_dy_sq
-                        - src_rhs(x, y);
+                            (src_p(x + 1, y) - 2 * src_p(x, y) + src_p(x - 1, y)) * over_dx_sq
+                            + (src_p(x, y + 1) - 2 * src_p(x, y) + src_p(x, y - 1)) * over_dy_sq
+                            - src_rhs(x, y);
 
-                    local_residual += std::pow(tmp, 2);
+                    return std::pow(tmp, 2);
                 }
+                , 0.
+                ,[](Real const a, Real const b) -> Real
+                {
+                    return a + b;
+                }
+                );
+
+            #else
+                for (auto& idx_pair : fluid_cells)
+                    {
+                        auto x = idx_pair.first;
+                        auto y = idx_pair.second;
+
+                        Real tmp =
+                            (src_p(x + 1, y) - 2 * src_p(x, y) + src_p(x - 1, y)) * over_dx_sq
+                            + (src_p(x, y + 1) - 2 * src_p(x, y) + src_p(x, y - 1)) * over_dy_sq
+                            - src_rhs(x, y);
+
+                        local_residual += std::pow(tmp, 2);
+                    }
+            #endif
 
             return local_residual;
         }
@@ -516,6 +665,39 @@ namespace nast_hpx { namespace grid {
             Real dt, Real over_dx, Real over_dy
             )
         {
+            #ifdef WITH_FOR_EACH
+            std::pair<Real, Real> max_uv =
+                hpx::parallel::transform_reduce(
+                    hpx::parallel::par,
+                    std::begin(fluid_cells), std::end(fluid_cells),
+                    [&](auto const& idx_pair) -> std::pair<Real, Real>
+                    {
+                        auto const x = idx_pair.first;
+                        auto const y = idx_pair.second;
+
+                        auto const& cell_type = cell_types(x, y);
+
+
+                        if (cell_type.test(has_fluid_east))
+                            dst_u(x, y) = src_f(x, y) - dt * over_dx *
+                                (src_p(x + 1, y) - src_p(x, y));
+
+                        if (cell_type.test(has_fluid_north))
+                            dst_v(x, y) = src_g(x, y) - dt * over_dy *
+                                (src_p(x, y + 1) - src_p(x, y));
+
+                        return std::make_pair(std::abs(dst_u(x, y)), std::abs(dst_v(x, y)));
+                    },
+                    std::make_pair(0., 0.),
+                    [](auto const& a, auto const& b) -> std::pair<Real, Real>
+                    {
+                        return std::make_pair(a.first > b.first ? a.first : b.first, a.second > b.second ? a.second : b.second);
+                    }
+                );
+
+            return max_uv;
+
+            #else
             Real max_u = 0;
             Real max_v = 0;
 
@@ -544,6 +726,7 @@ namespace nast_hpx { namespace grid {
             }
 
             return std::make_pair(max_u, max_v);
+            #endif
         }
     };
 }

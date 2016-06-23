@@ -36,22 +36,9 @@ partition_server::partition_server(io::config&& cfg)
     step_(0),
     next_out_(-1e-12),
     outcount_(0),
-    send_futures_U(NUM_DIRECTIONS),
-    send_futures_V(NUM_DIRECTIONS),
-    recv_futures_U(NUM_DIRECTIONS),
-    recv_futures_V(NUM_DIRECTIONS),
-    send_futures_F(NUM_DIRECTIONS),
-    send_futures_G(NUM_DIRECTIONS),
-    recv_futures_F(NUM_DIRECTIONS),
-    recv_futures_G(NUM_DIRECTIONS),
     current(1),
-    last(0),
-    curr(1),
-    lst(0),
-    send_futures_P(NUM_DIRECTIONS)
+    last(0)
 {
-    std::cout << c << std::endl;
-
 #ifdef WITH_SOR
     std::cout << "Solver: SOR" << std::endl;
 #else
@@ -60,9 +47,15 @@ partition_server::partition_server(io::config&& cfg)
 
 #ifdef WITH_FOR_EACH
     std::cout << "Parallelization: hpx::parallel::for_each" << std::endl;
+    c.cells_x_per_block = cells_x_ - 2;
+    c.cells_y_per_block = cells_y_ - 2;
+    c.num_x_blocks = 1;
+    c.num_y_blocks = 1;
 #else
     std::cout << "Parellelization: custom grain size" << std::endl;
 #endif
+
+    std::cout << c << std::endl;
 
     data_[U].resize(cells_x_, cells_y_);
     data_[V].resize(cells_x_, cells_y_);
@@ -101,36 +94,8 @@ partition_server::partition_server(io::config&& cfg)
     }
 
     c.flag_grid.clear();
-
-    set_velocity_futures.resize(c.num_x_blocks, c.num_y_blocks);
-    init_future_grid(recv_futures_U);
-    init_future_grid(recv_futures_V);
-
-    compute_fg_futures.resize(c.num_x_blocks, c.num_y_blocks);
-    init_future_grid(recv_futures_F);
-    init_future_grid(recv_futures_G);
-
-    compute_rhs_futures.resize(c.num_x_blocks, c.num_y_blocks);
-    compute_res_futures.resize(c.num_x_blocks, c.num_y_blocks);
-
-    for (auto& a : compute_res_futures)
-        a = hpx::make_ready_future(0.);
-
-    set_p_futures.resize(c.num_x_blocks, c.num_y_blocks);
-    recv_futures_P[current].resize(NUM_DIRECTIONS);
-    recv_futures_P[last].resize(NUM_DIRECTIONS);
-    init_future_grid(recv_futures_P[current]);
-    init_future_grid(recv_futures_P[last]);
-
-    for (auto& a : recv_futures_P[last])
-        for (auto& b : a)
-            b = hpx::make_ready_future();
-
-    sor_cycle_futures[current].resize(c.num_x_blocks, c.num_y_blocks);
-    sor_cycle_futures[last].resize(c.num_x_blocks, c.num_y_blocks);
-
-    for (auto& a : sor_cycle_futures[last])
-        a = hpx::make_ready_future();
+    
+    rhs_data_[14] = 3;
 
    /* for (std::size_t idy_block = 0; idy_block < c.num_y_blocks; ++idy_block)
         for (std::size_t idx_block = 0; idx_block < c.num_x_blocks; ++idx_block)
@@ -154,6 +119,8 @@ void partition_server::init()
     if (!is_left_)
     {
         send_buffer_left_.dest_ = ids_[c.idy * c.num_partitions_x + c.idx - 1];
+        
+        std::cout << "to the left " << c.idy * c.num_partitions_x + c.idx - 1 << std::endl;
 
         recv_buffer_left_[P].valid_ = true;
         recv_buffer_left_[F].valid_ = true;
@@ -202,12 +169,57 @@ void partition_server::init()
     {
         send_buffer_top_.dest_ = ids_[(c.idy + 1) * c.num_partitions_x + c.idx];
 
+        std::cout << "top" << std::endl;
+
         recv_buffer_top_[P].valid_ = true;
         recv_buffer_top_[U].valid_ = true;
         recv_buffer_top_[V].valid_ = true;
     }
 
+    send_futures_U.resize(NUM_DIRECTIONS);
+    send_futures_V.resize(NUM_DIRECTIONS);
+    recv_futures_U.resize(NUM_DIRECTIONS);
+    recv_futures_V.resize(NUM_DIRECTIONS);
+    send_futures_F.resize(NUM_DIRECTIONS);
+    send_futures_G.resize(NUM_DIRECTIONS);
+    recv_futures_F.resize(NUM_DIRECTIONS);
+    recv_futures_G.resize(NUM_DIRECTIONS);
+    send_futures_P.resize(NUM_DIRECTIONS);
 
+    set_velocity_futures.resize(c.num_x_blocks, c.num_y_blocks);
+    init_future_grid(recv_futures_U);
+    init_future_grid(recv_futures_V);
+
+    compute_fg_futures.resize(c.num_x_blocks, c.num_y_blocks);
+    init_future_grid(recv_futures_F);
+    init_future_grid(recv_futures_G);
+
+    compute_rhs_futures.resize(c.num_x_blocks, c.num_y_blocks);
+    compute_res_futures.resize(c.num_x_blocks, c.num_y_blocks);
+
+    for (auto& a : compute_res_futures)
+        a = hpx::make_ready_future(0.);
+
+    set_p_futures.resize(c.num_x_blocks, c.num_y_blocks);
+    recv_futures_P[current].resize(NUM_DIRECTIONS);
+    recv_futures_P[last].resize(NUM_DIRECTIONS);
+    init_future_grid(recv_futures_P[current]);
+    init_future_grid(recv_futures_P[last]);
+
+    for (auto& a : recv_futures_P[last])
+        for (auto& b : a)
+            b = hpx::make_ready_future();
+
+    sor_cycle_futures[current].resize(c.num_x_blocks, c.num_y_blocks);
+    sor_cycle_futures[last].resize(c.num_x_blocks, c.num_y_blocks);
+
+    for (auto& a : sor_cycle_futures[last])
+        a = hpx::make_ready_future();
+
+    std::cout << recv_buffer_right_[P].valid_ << " | " << c.idx << " " << c.idy << "on locality " << hpx::get_locality_id() << std::endl;
+    std::cout << is_left_ << is_right_ << is_bottom_ << is_top_ << std::endl;
+
+    token.reset();
 }
 
 template<>
@@ -679,9 +691,15 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
     receive_all_boundaries<U>(step_, recv_futures_U);
     receive_all_boundaries<V>(step_, recv_futures_V);
 
+    hpx::wait_all(set_velocity_futures.data_);
+    std::cout << c.idx << " " << c.idy << "\n" << data_[U];
+    //std::cout << std::endl;
+    
     if (c.vtk && next_out_ < t_)
     {
         next_out_ += c.delta_vec;
+
+        std::cout << "Output in step " << step_ << " " << c.eps << " " << c.iter_max << token.was_cancelled() << std::endl;
 
         hpx::when_all(set_velocity_futures.data_).then(
             hpx::launch::async,
@@ -799,6 +817,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                 );
         }
     }
+       
 
     //TODO make calc_futures members
     hpx::util::high_resolution_timer t1;
@@ -1008,12 +1027,12 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                 , compute_res_futures.data_
             );
 
-        if (hpx::get_locality_id() == 0)
-        {
+        if (c.idx == 0 && c.idy == 0)
+        {          
             hpx::future<std::vector<Real> > partial_residuals =
                 hpx::lcos::gather_here(residual_basename,
                                         std::move(local_residual),
-                                        c.num_partitions, step_ * c.iter_max + iter);
+                                        c.num_partitions, step_ * c.iter_max + iter, 0);
 
             hpx::future<Real> residual =
                 partial_residuals.then(
@@ -1049,12 +1068,12 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                         }
                     }
                 )
-            );
+            ).wait();
         }
         // if not root locality, send residual to root locality
         else
             hpx::lcos::gather_there(residual_basename, std::move(local_residual),
-                                        step_ * c.iter_max + iter);
+                                        step_ * c.iter_max + iter, 0, c.rank);
     }
 
     local_max_uvs.clear();

@@ -50,6 +50,14 @@ namespace nast_hpx { namespace grid {
             hpx::apply(Action(), dest_, buffer, step, var);
         }
 
+        friend class hpx::serialization::access;
+
+        template<typename Archive>
+        void serialize(Archive& ar, unsigned version)
+        {
+            ar & dest_;
+        }
+
         hpx::id_type dest_;
     };
 

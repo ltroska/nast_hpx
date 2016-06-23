@@ -1,8 +1,10 @@
 #include <chrono>
 
-#include <hpx/include/iostreams.hpp>
+//#include <hpx/include/iostreams.hpp>
 #include <hpx/lcos/gather.hpp>
 #include <hpx/lcos/broadcast.hpp>
+#include <hpx/runtime/components/migrate_component.hpp>
+#include <hpx/lcos/barrier.hpp>
 
 #include "stepper_server.hpp"
 
@@ -27,10 +29,27 @@ stepper_server::stepper_server(uint nl)
 
 void stepper_server::setup(io::config&& cfg)
 {
+
     // special case for two localities, we want a square configuration
     // of localities
-    auto rank = hpx::get_locality_id();
+    auto rank = hpx::get_locality_id();   
 
+    auto num_localities = hpx::get_num_localities_sync();
+    
+    hpx::lcos::barrier b;    
+    if (rank == 0)
+    {
+         
+        b = std::move(hpx::lcos::barrier::create(hpx::find_here(), num_localities));
+        hpx::agas::register_name_sync(barrier_basename, b.get_id());
+    }
+    else
+    {
+        hpx::id_type idb = hpx::agas::on_symbol_namespace_event(
+                barrier_basename, hpx::agas::symbol_ns_bind, true).get();
+        b = std::move(hpx::lcos::barrier(idb));
+    }
+        
     cfg.idx = (rank % cfg.num_localities_x);
     cfg.idy = (rank / cfg.num_localities_x);
 
@@ -44,6 +63,7 @@ void stepper_server::setup(io::config&& cfg)
     Real re = cfg.re;
     Real pr = cfg.pr;
     Real tau = cfg.tau;
+    Real t_end = cfg.t_end;
 
     grid::partition part(hpx::find_here(), std::move(cfg));
     part.init_sync();
@@ -54,10 +74,36 @@ void stepper_server::setup(io::config&& cfg)
     for (uint loc = 0; loc < num_localities; loc++)
         localities.push_back(hpx::find_from_basename(stepper_basename, loc).get());
 
-    for (Real t = 0; ; step++)
+    std::cout << hpx::find_here() << std::endl;
+
+    if (hpx::get_locality_id() == 1)
     {
+        std::cout << "migrating " << hpx::find_remote_localities().size() << std::endl;
+        if (pr == 0)
+        hpx::components::migrate(part, hpx::find_remote_localities()[0]).wait();
+        part.init_sync();
+    }
+
+    b.wait();
+
+
+    bool running = true;
+    //if (false)
+    for (Real t = 0; step < 1; step++)
+    {
+       // std::cout << "step " << step << std::endl;
         hpx::future<std::pair<Real, Real> > local_max_velocity =
-            part.do_timestep(dt);
+           part.do_timestep(dt);
+           /* hpx::dataflow([&](hpx::shared_future<Real> dtf) -> hpx::future<std::pair<Real, Real> >
+                    {
+                        Real curr_dt = dtf.get();
+
+                        if (curr_dt < 0)
+                            running = false;
+                      //  else
+                          //  return part.do_timestep(curr_dt);
+                    }
+                    , dt);*/
 
         // if this is the root locality gather all remote residuals and sum up
         if (hpx::get_locality_id() == 0)
@@ -68,52 +114,62 @@ void stepper_server::setup(io::config&& cfg)
                                         std::move(local_max_velocity),
                                         num_localities, step);
 
-            auto local_max_uvs = max_velocities.get();
+            max_velocities.then(
+                hpx::util::unwrapped(
+                    [=, &t](std::vector<std::pair<Real, Real> > local_max_uvs)
+                    {
+                        std::pair<Real, Real> global_max_uv(0, 0);
 
-            std::pair<Real, Real> global_max_uv(0, 0);
+                        for (auto& max_uv : local_max_uvs)
+                        {
+                            global_max_uv.first =
+                                (max_uv.first > global_max_uv.first
+                                    ? max_uv.first : global_max_uv.first);
 
-            for (auto& max_uv : local_max_uvs)
-            {
-                global_max_uv.first =
-                    (max_uv.first > global_max_uv.first
-                        ? max_uv.first : global_max_uv.first);
+                            global_max_uv.second =
+                                (max_uv.second > global_max_uv.second
+                                    ? max_uv.second : global_max_uv.second);
+                        }
 
-                global_max_uv.second =
-                    (max_uv.second > global_max_uv.second
-                        ? max_uv.second : global_max_uv.second);
-            }
+                        Real new_dt =
+                            std::min(re / 2. * 1. / (1. / std::pow(dx, 2)
+                                        + 1. / std::pow(dy, 2))
+                                    ,
+                                    std::min(dx / global_max_uv.first,
+                                            dy / global_max_uv.second)
+                            );
 
-            Real new_dt =
-                std::min(re / 2. * 1. / (1. / std::pow(dx, 2)
-                            + 1. / std::pow(dy, 2))
-                        ,
-                        std::min(dx / global_max_uv.first,
-                                dy / global_max_uv.second)
-                );
-/*
-            // special case for temperature driven flow
-            if (pr)
-                new_dt = std::min(new_dt,
-                                (re * pr) / 2. * 1.
-                                / (1. / std::pow(dx, 2)
-                                + 1. / std::pow(dy, 2)));
-*/
-            new_dt *= tau;
+                        new_dt *= tau;
 
+                        std::cout << " in step " << step << " t " << t << " dt " << new_dt << std::endl;
 
-
-            hpx::lcos::broadcast_apply<set_dt_action>(localities, step, new_dt);
+                        hpx::lcos::broadcast_apply<set_dt_action>(localities, step, new_dt);
+                    }
+                )
+            );
         }
         else
             hpx::lcos::gather_there(velocity_basename, std::move(local_max_velocity),
-                                       step).wait();
+                                       step);
 
-        if (t >= cfg.t_end)
+        //std::cout << "receiving in step " << step << std::endl;
+        if (t >= t_end)
             break;
-
-        dt = dt_buffer.receive(step).get();
         t += dt;
+        dt = dt_buffer.receive(step).get();
+
+        if (hpx::get_locality_id() == 0)
+            for (std::size_t loc = 0; loc < num_localities; ++ loc)
+            {
+                hpx::performance_counters::performance_counter count(
+                    "/threads{locality#" + std::to_string(loc) + "/total}/idle-rate");
+                std::cout << loc << " " << count.get_value<double>().get() << std::endl;
+            }
     }
+}
+
+void stepper_server::do_timestep(Real dt)
+{
 
 }
 

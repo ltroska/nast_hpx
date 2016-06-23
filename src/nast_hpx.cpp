@@ -13,7 +13,7 @@ int hpx_main(boost::program_options::variables_map& vm)
 
     const auto cfg_path = vm["cfg"].as<std::string>();
 
-    step.setup(nast_hpx::io::config::read_config_from_file(cfg_path.c_str(), hpx::get_locality_id(), hpx::get_num_localities_sync())).wait();
+    step.setup(nast_hpx::io::config::read_config_from_file(cfg_path.c_str(), hpx::get_locality_id(), hpx::get_num_localities_sync()));
 
     return hpx::finalize();
 }

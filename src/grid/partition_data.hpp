@@ -18,7 +18,7 @@ enum direction
     RIGHT,
     NUM_DIRECTIONS
 };
-    
+
 /// This class represents a block of a grid.
 template<typename T = Real>
 struct partition_data
@@ -35,30 +35,23 @@ public:
     : data_(size_x * size_y, T()),
       size_x_(size_x),
       size_y_(size_y),
-      size_(size_x * size_y),
-      act_size_x_(size_x_ - 2),
-      act_size_y_(size_y_ - 2),
-      act_size_(act_size_x_ * act_size_y_)
+      size_(size_x * size_y)
     {}
 
-    
     void resize(std::size_t size_x, std::size_t size_y, T val = T())
     {
         size_x_ = size_x;
         size_y_ = size_y;
         size_ = size_x * size_y;
-        act_size_x_ = size_x_ - 2;
-        act_size_y_ = size_y_ - 2;
-        act_size_ = act_size_x_ * act_size_y_;
         data_.resize(size_x_ * size_y_, val);
     }
 
     inline T operator[](std::size_t idx) const { return data_[idx];}
     inline T& operator[](std::size_t idx) { return data_[idx];}
-    
+
     inline T& operator()(unsigned idx, unsigned idy)
     {return data_[idy * size_x_ + idx];}
-    
+
     inline T const& operator()(unsigned idx, unsigned idy) const
     {return data_[idy * size_x_ + idx];}
 
@@ -68,6 +61,7 @@ public:
     friend std::ostream& operator<<(std::ostream& os,
         partition_data<T> const& data)
     {
+        os << data.size_x_ << " " << data.size_y_ << " " << data.size_ << "\n";
         for (std::size_t j = data.size_y_ - 1; j < data.size_y_; --j)
         {
             for (std::size_t i = 0; i < data.size_x_; ++i)
@@ -78,15 +72,19 @@ public:
 
         return os;
     }
-    
+
+    friend class hpx::serialization::access;
+
+    template <typename Archive>
+    void serialize(Archive& ar, const unsigned version)
+    {
+        ar & size_x_ & size_y_ & size_ & data_;
+    }
+
     std::vector<T> data_;
     std::size_t size_x_;
     std::size_t size_y_;
     std::size_t size_;
-    
-    std::size_t act_size_x_;
-    std::size_t act_size_y_;
-    std::size_t act_size_;
 };
 
 }//namespace grid

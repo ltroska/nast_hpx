@@ -96,7 +96,8 @@ struct config
                 & num_localities_x & num_localities_y & num_partitions
                 & num_partitions_x & num_partitions_y & num_x_blocks
                 & num_y_blocks & cells_x_per_block & cells_y_per_block
-                & rank & idx & idy & ti & with_flag_grid & with_initial_uv_grid;
+                & rank & idx & idy & ti & with_flag_grid & with_initial_uv_grid
+                & u_bnd & v_bnd & bnd_type;
         }
 
         friend std::ostream& operator<<(std::ostream& os, config const& config)
@@ -138,6 +139,7 @@ struct config
                 << "\n\tgy = " << config.gy
                 << "\n\tbeta = " << config.beta
                 << "\n\tdt = " << config.initial_dt
+                << "\n\tt_end = " << config.t_end
                 << "\n\tu_bnd " << config.u_bnd
                 << "\n\tv_bnd " << config.v_bnd
                 << "\n\tbnd_type " << config.bnd_type

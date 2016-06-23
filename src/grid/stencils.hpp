@@ -54,8 +54,9 @@ namespace nast_hpx { namespace grid {
             partition_data<Real> const& src_u, partition_data<Real> const& src_v,
             partition_data<std::bitset<6> > const& cell_types,
             std::vector<std::pair<std::size_t, std::size_t> > boundary_cells,
-            boundary_data u_bnd, boundary_data v_bnd, boundary_type bnd_type)
-            {
+            boundary_data u_bnd, boundary_data v_bnd, boundary_type bnd_type
+            )
+            {               
                 #ifdef WITH_FOR_EACH
                 hpx::parallel::for_each(
                 hpx::parallel::par,
@@ -443,8 +444,8 @@ namespace nast_hpx { namespace grid {
             if (!token.was_cancelled())
             {
                 #ifdef WITH_FOR_EACH
-                hpx::parallel::for_each(
-                hpx::parallel::par,
+                auto f1 = hpx::parallel::for_each(
+                hpx::parallel::par(hpx::parallel::task),
                 std::begin(boundary_cells), std::end(boundary_cells),
                 [&](auto const& idx_pair)
                 {
@@ -475,8 +476,8 @@ namespace nast_hpx { namespace grid {
                 #ifdef WITH_FOR_EACH
                 );
 
-                hpx::parallel::for_each(
-                hpx::parallel::par,
+                auto f2 = hpx::parallel::for_each(
+                hpx::parallel::par(hpx::parallel::task),
                 std::begin(obstacle_cells), std::end(obstacle_cells),
                 [&](auto const& idx_pair)
                 {
@@ -506,6 +507,8 @@ namespace nast_hpx { namespace grid {
                 }
                 #ifdef WITH_FOR_EACH
                 );
+
+                hpx::wait_all(f1, f2);
                 #endif
             }
         }
@@ -607,7 +610,7 @@ namespace nast_hpx { namespace grid {
             Real over_dx_sq, Real over_dy_sq, util::cancellation_token token)
         {
             Real local_residual = 0;
-
+            
             if (!token.was_cancelled())
             #ifdef WITH_FOR_EACH
                 local_residual =

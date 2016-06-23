@@ -3,6 +3,7 @@
 
 #include <hpx/lcos/async.hpp>
 #include <hpx/lcos/local/receive_buffer.hpp>
+#include <hpx/include/serialization.hpp>
 #include <hpx/runtime/serialization/serialize_buffer.hpp>
 
 #include "partition_data.hpp"
@@ -64,6 +65,15 @@ namespace nast_hpx { namespace grid {
 
         hpx::lcos::local::receive_buffer<buffer_type, mutex_type> buffer_;
         bool valid_;
+
+    private:
+        friend class hpx::serialization::access;
+
+        template<typename Archive>
+        void serialize(Archive& ar, unsigned version)
+        {
+            ar & valid_;
+        }
     };
 
 }

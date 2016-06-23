@@ -4,7 +4,7 @@
 #include "server/stepper_server.hpp"
 
 namespace nast_hpx { namespace stepper {
-    
+
 /// A client that represents the stepper_server component.
 
 struct stepper
@@ -31,17 +31,17 @@ struct stepper
             server::stepper_basename, get_id(), hpx::get_locality_id());
     }
 
-    // Method to wrap existing steppers, since a stepper is component is a 
+    // Method to wrap existing steppers, since a stepper is component is a
     // future.
     stepper(hpx::future<hpx::id_type> && id)
       : base_type(std::move(id))
     {}
 
     // Method forwards the config to the wrapped stepper_server.
-    hpx::future<void> setup(io::config&& cfg)
+    void setup(io::config&& cfg)
     {
         server::stepper_server::setup_action act;
-        return hpx::async(act, get_id(), std::move(cfg));
+        return act(this->get_id(), std::move(cfg));
     }
 };
 

@@ -40,26 +40,34 @@ struct partition
       : base_type(std::move(c))
     {}
 
+    partition(hpx::shared_future<hpx::id_type> const& id)
+      : base_type(id)
+    {}
+
     partition(partition const& other)
       : base_type(other)
     {}
 
     hpx::future<void> init()
     {
-        typename server::partition_server::init_action act;
-        return hpx::async(act, get_id());
+        return hpx::async<server::partition_server::init_action>(this->get_id());
     }
 
     void init_sync()
     {
-        typename server::partition_server::init_action act;
-        hpx::apply(act, get_id());
+        init().wait();
     }
 
     hpx::future<std::pair<Real, Real> > do_timestep(Real dt)
     {
         typename server::partition_server::do_timestep_action act;
         return hpx::async(act, get_id(), dt);
+    }
+
+    hpx::future<std::pair<Real, Real> > do_timestep_fut(hpx::future<Real> dt)
+    {
+        typename server::partition_server::do_timestep_action act;
+        return hpx::dataflow(act, get_id(), dt.get());
     }
 };
 

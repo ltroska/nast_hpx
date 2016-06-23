@@ -17,7 +17,7 @@ namespace nast_hpx { namespace grid {
         {
             typename BufferType::value_type* src = buffer.data();
 
-            HPX_ASSERT(buffer.size() == p.act_size_y_);
+            HPX_ASSERT(buffer.size() == p.size_y_ - 2);
 
 
             for(std::size_t y = 1 + offset; y != 1 + offset + buffer.size(); ++y)
@@ -36,7 +36,7 @@ namespace nast_hpx { namespace grid {
         {
             typename BufferType::value_type* src = buffer.data();
 
-            HPX_ASSERT(buffer.size() == p.act_size_y_);
+            HPX_ASSERT(buffer.size() == p.size_y_ - 2);
 
 
             for(std::size_t y = 1 + offset; y != 1 + offset + buffer.size(); ++y)
@@ -55,7 +55,7 @@ namespace nast_hpx { namespace grid {
         {
             typename BufferType::value_type* src = buffer.data();
 
-            HPX_ASSERT(buffer.size() == p.act_size_x_);
+            HPX_ASSERT(buffer.size() == p.size_x_ - 2);
 
 
             for(std::size_t x = 1 + offset; x != 1 + offset + buffer.size(); ++x)
@@ -74,7 +74,7 @@ namespace nast_hpx { namespace grid {
         {
             typename BufferType::value_type* src = buffer.data();
 
-            HPX_ASSERT(buffer.size() == p.act_size_x_);
+            HPX_ASSERT(buffer.size() == p.size_x_ - 2);
 
 
             for(std::size_t x = 1 + offset; x != 1 + offset + buffer.size(); ++x)

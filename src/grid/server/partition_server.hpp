@@ -3,6 +3,7 @@
 
 #include <hpx/include/components.hpp>
 #include <hpx/runtime/serialization/serialize.hpp>
+#include <hpx/include/serialization.hpp>
 
 #include "grid/partition_data.hpp"
 #include "grid/send_buffer.hpp"
@@ -12,6 +13,25 @@
 
 #include "util/cancellation_token.hpp"
 
+namespace hpx { namespace serialization {
+
+void serialize(input_archive& ar, std::bitset<6>& b, unsigned version)
+{
+    unsigned long u;
+    ar >> u;
+
+    b = std::move(std::bitset<6>(u));
+}
+
+void serialize(output_archive& ar, std::bitset<6> const& b, unsigned version)
+{
+    ar << b.to_ulong();
+}
+
+
+
+}}
+
 namespace nast_hpx { namespace grid { namespace server {
 
 char const* partition_basename = "/nast_hpx/partition/";
@@ -19,7 +39,7 @@ char const* residual_basename = "/nast/hpx/partition/residual";
 
 /// component encapsulates partition_data, making it remotely available
 struct HPX_COMPONENT_EXPORT partition_server
-    : public hpx::components::component_base<partition_server>
+    : hpx::components::migration_support< hpx::components::component_base<partition_server> >
 {
 public:
 
@@ -36,6 +56,39 @@ public:
 
 
     partition_server() {}
+    ~partition_server() {}
+
+    partition_server(partition_server const& other)
+    : c(other.c)
+    {
+        std::cout << "constr" << std::endl;
+    }
+
+    partition_server(partition_server && other)
+    : c(other.c),
+      is_left_(other.is_left_),
+      is_right_(other.is_right_),
+      is_bottom_(other.is_bottom_),
+      is_top_(other.is_top_),
+      current(other.current),
+      last(other.last),
+      rhs_data_(std::move(other.rhs_data_)),
+      cell_type_data_(other.cell_type_data_),
+      fluid_cells_(other.fluid_cells_),
+      boundary_cells_(other.boundary_cells_),
+      obstacle_cells_(other.obstacle_cells_),
+      cells_x_(other.cells_x_),
+      cells_y_(other.cells_y_),
+      idx_(other.idx_),
+      idy_(other.idy_),
+      step_(other.step_),
+      outcount_(other.outcount_),
+      t_(other.t_),
+      next_out_(other.next_out_)
+    {
+        for (std::size_t var = 0; var < NUM_VARIABLES; ++var)
+            data_[var] = std::move(other.data_[var]);
+    }
 
     partition_server(io::config&& cfg);
 
@@ -169,6 +222,16 @@ protected:
 
 private:
 
+    friend class hpx::serialization::access;
+
+    template <typename Archive>
+    void serialize(Archive& ar, const unsigned version)
+    {
+        ar & c & is_left_ & is_right_ & is_bottom_ & is_top_ & current & last & data_ & rhs_data_ & cell_type_data_
+           & fluid_cells_ & boundary_cells_ & obstacle_cells_ & cells_x_ & cells_y_ & idx_ & idy_
+           & step_ & outcount_ & t_ & next_out_;
+    }
+
     partition_data<Real> data_[NUM_VARIABLES];
     partition_data<Real> rhs_data_;
     partition_data<std::bitset<6> > cell_type_data_;
@@ -176,9 +239,6 @@ private:
     partition_data<std::vector<std::pair<std::size_t, std::size_t> > > fluid_cells_;
     partition_data<std::vector<std::pair<std::size_t, std::size_t> > > boundary_cells_;
     partition_data<std::vector<std::pair<std::size_t, std::size_t> > > obstacle_cells_;
-
-    std::size_t curr;
-    std::size_t lst;
 
     partition_data<hpx::shared_future<void> > set_velocity_futures;
     future_grid send_futures_U;

@@ -522,7 +522,7 @@ namespace nast_hpx { namespace grid {
             partition_data<Real> const& src_rhs,
             std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
             Real part1, Real part2, Real dx_sq, Real dy_sq,
-            util::cancellation_token token, std::size_t xd, std::size_t yd, std::size_t iter)
+            util::cancellation_token token, std::size_t iter)
         {
 
             if (!token.was_cancelled())
@@ -565,7 +565,7 @@ namespace nast_hpx { namespace grid {
         static void call(partition_data<Real>& dst_p,
             partition_data<Real> const& src_rhs,
             std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
-            Real dx_sq, Real dy_sq, util::cancellation_token token, std::size_t xd, std::size_t yd, std::size_t iter)
+            Real dx_sq, Real dy_sq, util::cancellation_token token, std::size_t iter)
         {
             if (!token.was_cancelled())
             {

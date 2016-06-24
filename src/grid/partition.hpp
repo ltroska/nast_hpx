@@ -15,12 +15,12 @@ struct partition
 
     partition() {}
 
-    partition(hpx::id_type where, io::config&& cfg)
-        : base_type(hpx::new_<server::partition_server>(where, std::move(cfg)))
+    partition(hpx::id_type where, io::config const& cfg, std::size_t idx, std::size_t idy, std::size_t local_idx, std::size_t local_idy, std::size_t rank)
+        : base_type(hpx::new_<server::partition_server>(where, cfg, idx, idy, local_idx, local_idy, rank))
     {
-        std::cout << "registering " << cfg.idy * cfg.num_localities_x + cfg.idx << " " << cfg.idx << " " << cfg.idy <<  std::endl;
+        std::cout << "registering " << rank << " " << idx << " " << idy <<  std::endl;
         hpx::register_with_basename(server::partition_basename, get_id(),
-                                        cfg.idy * cfg.num_localities_x + cfg.idx);
+                                        rank);
     }
 
     // Create a new component on the locality co-located to the id 'where'. The

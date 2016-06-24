@@ -57,19 +57,22 @@ struct config
         std::size_t num_localities_x;
         std::size_t num_localities_y;
 
+        std::size_t num_local_partitions;
+        std::size_t num_local_partitions_x;
+        std::size_t num_local_partitions_y;        
+        
         std::size_t num_partitions;
         std::size_t num_partitions_x;
         std::size_t num_partitions_y;
 
-        std::size_t num_x_blocks;
-        std::size_t num_y_blocks;
-
-        std::size_t cells_x_per_block;
-        std::size_t cells_y_per_block;
+        std::size_t cells_x_per_partition;
+        std::size_t cells_y_per_partition;
 
         std::size_t rank;
         std::size_t idx;
         std::size_t idy;
+        std::size_t local_idx;
+        std::size_t local_idy;
 
         grid::boundary_data u_bnd;
         grid::boundary_data v_bnd;
@@ -92,10 +95,11 @@ struct config
                 & y_length & dx & dy & over_dx & over_dy
                 & dx_sq & dy_sq & part1 & part2 & factor_jacobi & re & pr & omega & tau & alpha
                 & beta & gx & gy & vtk & delta_vec & t_end & initial_dt
-                & sub_iterations & iter_max & eps & eps_sq & num_localities
-                & num_localities_x & num_localities_y & num_partitions
-                & num_partitions_x & num_partitions_y & num_x_blocks
-                & num_y_blocks & cells_x_per_block & cells_y_per_block
+                & sub_iterations & iter_max & eps & eps_sq
+                & num_localities & num_localities_x & num_localities_y
+                & num_local_partitions & num_local_partitions_x & num_local_partitions_y
+                & num_partitions & num_partitions_x & num_partitions_y
+                & cells_x_per_partition & cells_y_per_partition
                 & rank & idx & idy & ti & with_flag_grid & with_initial_uv_grid
                 & u_bnd & v_bnd & bnd_type;
         }
@@ -118,13 +122,14 @@ struct config
                 << "\n\tnum_localities = " << config.num_localities
                 << "\n\tnum_localities_x = " << config.num_localities_x
                 << "\n\tnum_localities_y = " << config.num_localities_y
+                << "\n\tnum_local_partitions = " << config.num_local_partitions
+                << "\n\tnum_local_partitions_x = " << config.num_local_partitions_x
+                << "\n\tnum_local_partitions_y = " << config.num_local_partitions_y                
                 << "\n\tnum_partitions = " << config.num_partitions
                 << "\n\tnum_partitions_x = " << config.num_partitions_x
                 << "\n\tnum_partitions_y = " << config.num_partitions_y
-                << "\n\tnum_x_blocks = " << config.num_x_blocks
-                << "\n\tnum_y_blocks = " << config.num_y_blocks
-                << "\n\tnum_cells_x_per_block = " << config.cells_x_per_block
-                << "\n\tnum_cells_y_per_block = " << config.cells_y_per_block
+                << "\n\tnum_cells_x_per_partition = " << config.cells_x_per_partition
+                << "\n\tnum_cells_y_per_partition = " << config.cells_y_per_partition
                 << "\n\trank = " << config.rank
                 << "\n\tidx = " << config.idx
                 << "\n\tidy = " << config.idy

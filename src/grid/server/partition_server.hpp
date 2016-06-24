@@ -58,39 +58,15 @@ public:
     partition_server() {}
     ~partition_server() {}
 
-    partition_server(partition_server const& other)
+    /*partition_server(partition_server const& other)
     : c(other.c)
     {
         std::cout << "constr" << std::endl;
-    }
+    }*/
 
-    partition_server(partition_server && other)
-    : c(other.c),
-      is_left_(other.is_left_),
-      is_right_(other.is_right_),
-      is_bottom_(other.is_bottom_),
-      is_top_(other.is_top_),
-      current(other.current),
-      last(other.last),
-      rhs_data_(std::move(other.rhs_data_)),
-      cell_type_data_(other.cell_type_data_),
-      fluid_cells_(other.fluid_cells_),
-      boundary_cells_(other.boundary_cells_),
-      obstacle_cells_(other.obstacle_cells_),
-      cells_x_(other.cells_x_),
-      cells_y_(other.cells_y_),
-      idx_(other.idx_),
-      idy_(other.idy_),
-      step_(other.step_),
-      outcount_(other.outcount_),
-      t_(other.t_),
-      next_out_(other.next_out_)
-    {
-        for (std::size_t var = 0; var < NUM_VARIABLES; ++var)
-            data_[var] = std::move(other.data_[var]);
-    }
-
-    partition_server(io::config&& cfg);
+    partition_server(partition_server && other);
+    
+    partition_server(io::config const& cfg, std::size_t idx, std::size_t idy, std::size_t local_idx, std::size_t local_idy, std::size_t rank);
 
     void init();
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, init, init_action);
@@ -161,64 +137,30 @@ public:
 
 protected:
     template<direction dir>
-    void send_boundary(std::size_t step, std::size_t var, future_vector& send_future);
+    void send_boundary(std::size_t step, std::size_t var, hpx::shared_future<void>& send_future);
 
     template<std::size_t var>
-    void send_right_and_top_boundaries(std::size_t step, future_grid& send_futures);
+    void send_right_and_top_boundaries(std::size_t step, hpx::shared_future<void>& send_future);
 
     template<std::size_t var>
-    void send_cross_boundaries(std::size_t step, future_grid& send_futures);
+    void send_cross_boundaries(std::size_t step, hpx::shared_future<void>& send_future);
 
     template<std::size_t var>
-    void send_all_boundaries(std::size_t step, future_grid& send_futures);
+    void send_all_boundaries(std::size_t step, hpx::shared_future<void>& send_future);
 
     template<direction dir>
-    void receive_boundary(std::size_t step, std::size_t var, future_vector& recv_futures);
+    void receive_boundary(std::size_t step, std::size_t var, hpx::shared_future<void>& recv_futures);
 
     template<std::size_t var>
-    void receive_left_and_bottom_boundaries(std::size_t step, future_grid& recv_futures);
+    void receive_left_and_bottom_boundaries(std::size_t step, future_vector& recv_futures);
 
     template<std::size_t var>
-    void receive_cross_boundaries(std::size_t step, future_grid& recv_futures);
+    void receive_cross_boundaries(std::size_t step, future_vector& recv_futures);
 
     template<std::size_t var>
-    void receive_all_boundaries(std::size_t step, future_grid& recv_futures);
+    void receive_all_boundaries(std::size_t step, future_vector& recv_futures);
 
-    void wait_all_boundaries(future_grid& recv_futures);
-
-    template<direction dir>
-    hpx::shared_future<void> get_dependency(std::size_t idx_block,
-        std::size_t idy_block, future_grid const& recv_futures,
-        partition_data<hpx::shared_future<void> > const& calc_futures);
-
-    void init_future_grid(future_grid& grid)
-    {
-        grid[LEFT].resize(c.num_y_blocks);
-        grid[RIGHT].resize(c.num_y_blocks);
-        grid[BOTTOM].resize(c.num_x_blocks);
-        grid[TOP].resize(c.num_x_blocks);
-        grid[BOTTOM_RIGHT].resize(1);
-        grid[TOP_LEFT].resize(1);
-    }
-
-    void clear_and_reserve(future_grid& grid)
-    {
-        for (std::size_t dir = 0; dir != NUM_DIRECTIONS; ++dir)
-            grid[dir].clear();
-
-        grid[LEFT].reserve(c.num_y_blocks);
-        grid[RIGHT].reserve(c.num_y_blocks);
-        grid[BOTTOM].reserve(c.num_x_blocks);
-        grid[TOP].reserve(c.num_x_blocks);
-        grid[BOTTOM_RIGHT].reserve(1);
-        grid[TOP_LEFT].reserve(1);
-    }
-
-    void clear(future_grid& grid)
-    {
-        for (std::size_t dir = 0; dir != NUM_DIRECTIONS; ++dir)
-            grid[dir].clear();
-    }
+    void wait_all_boundaries(future_vector& recv_futures);
 
 private:
 
@@ -229,6 +171,7 @@ private:
     {
         ar & c & is_left_ & is_right_ & is_bottom_ & is_top_ & current & last & data_ & rhs_data_ & cell_type_data_
            & fluid_cells_ & boundary_cells_ & obstacle_cells_ & cells_x_ & cells_y_ & idx_ & idy_
+           & local_idx_ & local_idy_ & rank_
            & step_ & outcount_ & t_ & next_out_;
     }
 
@@ -236,25 +179,9 @@ private:
     partition_data<Real> rhs_data_;
     partition_data<std::bitset<6> > cell_type_data_;
 
-    partition_data<std::vector<std::pair<std::size_t, std::size_t> > > fluid_cells_;
-    partition_data<std::vector<std::pair<std::size_t, std::size_t> > > boundary_cells_;
-    partition_data<std::vector<std::pair<std::size_t, std::size_t> > > obstacle_cells_;
-
-    partition_data<hpx::shared_future<void> > set_velocity_futures;
-    future_grid send_futures_U;
-    future_grid send_futures_V;
-    future_grid recv_futures_U;
-    future_grid recv_futures_V;
-
-    partition_data<hpx::shared_future<void> > compute_fg_futures;
-    future_grid send_futures_F;
-    future_grid send_futures_G;
-    future_grid recv_futures_F;
-    future_grid recv_futures_G;
-
-    partition_data<hpx::shared_future<void> > compute_rhs_futures;
-
-    partition_data<hpx::shared_future<Real> > compute_res_futures;
+    std::vector<std::pair<std::size_t, std::size_t> > fluid_cells_;
+    std::vector<std::pair<std::size_t, std::size_t> > boundary_cells_;
+    std::vector<std::pair<std::size_t, std::size_t> > obstacle_cells_;
 
     std::size_t current;
     std::size_t last;
@@ -271,7 +198,7 @@ private:
     io::config c;
 
     std::size_t cells_x_, cells_y_;
-    std::size_t idx_, idy_;
+    std::size_t idx_, idy_, local_idx_, local_idy_, rank_;
     std::size_t step_;
     std::size_t outcount_;
 

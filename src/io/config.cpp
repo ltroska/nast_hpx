@@ -64,7 +64,7 @@ namespace nast_hpx { namespace io {
 
         if(config_node.child("iRes") != NULL)
         {
-            cfg.num_x_blocks = config_node.child("iRes").first_attribute().as_int();
+            cfg.num_local_partitions_x = config_node.child("iRes").first_attribute().as_int();
         }
         else {
             std::cerr << "Error: iRes not set!" << std::endl;
@@ -73,28 +73,34 @@ namespace nast_hpx { namespace io {
 
         if(config_node.child("jRes") != NULL)
         {
-            cfg.num_y_blocks = config_node.child("jRes").first_attribute().as_int();
+            cfg.num_local_partitions_y = config_node.child("jRes").first_attribute().as_int();
         }
         else {
             std::cerr << "Error: jRes not set!" << std::endl;
             std::exit(1);
         }
+        
+        cfg.num_local_partitions = cfg.num_local_partitions_x * cfg.num_local_partitions_y;
+        
+        cfg.num_partitions_x = cfg.num_local_partitions_x * cfg.num_localities_x;
+        cfg.num_partitions_y = cfg.num_local_partitions_y * cfg.num_localities_y;
+        cfg.num_partitions = cfg.num_partitions_x * cfg.num_partitions_y;
 
-        cfg.cells_x_per_block = (cfg.i_max + 2) / cfg.num_localities_x / cfg.num_x_blocks;
+        cfg.cells_x_per_partition = (cfg.i_max + 2) / cfg.num_localities_x / cfg.num_local_partitions_x;
 
-        if (cfg.cells_x_per_block * cfg.num_localities_x * cfg.num_x_blocks != cfg.i_max + 2)
+        if (cfg.cells_x_per_partition * cfg.num_localities_x * cfg.num_local_partitions_x != cfg.i_max + 2)
         {
             std::cerr << "Error: localities_x * num_x_blocks does not divide i_max + 2 evenly!" << std::endl;
-            std::cerr << "localities_x = " << cfg.num_localities_x << ", num_x_blocks = " << cfg.num_x_blocks << ", i_max + 2 = " << cfg.i_max + 2 << std::endl;
+            std::cerr << "localities_x = " << cfg.num_localities_x << ", num_x_blocks = " << cfg.num_local_partitions_x << ", i_max + 2 = " << cfg.i_max + 2 << std::endl;
             std::exit(1);
         }
 
-        cfg.cells_y_per_block = (cfg.j_max + 2) / cfg.num_localities_y / cfg.num_y_blocks;
+        cfg.cells_y_per_partition = (cfg.j_max + 2) / cfg.num_localities_y / cfg.num_local_partitions_y;
 
-        if (cfg.cells_y_per_block * cfg.num_localities_y * cfg.num_y_blocks != cfg.j_max + 2)
+        if (cfg.cells_y_per_partition * cfg.num_localities_y * cfg.num_local_partitions_y != cfg.j_max + 2)
         {
             std::cerr << "Error: localities_y * num_y_blocks does not divide j_max + 2 evenly!" << std::endl;
-            std::cerr << "localities_y = " << cfg.num_localities_y << ", num_y_blocks = " << cfg.num_y_blocks << ", j_max + 2 = " << cfg.j_max + 2 << std::endl;
+            std::cerr << "localities_y = " << cfg.num_localities_y << ", num_y_blocks = " << cfg.num_local_partitions_y << ", j_max + 2 = " << cfg.j_max + 2 << std::endl;
             std::exit(1);
         }
 
@@ -505,8 +511,8 @@ namespace nast_hpx { namespace io {
 
             cfg.num_fluid_cells = 0;
 
-            std::size_t flag_res_x = cfg.num_x_blocks * cfg.cells_x_per_block + 2;
-            std::size_t flag_res_y = cfg.num_y_blocks * cfg.cells_y_per_block + 2;
+            std::size_t flag_res_x = cfg.num_local_partitions_x * cfg.cells_x_per_partition + 2;
+            std::size_t flag_res_y = cfg.num_local_partitions_y * cfg.cells_y_per_partition + 2;
 
           //  std::cout << "resx " << flag_res_x << " resy " << flag_res_y << std::endl;
 
@@ -516,11 +522,11 @@ namespace nast_hpx { namespace io {
             std::size_t i = 0;
             std::size_t j = cfg.j_max + 1;
 
-            std::size_t start_i = (rank % cfg.num_localities_x) * cfg.num_x_blocks * cfg.cells_x_per_block;
-            std::size_t end_i = start_i + cfg.num_x_blocks * cfg.cells_x_per_block;
+            std::size_t start_i = (rank % cfg.num_localities_x) * cfg.num_local_partitions_x * cfg.cells_x_per_partition;
+            std::size_t end_i = start_i + cfg.num_local_partitions_x * cfg.cells_x_per_partition;
 
-            std::size_t start_j = (rank / cfg.num_localities_x) * cfg.num_y_blocks * cfg.cells_y_per_block;
-            std::size_t end_j = start_j + cfg.num_y_blocks * cfg.cells_y_per_block;
+            std::size_t start_j = (rank / cfg.num_localities_x) * cfg.num_local_partitions_y * cfg.cells_y_per_partition;
+            std::size_t end_j = start_j + cfg.num_local_partitions_y * cfg.cells_y_per_partition;
 
            // std::cout <<  " starti " << start_i << " endi " << end_i << std::endl;
            // std::cout <<  " startj " << start_j << " endj " << end_j << std::endl;

@@ -5,6 +5,11 @@
 #include <hpx/lcos/broadcast.hpp>
 #include <hpx/runtime/components/migrate_component.hpp>
 #include <hpx/lcos/barrier.hpp>
+#include <hpx/lcos/wait_all.hpp>
+#include <hpx/parallel/algorithms/for_each.hpp>
+#include <hpx/parallel/algorithms/transform_reduce.hpp>
+
+#include <boost/range/irange.hpp>
 
 #include "stepper_server.hpp"
 
@@ -32,12 +37,12 @@ void stepper_server::setup(io::config&& cfg)
 
     // special case for two localities, we want a square configuration
     // of localities
-    auto rank = hpx::get_locality_id();   
+    auto here = hpx::get_locality_id();   
 
     auto num_localities = hpx::get_num_localities_sync();
     
     hpx::lcos::barrier b;    
-    if (rank == 0)
+    if (here == 0)
     {
          
         b = std::move(hpx::lcos::barrier::create(hpx::find_here(), num_localities));
@@ -50,13 +55,6 @@ void stepper_server::setup(io::config&& cfg)
         b = std::move(hpx::lcos::barrier(idb));
     }
         
-    cfg.idx = (rank % cfg.num_localities_x);
-    cfg.idy = (rank / cfg.num_localities_x);
-
-    cfg.num_partitions_x = cfg.num_localities_x;
-    cfg.num_partitions_y = cfg.num_localities_y;
-    cfg.num_partitions = cfg.num_localities;
-
     Real dt = cfg.initial_dt;
     Real dx = cfg.dx;
     Real dy = cfg.dy;
@@ -65,45 +63,67 @@ void stepper_server::setup(io::config&& cfg)
     Real tau = cfg.tau;
     Real t_end = cfg.t_end;
 
-    grid::partition part(hpx::find_here(), std::move(cfg));
-    part.init_sync();
-
+    std::vector<grid::partition> parts;
+    for (std::size_t idy = 0; idy < cfg.num_local_partitions_y; ++idy)
+        for (std::size_t idx = 0; idx < cfg.num_local_partitions_x; ++idx)
+        {
+            auto act_idx = (here % cfg.num_localities_x) * cfg.num_local_partitions_x + idx;
+            auto act_idy = (here / cfg.num_localities_x) * cfg.num_local_partitions_y + idy;
+            
+            auto local_idx = idx;
+            auto local_idy = idy;            
+            
+            auto rank = act_idy * cfg.num_local_partitions_x * cfg.num_localities_x + act_idx;
+                        
+            parts.emplace_back(
+                grid::partition(hpx::find_here(), cfg, act_idx, act_idy, local_idx, local_idy, rank));
+                
+           // parts[idy * cfg.num_local_partitions_x + idx].init_sync();
+        }
+        
+    auto rge = boost::irange(static_cast<std::size_t>(0), cfg.num_local_partitions);
+        
+    hpx::parallel::for_each(hpx::parallel::par, std::begin(rge), std::end(rge),
+        [&](std::size_t p)
+        {
+            parts[p].init_sync();
+        }
+    );
+    
     std::size_t step = 0;
 
     std::vector<hpx::naming::id_type> localities;
     for (uint loc = 0; loc < num_localities; loc++)
         localities.push_back(hpx::find_from_basename(stepper_basename, loc).get());
 
-    std::cout << hpx::find_here() << std::endl;
-
     if (hpx::get_locality_id() == 1)
     {
-        std::cout << "migrating " << hpx::find_remote_localities().size() << std::endl;
-        if (pr == 0)
-        hpx::components::migrate(part, hpx::find_remote_localities()[0]).wait();
-        part.init_sync();
+       // std::cout << "migrating " << std::endl;
+       // if (pr == 0)
+    //    hpx::components::migrate(parts[0], hpx::find_remote_localities()[0]).wait();
+    //    parts[0].init_sync();
     }
 
     b.wait();
-
-
+        
     bool running = true;
-    //if (false)
-    for (Real t = 0; step < 1; step++)
+    for (Real t = 0;; step++)
     {
        // std::cout << "step " << step << std::endl;
+       
         hpx::future<std::pair<Real, Real> > local_max_velocity =
-           part.do_timestep(dt);
-           /* hpx::dataflow([&](hpx::shared_future<Real> dtf) -> hpx::future<std::pair<Real, Real> >
-                    {
-                        Real curr_dt = dtf.get();
-
-                        if (curr_dt < 0)
-                            running = false;
-                      //  else
-                          //  return part.do_timestep(curr_dt);
-                    }
-                    , dt);*/
+            hpx::parallel::transform_reduce(hpx::parallel::par(hpx::parallel::task), std::begin(rge), std::end(rge),
+                [&](std::size_t p) -> std::pair<Real, Real>
+                {
+                    return parts[p].do_timestep(dt).get();
+                },
+                std::make_pair(0., 0.),
+                [](std::pair<Real, Real> a, std::pair<Real, Real> b) -> std::pair<Real, Real>
+                {
+                    return std::make_pair(a.first > b.first ? a.first : b.first,
+                        a.second > b.second ? a.second : b.second);
+                }
+            );
 
         // if this is the root locality gather all remote residuals and sum up
         if (hpx::get_locality_id() == 0)
@@ -141,8 +161,6 @@ void stepper_server::setup(io::config&& cfg)
 
                         new_dt *= tau;
 
-                        std::cout << " in step " << step << " t " << t << " dt " << new_dt << std::endl;
-
                         hpx::lcos::broadcast_apply<set_dt_action>(localities, step, new_dt);
                     }
                 )
@@ -152,7 +170,6 @@ void stepper_server::setup(io::config&& cfg)
             hpx::lcos::gather_there(velocity_basename, std::move(local_max_velocity),
                                        step);
 
-        //std::cout << "receiving in step " << step << std::endl;
         if (t >= t_end)
             break;
         t += dt;

@@ -13,14 +13,14 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<LEFT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType buffer, std::size_t offset)
+        static void call(partition_data<Real>& p, BufferType buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 
             HPX_ASSERT(buffer.size() == p.size_y_ - 2);
 
 
-            for(std::size_t y = 1 + offset; y != 1 + offset + buffer.size(); ++y)
+            for(std::size_t y = 1; y != 1 + buffer.size(); ++y)
             {
                 p(0, y) = *src;
                 ++src;
@@ -32,14 +32,14 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<RIGHT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType buffer, std::size_t offset)
+        static void call(partition_data<Real>& p, BufferType buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 
             HPX_ASSERT(buffer.size() == p.size_y_ - 2);
 
 
-            for(std::size_t y = 1 + offset; y != 1 + offset + buffer.size(); ++y)
+            for(std::size_t y = 1; y != 1 + buffer.size(); ++y)
             {
                 p(p.size_x_ - 1, y) = *src;
                 ++src;
@@ -51,14 +51,14 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<BOTTOM>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType buffer, std::size_t offset)
+        static void call(partition_data<Real>& p, BufferType buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 
             HPX_ASSERT(buffer.size() == p.size_x_ - 2);
 
 
-            for(std::size_t x = 1 + offset; x != 1 + offset + buffer.size(); ++x)
+            for(std::size_t x = 1; x != 1 + buffer.size(); ++x)
             {
                 p(x, 0) = *src;
                 ++src;
@@ -70,14 +70,14 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<TOP>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType buffer, std::size_t offset)
+        static void call(partition_data<Real>& p, BufferType buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 
             HPX_ASSERT(buffer.size() == p.size_x_ - 2);
 
 
-            for(std::size_t x = 1 + offset; x != 1 + offset + buffer.size(); ++x)
+            for(std::size_t x = 1; x != 1 + buffer.size(); ++x)
             {
                 p(x, p.size_y_ - 1) = *src;
                 ++src;
@@ -89,7 +89,7 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<BOTTOM_RIGHT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType buffer, std::size_t offset)
+        static void call(partition_data<Real>& p, BufferType buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 
@@ -103,7 +103,7 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<TOP_LEFT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType buffer, std::size_t offset)
+        static void call(partition_data<Real>& p, BufferType buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 

@@ -28,9 +28,6 @@ struct HPX_COMPONENT_EXPORT stepper_server
         void set_dt(uint step, Real dt);
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_dt, set_dt_action);
 
-        void do_timestep(Real dt);
-        HPX_DEFINE_COMPONENT_ACTION(stepper_server, do_timestep, do_timestep_action);
-
     private:
         uint num_localities, num_localities_x, num_localities_y;
         hpx::lcos::local::receive_buffer<Real> dt_buffer;

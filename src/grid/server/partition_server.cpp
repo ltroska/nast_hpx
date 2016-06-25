@@ -94,7 +94,7 @@ partition_server::partition_server(io::config&& cfg)
     }
 
     c.flag_grid.clear();
-    
+
     rhs_data_[14] = 3;
 
    /* for (std::size_t idy_block = 0; idy_block < c.num_y_blocks; ++idy_block)
@@ -119,8 +119,6 @@ void partition_server::init()
     if (!is_left_)
     {
         send_buffer_left_.dest_ = ids_[c.idy * c.num_partitions_x + c.idx - 1];
-        
-        std::cout << "to the left " << c.idy * c.num_partitions_x + c.idx - 1 << std::endl;
 
         recv_buffer_left_[P].valid_ = true;
         recv_buffer_left_[F].valid_ = true;
@@ -215,9 +213,6 @@ void partition_server::init()
 
     for (auto& a : sor_cycle_futures[last])
         a = hpx::make_ready_future();
-
-    std::cout << recv_buffer_right_[P].valid_ << " | " << c.idx << " " << c.idy << "on locality " << hpx::get_locality_id() << std::endl;
-    std::cout << is_left_ << is_right_ << is_bottom_ << is_top_ << std::endl;
 
     token.reset();
 }
@@ -691,10 +686,6 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
     receive_all_boundaries<U>(step_, recv_futures_U);
     receive_all_boundaries<V>(step_, recv_futures_V);
 
-    hpx::wait_all(set_velocity_futures.data_);
-    std::cout << c.idx << " " << c.idy << "\n" << data_[U];
-    //std::cout << std::endl;
-    
     if (c.vtk && next_out_ < t_)
     {
         next_out_ += c.delta_vec;
@@ -817,7 +808,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                 );
         }
     }
-       
+
 
     //TODO make calc_futures members
     hpx::util::high_resolution_timer t1;
@@ -1028,7 +1019,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
             );
 
         if (c.idx == 0 && c.idy == 0)
-        {          
+        {
             hpx::future<std::vector<Real> > partial_residuals =
                 hpx::lcos::gather_here(residual_basename,
                                         std::move(local_residual),

@@ -167,8 +167,6 @@ void partition_server::init()
     {
         send_buffer_top_.dest_ = ids_[(c.idy + 1) * c.num_partitions_x + c.idx];
 
-        std::cout << "top" << std::endl;
-
         recv_buffer_top_[P].valid_ = true;
         recv_buffer_top_[U].valid_ = true;
         recv_buffer_top_[V].valid_ = true;
@@ -625,7 +623,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                     )
                 );
 
-            hpx::shared_future<void> calc_future3 =
+         /*   hpx::shared_future<void> calc_future3 =
                 hpx::async(
                     hpx::util::bind(
                         &stencils<STENCIL_SET_VELOCITY_FLUID>::call,
@@ -633,11 +631,11 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                         boost::ref(data_[U]), boost::ref(data_[V]),
                         boost::ref(cell_type_data_), boost::ref(fluid_cells_(nx_block, ny_block))
                     )
-                );
+                );*/
 
             hpx::shared_future<void> calc_future =
-                hpx::when_all(calc_future1, calc_future2, calc_future3).then(
-                    [](hpx::lcos::future<hpx::util::tuple<hpx::lcos::shared_future<void>, hpx::lcos::shared_future<void>, hpx::lcos::shared_future<void> > >)
+                hpx::when_all(calc_future1, calc_future2).then(
+                    [](hpx::lcos::future<hpx::util::tuple<hpx::lcos::shared_future<void>, hpx::lcos::shared_future<void> > >)
                     {return;});
 
             set_velocity_futures(nx_block, ny_block) = calc_future;

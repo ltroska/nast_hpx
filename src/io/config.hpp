@@ -47,6 +47,7 @@ struct config
 
         Real t_end;
         Real initial_dt;
+        std::size_t max_timesteps;
 
         uint sub_iterations;
         uint iter_max;
@@ -91,7 +92,7 @@ struct config
             ar & i_max & j_max & num_fluid_cells & x_length
                 & y_length & dx & dy & over_dx & over_dy
                 & dx_sq & dy_sq & part1 & part2 & factor_jacobi & re & pr & omega & tau & alpha
-                & beta & gx & gy & vtk & delta_vec & t_end & initial_dt
+                & beta & gx & gy & vtk & delta_vec & t_end & initial_dt & max_timesteps
                 & sub_iterations & iter_max & eps & eps_sq & num_localities
                 & num_localities_x & num_localities_y & num_partitions
                 & num_partitions_x & num_partitions_y & num_x_blocks
@@ -140,6 +141,7 @@ struct config
                 << "\n\tbeta = " << config.beta
                 << "\n\tdt = " << config.initial_dt
                 << "\n\tt_end = " << config.t_end
+                << "\n\tmax_timesteps = " << config.max_timesteps
                 << "\n\tu_bnd " << config.u_bnd
                 << "\n\tv_bnd " << config.v_bnd
                 << "\n\tbnd_type " << config.bnd_type

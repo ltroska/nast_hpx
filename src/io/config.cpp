@@ -224,6 +224,15 @@ namespace nast_hpx { namespace io {
             std::exit(1);
         }
 
+        if(config_node.child("maxTimesteps") != NULL)
+        {
+            cfg.max_timesteps = config_node.child("maxTimesteps").first_attribute().as_int();
+        }
+        else
+        {
+            cfg.max_timesteps = 0;
+        }
+
         if(config_node.child("dt") != NULL)
         {
             cfg.initial_dt = config_node.child("dt").first_attribute().as_double();

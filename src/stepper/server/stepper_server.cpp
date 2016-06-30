@@ -4,7 +4,6 @@
 #include <hpx/lcos/gather.hpp>
 #include <hpx/lcos/broadcast.hpp>
 #include <hpx/runtime/components/migrate_component.hpp>
-#include <hpx/lcos/barrier.hpp>
 
 #include "stepper_server.hpp"
 
@@ -32,20 +31,6 @@ void stepper_server::setup(io::config&& cfg)
     auto rank = hpx::get_locality_id();
     auto num_localities = hpx::get_num_localities_sync();
 
-    hpx::lcos::barrier b;
-    if (rank == 0)
-    {
-
-        b = std::move(hpx::lcos::barrier::create(hpx::find_here(), num_localities));
-        hpx::agas::register_name_sync(barrier_basename, b.get_id());
-    }
-    else
-    {
-        hpx::id_type idb = hpx::agas::on_symbol_namespace_event(
-                barrier_basename, hpx::agas::symbol_ns_bind, true).get();
-        b = std::move(hpx::lcos::barrier(idb));
-    }
-
     cfg.idx = (rank % cfg.num_localities_x);
     cfg.idy = (rank / cfg.num_localities_x);
 
@@ -61,6 +46,8 @@ void stepper_server::setup(io::config&& cfg)
     Real tau = cfg.tau;
     Real t_end = cfg.t_end;
 
+    std::size_t max_timesteps = cfg.max_timesteps;
+
     grid::partition part(hpx::find_here(), std::move(cfg));
     part.init_sync();
 
@@ -68,13 +55,13 @@ void stepper_server::setup(io::config&& cfg)
     for (uint loc = 0; loc < num_localities; loc++)
         localities.push_back(hpx::find_from_basename(stepper_basename, loc).get());
 
-    b.wait();
-
     std::size_t step = 0;
     bool running = true;
 
     for (Real t = 0;; step++)
     {
+        if (max_timesteps > 0 && step >= max_timesteps)
+            break;
        // std::cout << "step " << step << std::endl;
         hpx::future<std::pair<Real, Real> > local_max_velocity =
            part.do_timestep(dt);
@@ -129,14 +116,6 @@ void stepper_server::setup(io::config&& cfg)
             break;
         t += dt;
         dt = dt_buffer.receive(step).get();
-
-       /* if (hpx::get_locality_id() == 0)
-            for (std::size_t loc = 0; loc < num_localities; ++ loc)
-            {
-                hpx::performance_counters::performance_counter count(
-                    "/threads{locality#" + std::to_string(loc) + "/total}/idle-rate");
-                std::cout << loc << " " << count.get_value<double>().get() << std::endl;
-            }*/
     }
 }
 

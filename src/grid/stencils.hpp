@@ -27,6 +27,7 @@ namespace nast_hpx { namespace grid {
     static const std::size_t STENCIL_JACOBI = 29;
     static const std::size_t STENCIL_COMPUTE_RESIDUAL = 30;
     static const std::size_t STENCIL_UPDATE_VELOCITY = 31;
+    static const std::size_t STENCIL_TEST = 32;
 
     typedef std::pair<std::size_t, std::size_t> range_type;
 
@@ -56,7 +57,7 @@ namespace nast_hpx { namespace grid {
             std::vector<std::pair<std::size_t, std::size_t> > boundary_cells,
             boundary_data u_bnd, boundary_data v_bnd, boundary_type bnd_type
             )
-            {               
+            {
                 #ifdef WITH_FOR_EACH
                 hpx::parallel::for_each(
                 hpx::parallel::par,
@@ -602,6 +603,49 @@ namespace nast_hpx { namespace grid {
     };
 
     template<>
+    struct stencils<STENCIL_TEST>
+    {
+        //TODO remove idx, idy (was for debug)
+        static void call(partition_data<Real>& dst_p,
+            partition_data<Real> const& src_rhs,
+            std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
+            Real dx_sq, Real dy_sq, util::cancellation_token token, std::size_t xd, std::size_t yd, std::size_t iter)
+        {
+            if (!token.was_cancelled())
+            {
+               // std::cout << "jacobi " << iter << " | " << xd << " " << yd << std::endl;
+              //  hpx::this_thread::sleep_for(boost::chrono::milliseconds(3000));
+
+              //  if (hpx::get_locality_id() == 1)
+              //      hpx::this_thread::sleep_for(boost::chrono::milliseconds(4000));
+                #ifdef WITH_FOR_EACH
+                hpx::parallel::for_each(
+                hpx::parallel::par,
+                std::begin(fluid_cells), std::end(fluid_cells),
+                [&](auto const& idx_pair)
+                {
+                #else
+                for (auto& idx_pair : fluid_cells)
+                {
+                #endif
+                    auto x = idx_pair.first;
+                    auto y = idx_pair.second;
+
+                    dst_p(x, y) =
+                         ( (dst_p(x + 1, y) + dst_p(x - 1, y)) * dy_sq
+                            + (dst_p(x, y + 1) + dst_p(x, y - 1)) * dx_sq
+                            - dx_sq * dy_sq * src_rhs(x, y))
+                        /
+                        (2 * (dx_sq + dy_sq));
+                }
+                #ifdef WITH_FOR_EACH
+                );
+                #endif
+            }
+        }
+    };
+
+    template<>
     struct stencils<STENCIL_COMPUTE_RESIDUAL>
     {
         static Real call(partition_data<Real> const& src_p,
@@ -610,7 +654,7 @@ namespace nast_hpx { namespace grid {
             Real over_dx_sq, Real over_dy_sq, util::cancellation_token token)
         {
             Real local_residual = 0;
-            
+
             if (!token.was_cancelled())
             #ifdef WITH_FOR_EACH
                 local_residual =

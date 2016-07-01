@@ -931,7 +931,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                         , get_dependency<BOTTOM>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
                         , get_dependency<RIGHT>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
                         , get_dependency<TOP>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                        , compute_res_futures(nx_block, ny_block).then([](hpx::shared_future<Real> a) {return;})
+                      //  , compute_res_futures(nx_block, ny_block).then([](hpx::shared_future<Real> a) {return;})
                     );
             }
         }
@@ -1057,7 +1057,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                         }
                     }
                 )
-            ).wait();
+            );
         }
         // if not root locality, send residual to root locality
         else

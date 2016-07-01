@@ -602,41 +602,17 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
     {
         for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
         {
-            hpx::shared_future<void> calc_future1 =
+            hpx::shared_future<void> calc_future =
                 hpx::async(
                     hpx::util::bind(
-                        &stencils<STENCIL_SET_VELOCITY_BOUNDARY>::call,
+                        &stencils<STENCIL_SET_VELOCITY>::call,
                         boost::ref(data_[U]), boost::ref(data_[V]),
                         boost::ref(data_[U]), boost::ref(data_[V]),
                         boost::ref(cell_type_data_), boost::ref(boundary_cells_(nx_block, ny_block)),
+                        boost::ref(obstacle_cells_(nx_block, ny_block)),
                         c.u_bnd, c.v_bnd, c.bnd_type
                     )
                 );
-
-            hpx::shared_future<void> calc_future2 =
-                hpx::async(
-                    hpx::util::bind(
-                        &stencils<STENCIL_SET_VELOCITY_OBSTACLE>::call,
-                        boost::ref(data_[U]), boost::ref(data_[V]),
-                        boost::ref(data_[U]), boost::ref(data_[V]),
-                        boost::ref(cell_type_data_), boost::ref(obstacle_cells_(nx_block, ny_block))
-                    )
-                );
-
-         /*   hpx::shared_future<void> calc_future3 =
-                hpx::async(
-                    hpx::util::bind(
-                        &stencils<STENCIL_SET_VELOCITY_FLUID>::call,
-                        boost::ref(data_[U]), boost::ref(data_[V]),
-                        boost::ref(data_[U]), boost::ref(data_[V]),
-                        boost::ref(cell_type_data_), boost::ref(fluid_cells_(nx_block, ny_block))
-                    )
-                );*/
-
-            hpx::shared_future<void> calc_future =
-                hpx::when_all(calc_future1, calc_future2).then(
-                    [](hpx::lcos::future<hpx::util::tuple<hpx::lcos::shared_future<void>, hpx::lcos::shared_future<void> > >)
-                    {return;});
 
             set_velocity_futures(nx_block, ny_block) = calc_future;
 
@@ -708,39 +684,16 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
     {
         for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
         {
-            hpx::shared_future<void> calc_future1 =
+            hpx::shared_future<void> calc_future =
                 hpx::dataflow(
                     hpx::util::unwrapped(
                         hpx::util::bind(
-                            &stencils<STENCIL_COMPUTE_FG_BOUNDARY_AND_OBSTACLE>::call,
+                            &stencils<STENCIL_COMPUTE_FG>::call,
                             boost::ref(data_[F]), boost::ref(data_[G]),
                             boost::ref(data_[U]), boost::ref(data_[V]),
                             boost::ref(cell_type_data_),
                             boost::ref(boundary_cells_(nx_block, ny_block)),
-                            boost::ref(obstacle_cells_(nx_block, ny_block))
-                        )
-                    )
-                    , set_velocity_futures(nx_block, ny_block)
-                    , get_dependency<LEFT>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
-                    , get_dependency<LEFT>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
-                    , get_dependency<RIGHT>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
-                    , get_dependency<RIGHT>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
-                    , get_dependency<BOTTOM>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
-                    , get_dependency<BOTTOM>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
-                    , get_dependency<TOP>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
-                    , get_dependency<TOP>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
-                    , get_dependency<TOP_LEFT>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
-                    , get_dependency<BOTTOM_RIGHT>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
-                );
-
-            hpx::shared_future<void> calc_future2 =
-                hpx::dataflow(
-                    hpx::util::unwrapped(
-                        hpx::util::bind(
-                            &stencils<STENCIL_COMPUTE_FG_FLUID>::call,
-                            boost::ref(data_[F]), boost::ref(data_[G]),
-                            boost::ref(data_[U]), boost::ref(data_[V]),
-                            boost::ref(cell_type_data_),
+                            boost::ref(obstacle_cells_(nx_block, ny_block)),
                             boost::ref(fluid_cells_(nx_block, ny_block)),
                             c.re, c.gx, c.gy, c.beta, c.dx, c.dy, dt, c.alpha
                         )
@@ -757,11 +710,6 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                     , get_dependency<TOP_LEFT>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
                     , get_dependency<BOTTOM_RIGHT>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
                 );
-
-            hpx::shared_future<void> calc_future =
-                hpx::when_all(calc_future1, calc_future2).then(
-                    [](hpx::lcos::future<hpx::util::tuple<hpx::lcos::shared_future<void>, hpx::lcos::shared_future<void>> >)
-                    {return;});
 
             compute_fg_futures(nx_block, ny_block) = calc_future;
 
@@ -912,7 +860,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
             }
         }
 #else
-        for (std::size_t y = 1, ny_block = 0; y < cells_y_ - 1; y += c.cells_y_per_block, ++ny_block)
+      /*  for (std::size_t y = 1, ny_block = 0; y < cells_y_ - 1; y += c.cells_y_per_block, ++ny_block)
         {
             for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
             {
@@ -934,7 +882,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                       //  , compute_res_futures(nx_block, ny_block).then([](hpx::shared_future<Real> a) {return;})
                     );
             }
-        }
+        }*/
 
         for (std::size_t y = 1, ny_block = 0; y < cells_y_ - 1; y += c.cells_y_per_block, ++ny_block)
         {
@@ -944,13 +892,20 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                     hpx::dataflow(
                         hpx::util::unwrapped(
                             hpx::util::bind(
-                                &stencils<STENCIL_JACOBI>::call,
+                                &stencils<STENCIL_TEST>::call,
                                 boost::ref(data_[P]), boost::ref(rhs_data_),
-                                boost::ref(fluid_cells_(nx_block, ny_block)), c.dx_sq, c.dy_sq,
+                                boost::ref(fluid_cells_(nx_block, ny_block)),
+                                boost::ref(boundary_cells_(nx_block, ny_block)),
+                                boost::ref(obstacle_cells_(nx_block, ny_block)),
+                                boost::ref(cell_type_data_), c.dx_sq, c.dy_sq,
                                 token, nx_block, ny_block, iter
                             )
                         )
-                        , set_p_futures(nx_block, ny_block)
+                        , sor_cycle_futures[last](nx_block, ny_block)
+                        , get_dependency<LEFT>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
+                        , get_dependency<BOTTOM>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
+                        , get_dependency<RIGHT>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
+                        , get_dependency<TOP>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
                         , compute_rhs_futures(nx_block, ny_block)
                     );
 

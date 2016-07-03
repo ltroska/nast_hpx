@@ -18,6 +18,14 @@ int hpx_main(boost::program_options::variables_map& vm)
         std::cout << "Threads on locality " << hpx::get_locality_id()
             << " = " << hpx::get_os_thread_count() << std::endl;
 
+    std::cout
+        << "Running simulation on " << cfg.i_max + 2 << "x" << cfg.j_max + 2
+        << " cells on " << cfg.num_localities << " nodes ";
+        if (timesteps == 0)
+            std::cout << "until t_end " << cfg.t_end;
+        else
+            std::cout << "for " << timesteps << " iterations"
+        << " and " << iterations << " runs!" << std::endl;
 
     auto rank = hpx::get_locality_id();
     auto num_localities = hpx::get_num_localities_sync();

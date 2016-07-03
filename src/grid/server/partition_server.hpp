@@ -90,7 +90,7 @@ public:
             data_[var] = std::move(other.data_[var]);
     }
 
-    partition_server(io::config&& cfg);
+    partition_server(io::config const& cfg);
 
     void init();
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, init, init_action);
@@ -238,9 +238,7 @@ private:
 
     partition_data<std::vector<std::pair<std::size_t, std::size_t> > > fluid_cells_;
     partition_data<std::vector<std::pair<std::size_t, std::size_t> > > boundary_cells_;
-    partition_data<std::vector<std::pair<std::size_t, std::size_t> > > boundary_cells_remote_;
     partition_data<std::vector<std::pair<std::size_t, std::size_t> > > obstacle_cells_;
-    partition_data<std::vector<std::pair<std::size_t, std::size_t> > > obstacle_cells_remote_;
 
     partition_data<hpx::shared_future<void> > set_velocity_futures;
     future_grid send_futures_U;

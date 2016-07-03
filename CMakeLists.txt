@@ -70,7 +70,7 @@ add_hpx_executable(
 
 add_hpx_component(
     partition_server_sor
-    COMPILE_FLAGS "-DWITH_SOR -DWITH_FOR_EACH"
+    COMPILE_FLAGS -DWITH_SOR
     SOURCES src/grid/server/partition_server.cpp src/io/writer.cpp
     HEADERS src/grid/server/partition_server.hpp src/io/writer.hpp
 )

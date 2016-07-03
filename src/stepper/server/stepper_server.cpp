@@ -16,6 +16,8 @@ HPX_REGISTER_COMPONENT_MODULE();
 HPX_REGISTER_COMPONENT(stepper_server_type, stepper_component);
 HPX_REGISTER_ACTION(nast_hpx::stepper::server::stepper_server::setup_action,
     stepper_server_setup_action);
+HPX_REGISTER_ACTION(nast_hpx::stepper::server::stepper_server::run_action,
+    stepper_server_run_action);
 
 typedef std::pair<Real, Real> vec2;
 HPX_REGISTER_GATHER(vec2, stepper_server_velocity_gather);
@@ -26,42 +28,42 @@ stepper_server::stepper_server(uint nl)
 : num_localities(nl)
 {}
 
-void stepper_server::setup(io::config&& cfg)
+void stepper_server::setup(io::config const& cfg)
 {
-    auto rank = hpx::get_locality_id();
-    auto num_localities = hpx::get_num_localities_sync();
+    rank = hpx::get_locality_id();
+    num_localities = hpx::get_num_localities_sync();
 
-    cfg.idx = (rank % cfg.num_localities_x);
-    cfg.idy = (rank / cfg.num_localities_x);
+    dx = cfg.dx;
+    dy = cfg.dy;
+    re = cfg.re;
+    pr = cfg.pr;
+    tau = cfg.tau;
+    t_end = cfg.t_end;
+    init_dt = cfg.initial_dt;
 
-    cfg.num_partitions_x = cfg.num_localities_x;
-    cfg.num_partitions_y = cfg.num_localities_y;
-    cfg.num_partitions = cfg.num_localities;
+    max_timesteps = cfg.max_timesteps;
+    step = 0;
 
-    Real dt = cfg.initial_dt;
-    Real dx = cfg.dx;
-    Real dy = cfg.dy;
-    Real re = cfg.re;
-    Real pr = cfg.pr;
-    Real tau = cfg.tau;
-    Real t_end = cfg.t_end;
+    part = grid::partition(hpx::find_here(), cfg);
 
-    std::size_t max_timesteps = cfg.max_timesteps;
-
-    grid::partition part(hpx::find_here(), std::move(cfg));
-    part.init_sync();
-
-    std::vector<hpx::naming::id_type> localities;
     for (uint loc = 0; loc < num_localities; loc++)
         localities.push_back(hpx::find_from_basename(stepper_basename, loc).get());
+}
 
-    std::size_t step = 0;
+void stepper_server::run()
+{
+    part.init_sync();
+
+    Real dt = init_dt;
+
+    std::size_t local_step = 0;
     bool running = true;
 
-    for (Real t = 0;; step++)
+    for (Real t = 0;; ++step, ++local_step)
     {
-        if (max_timesteps > 0 && step >= max_timesteps)
+        if (max_timesteps > 0 && local_step >= max_timesteps)
             break;
+
        // std::cout << "step " << step << std::endl;
         hpx::future<std::pair<Real, Real> > local_max_velocity =
            part.do_timestep(dt);

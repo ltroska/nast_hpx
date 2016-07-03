@@ -15,10 +15,11 @@ struct partition
 
     partition() {}
 
-    partition(hpx::id_type where, io::config&& cfg)
-        : base_type(hpx::new_<server::partition_server>(where, std::move(cfg)))
+    partition(hpx::id_type where, io::config const& cfg)
+        : base_type(hpx::new_<server::partition_server>(where, cfg))
     {
-        std::cout << "registering " << cfg.idy * cfg.num_localities_x + cfg.idx << " " << cfg.idx << " " << cfg.idy <<  std::endl;
+        if (cfg.verbose)
+            std::cout << "registering " << cfg.idy * cfg.num_localities_x + cfg.idx << " " << cfg.idx << " " << cfg.idy <<  std::endl;
         hpx::register_with_basename(server::partition_basename, get_id(),
                                         cfg.idy * cfg.num_localities_x + cfg.idx);
     }

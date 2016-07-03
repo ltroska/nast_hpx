@@ -38,10 +38,16 @@ struct stepper
     {}
 
     // Method forwards the config to the wrapped stepper_server.
-    void setup(io::config&& cfg)
+    void setup(io::config const& cfg)
     {
         server::stepper_server::setup_action act;
-        return act(this->get_id(), std::move(cfg));
+        return act(this->get_id(), cfg);
+    }
+
+    void run()
+    {
+        server::stepper_server::run_action act;
+        return act(this->get_id());
     }
 };
 

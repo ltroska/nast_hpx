@@ -46,6 +46,12 @@ public:
         data_.resize(size_x_ * size_y_, val);
     }
 
+    void clear(T val = T())
+    {
+        for (auto& elem : data_)
+            elem = val;
+    }
+
     inline T operator[](std::size_t idx) const { return data_[idx];}
     inline T& operator[](std::size_t idx) { return data_[idx];}
 

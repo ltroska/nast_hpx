@@ -25,46 +25,49 @@ HPX_REGISTER_GATHER(Real, partition_server_residual_gather);
 
 namespace nast_hpx { namespace grid { namespace server {
 
-partition_server::partition_server(io::config&& cfg)
+partition_server::partition_server(io::config const& cfg)
 :   c(cfg),
     cells_x_(c.cells_x_per_block * c.num_x_blocks + 2),
     cells_y_(c.cells_y_per_block * c.num_y_blocks + 2),
     is_left_(c.idx == 0),
     is_right_(c.idx == c.num_partitions_x - 1),
     is_bottom_(c.idy == 0),
-    is_top_(c.idy == c.num_partitions_y - 1),
-    step_(0),
-    next_out_(-1e-12),
-    outcount_(0),
-    current(1),
-    last(0)
+    is_top_(c.idy == c.num_partitions_y - 1)
 {
+
 #ifdef WITH_SOR
-    std::cout << "Solver: SOR" << std::endl;
+    if (c.verbose)
+        std::cout << "Solver: SOR" << std::endl;
 #else
-    std::cout << "Solver: blockwise Jacobi" << std::endl;
+    if (c.verbose)
+        std::cout << "Solver: blockwise Jacobi" << std::endl;
 #endif
 
 #ifdef WITH_FOR_EACH
-    std::cout << "Parallelization: hpx::parallel::for_each" << std::endl;
+    if (c.verbose)
+        std::cout << "Parallelization: hpx::parallel::for_each" << std::endl;
     c.cells_x_per_block = cells_x_ - 2;
     c.cells_y_per_block = cells_y_ - 2;
     c.num_x_blocks = 1;
     c.num_y_blocks = 1;
 #else
-    std::cout << "Parellelization: custom grain size" << std::endl;
+    if (c.verbose)
+        std::cout << "Parellelization: custom grain size" << std::endl;
 #endif
 
-    std::cout << c << std::endl;
+    if (c.verbose)
+        std::cout << c << std::endl;
 
-    data_[U].resize(cells_x_, cells_y_);
-    data_[V].resize(cells_x_, cells_y_);
-    data_[F].resize(cells_x_, cells_y_);
-    data_[G].resize(cells_x_, cells_y_);
-    data_[P].resize(cells_x_, cells_y_);
-    rhs_data_.resize(cells_x_, cells_y_);
+    step_ = 0;
+
+    data_[U].resize(cells_x_, cells_y_, 0);
+    data_[V].resize(cells_x_, cells_y_, 0);
+    data_[F].resize(cells_x_, cells_y_, 0);
+    data_[G].resize(cells_x_, cells_y_, 0);
+    data_[P].resize(cells_x_, cells_y_, 0);
+    rhs_data_.resize(cells_x_, cells_y_, 0);
+
     cell_type_data_.resize(cells_x_,cells_y_);
-
     fluid_cells_.resize(c.num_x_blocks, c.num_y_blocks);
     boundary_cells_.resize(c.num_x_blocks, c.num_y_blocks);
     obstacle_cells_.resize(c.num_x_blocks, c.num_y_blocks);
@@ -92,22 +95,22 @@ partition_server::partition_server(io::config&& cfg)
 
         }
     }
-
-    c.flag_grid.clear();
-
-    rhs_data_[14] = 3;
-
-   /* for (std::size_t idy_block = 0; idy_block < c.num_y_blocks; ++idy_block)
-        for (std::size_t idx_block = 0; idx_block < c.num_x_blocks; ++idx_block)
-            std::cout << "BLOCK " << idx_block << " " << idy_block
-            << "\nnum_fluid = " << fluid_cells_(idx_block, idy_block).size()
-            << "\nnum_boundary = " << boundary_cells_(idx_block, idy_block).size()
-            << "\nnum_obstacle = " << obstacle_cells_(idx_block, idy_block).size()
-            << std::endl;*/
 }
 
 void partition_server::init()
 {
+    for (std::size_t var = 0; var < NUM_VARIABLES; ++var)
+        data_[var].clear(0);
+
+    rhs_data_.clear(0);
+
+   // step_ = 0;
+    t_ = 0;
+    next_out_ = -1e-12;
+    outcount_ = 0;
+    current = 1;
+    last = 0;
+
     std::vector<hpx::future<hpx::id_type > > parts =
         hpx::find_all_from_basename(partition_basename, c.num_partitions);
 
@@ -593,8 +596,6 @@ hpx::shared_future<void> partition_server::get_dependency<TOP_LEFT>(std::size_t 
 
 std::pair<Real, Real> partition_server::do_timestep(Real dt)
 {
-    hpx::util::high_resolution_timer t;
-
     clear(send_futures_U);
     clear(send_futures_V);
 
@@ -664,7 +665,8 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
     {
         next_out_ += c.delta_vec;
 
-        std::cout << "Output in step " << step_ << " " << c.eps << " " << c.iter_max << token.was_cancelled() << std::endl;
+        if (c.verbose)
+            std::cout << "Output in step " << step_ << " " << c.eps << " " << c.iter_max << token.was_cancelled() << std::endl;
 
         hpx::when_all(set_velocity_futures.data_).then(
             hpx::launch::async,
@@ -999,7 +1001,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                     [dt, iter, step = step_, t = t_, this](Real residual)
                     {
                         if ((residual < c.eps || iter == c.iter_max - 1)
-                            && !token.was_cancelled())
+                            && !token.was_cancelled() && c.verbose)
                         {
                             std::cout << "step = " << step
                                 << ", t = " << t

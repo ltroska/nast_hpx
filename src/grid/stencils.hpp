@@ -414,7 +414,6 @@ namespace nast_hpx { namespace grid {
             Real alpha
            )
         {
-
             for (auto const& idx_pair : boundary_cells)
             {
                 auto const x = idx_pair.first;

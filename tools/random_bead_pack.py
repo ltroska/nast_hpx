@@ -23,7 +23,7 @@ include_boundary = False
 if len(sys.argv) >= 9:
   include_boundary = (int(sys.argv[8]) == 1)
   
-max_fails = 2 * num_beads
+max_fails = sys.maxint
 if len(sys.argv) >= 10:
   max_fails = int(sys.argv[9])
   

@@ -12,7 +12,8 @@ infile_path = sys.argv[1]
 m = sum(1 for line in open(infile_path))
 n = 0
 
-obstacle = 0
+surface = 0
+volume = 0
 boundary = 0
 
 
@@ -24,18 +25,19 @@ with open(infile_path, 'rb') as csvfile:
     for col in row:
 			if (int(col) & (1 << 5)) != 0:
 				boundary += 1
-			elif (int(col) & (1 << 4)) == 0 or col == "0":
-				obstacle += 1
+			elif (int(col) & (1 << 4)) == 0 and col != "0":
+				surface += 1
+				volume += 1
+			elif col == "0":
+				volume += 1
 
 	
 total = m*n
-
-obstacle -= 4
-boundary += 4
  
 print("This file has the following densities:")
 print("Boundary:", 100 * boundary / float(total), "% (", boundary, "/", total, ")")
-print("Obstacle:", 100 * obstacle / float(total), "% (", obstacle, "/", total, ")")
-print("Total:", 100 * (boundary + obstacle) / float(total), "% (", boundary + obstacle, "/", total, ")")
+print("Obstacle Surface:", 100 * surface / float(total), "% (", surface, "/", total, ")")
+print("Obstacle Volume:", 100 * volume / float(total), "% (", volume, "/", total, ")")
+print("Total:", 100 * (boundary + volume) / float(total), "% (", boundary + volume, "/", total, ")")
 
 

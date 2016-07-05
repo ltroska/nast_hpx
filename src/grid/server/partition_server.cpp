@@ -811,7 +811,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                                 boost::ref(data_[P]), boost::ref(rhs_data_),
                                 boost::ref(fluid_cells_(nx_block, ny_block)),
                                 c.part1, c.part2, c.dx_sq, c.dy_sq,
-                                token, nx_block, ny_block, iter
+                                token
                             )
                         )
                         , set_p_futures(nx_block, ny_block)
@@ -900,7 +900,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                                 boost::ref(boundary_cells_(nx_block, ny_block)),
                                 boost::ref(obstacle_cells_(nx_block, ny_block)),
                                 boost::ref(cell_type_data_), c.dx_sq, c.dy_sq,
-                                token, nx_block, ny_block, iter
+                                token
                             )
                         )
                         , sor_cycle_futures[last](nx_block, ny_block)
@@ -941,7 +941,7 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                                 &stencils<STENCIL_COMPUTE_RESIDUAL>::call,
                                 boost::ref(data_[P]), boost::ref(rhs_data_),
                                 boost::ref(fluid_cells_(nx_block, ny_block)), c.over_dx_sq, c.over_dy_sq,
-                               token
+                                token
                             )
                         )
                         , sor_cycle_futures[current](nx_block, ny_block)

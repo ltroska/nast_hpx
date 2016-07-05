@@ -599,15 +599,14 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
     clear(send_futures_U);
     clear(send_futures_V);
 
-    for (std::size_t y = 1, ny_block = 0; y < cells_y_ - 1; y += c.cells_y_per_block, ++ny_block)
+    for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
     {
-        for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
+        for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
         {
             hpx::shared_future<void> calc_future =
                 hpx::async(
                     hpx::util::bind(
                         &stencils<STENCIL_SET_VELOCITY>::call,
-                        boost::ref(data_[U]), boost::ref(data_[V]),
                         boost::ref(data_[U]), boost::ref(data_[V]),
                         boost::ref(cell_type_data_), boost::ref(boundary_cells_(nx_block, ny_block)),
                         boost::ref(obstacle_cells_(nx_block, ny_block)),
@@ -682,9 +681,9 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
     clear(send_futures_F);
     clear(send_futures_G);
 
-    for (std::size_t y = 1, ny_block = 0; y < cells_y_ - 1; y += c.cells_y_per_block, ++ny_block)
+    for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
     {
-        for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
+        for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
         {
             hpx::shared_future<void> calc_future =
                 hpx::dataflow(
@@ -735,9 +734,9 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
     receive_left_and_bottom_boundaries<F>(step_, recv_futures_F);
     receive_left_and_bottom_boundaries<G>(step_, recv_futures_G);
 
-    for (std::size_t y = 1, ny_block = 0; y < cells_y_ - 1; y += c.cells_y_per_block, ++ny_block)
+    for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
     {
-        for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
+        for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
         {
             compute_rhs_futures(nx_block, ny_block) =
                 hpx::dataflow(
@@ -772,9 +771,9 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
         clear(send_futures_P);
 
 #ifdef WITH_SOR
-        for (std::size_t y = 1, ny_block = 0; y < cells_y_ - 1; y += c.cells_y_per_block, ++ny_block)
+        for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
         {
-            for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
+            for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
             {
                 set_p_futures(nx_block, ny_block) =
                     hpx::dataflow(
@@ -799,9 +798,9 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
 
         receive_cross_boundaries<P>(iter, recv_futures_P[current]);
 
-        for (std::size_t y = 1, ny_block = 0; y < cells_y_ - 1; y += c.cells_y_per_block, ++ny_block)
+        for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
         {
-            for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
+            for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
             {
                 hpx::shared_future<void> calc_future =
                     hpx::dataflow(
@@ -840,9 +839,9 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
 
         send_cross_boundaries<P>(iter, send_futures_P);
 
-        for (std::size_t y = 1, ny_block = 0; y < cells_y_ - 1; y += c.cells_y_per_block, ++ny_block)
+        for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
         {
-            for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
+            for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
             {
                 compute_res_futures(nx_block, ny_block) =
                     hpx::dataflow(
@@ -886,9 +885,9 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
             }
         }*/
 
-        for (std::size_t y = 1, ny_block = 0; y < cells_y_ - 1; y += c.cells_y_per_block, ++ny_block)
+        for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
         {
-            for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
+            for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
             {
                 hpx::shared_future<void> calc_future =
                     hpx::dataflow(
@@ -930,9 +929,9 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
         send_cross_boundaries<P>(iter, send_futures_P);
         receive_cross_boundaries<P>(iter, recv_futures_P[current]);
 
-        for (std::size_t y = 1, ny_block = 0; y < cells_y_ - 1; y += c.cells_y_per_block, ++ny_block)
+        for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
         {
-            for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
+            for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
             {
                 compute_res_futures(nx_block, ny_block) =
                     hpx::dataflow(
@@ -1025,9 +1024,9 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
     local_max_uvs.clear();
     local_max_uvs.reserve(c.num_x_blocks * c.num_y_blocks);
 
-    for (std::size_t y = 1, ny_block = 0; y < cells_y_ - 1; y += c.cells_y_per_block, ++ny_block)
+    for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
     {
-        for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
+        for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
         {
             local_max_uvs.push_back(
                 hpx::dataflow(

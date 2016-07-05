@@ -214,7 +214,6 @@ namespace nast_hpx { namespace grid {
     struct stencils<STENCIL_SET_VELOCITY>
     {
         static void call(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
-            partition_data<Real> const& src_u, partition_data<Real> const& src_v,
             partition_data<std::bitset<6> > const& cell_types,
             std::vector<std::pair<std::size_t, std::size_t> > const& boundary_cells,
             std::vector<std::pair<std::size_t, std::size_t> > const& obstacle_cells,
@@ -233,19 +232,19 @@ namespace nast_hpx { namespace grid {
                         {
                         case noslip:
                                 dst_u(x, y) = 0;
-                                dst_v(x, y) = -src_v(x + 1, y);
+                                dst_v(x, y) = -dst_v(x + 1, y);
                                 break;
                         case slip:
                                 dst_u(x, y) = 0;
-                                dst_v(x, y) = src_v(x + 1, y);
+                                dst_v(x, y) = dst_v(x + 1, y);
                                 break;
                         case outstream:
-                                dst_u(x, y) = src_u(x + 1, y);
-                                dst_v(x, y) = src_v(x + 1, y);
+                                dst_u(x, y) = dst_u(x + 1, y);
+                                dst_v(x, y) = dst_v(x + 1, y);
                                 break;
                         case instream:
                                 dst_u(x, y) = u_bnd.left;
-                                dst_v(x, y) = 2 * v_bnd.left - src_v(x + 1, y);
+                                dst_v(x, y) = 2 * v_bnd.left - dst_v(x + 1, y);
                                 break;
                         }
                     }
@@ -256,19 +255,19 @@ namespace nast_hpx { namespace grid {
                         {
                         case noslip:
                                 dst_u(x - 1, y) = 0;
-                                dst_v(x, y) = -src_v(x - 1, y);
+                                dst_v(x, y) = -dst_v(x - 1, y);
                                 break;
                         case slip:
                                 dst_u(x - 1, y) = 0;
-                                dst_v(x, y) = src_v(x - 1, y);
+                                dst_v(x, y) = dst_v(x - 1, y);
                                 break;
                         case outstream:
                                 dst_u(x - 1, y) = dst_u(x - 2, y);
-                                dst_v(x, y) = src_v(x - 1, y);
+                                dst_v(x, y) = dst_v(x - 1, y);
                                 break;
                         case instream:
                                 dst_u(x - 1, y) = u_bnd.right;
-                                dst_v(x, y) = 2 * v_bnd.right - src_v(x - 1, y);
+                                dst_v(x, y) = 2 * v_bnd.right - dst_v(x - 1, y);
                                 break;
                         }
                     }
@@ -278,19 +277,19 @@ namespace nast_hpx { namespace grid {
                         switch(bnd_type.bottom)
                         {
                         case noslip:
-                                dst_u(x, y) = -src_u(x, y + 1);
+                                dst_u(x, y) = -dst_u(x, y + 1);
                                 dst_v(x, y) = 0;
                                 break;
                         case slip:
-                                dst_u(x, y) = src_u(x, y + 1);
+                                dst_u(x, y) = dst_u(x, y + 1);
                                 dst_v(x, y) = 0;
                                 break;
                         case outstream:
-                                dst_u(x, y) = src_u(x, y + 1);
-                                dst_v(x, y) = src_v(x, y + 1);
+                                dst_u(x, y) = dst_u(x, y + 1);
+                                dst_v(x, y) = dst_v(x, y + 1);
                                 break;
                         case instream:
-                                dst_u(x, y) = 2 * u_bnd.bottom - src_u(x, y + 1);
+                                dst_u(x, y) = 2 * u_bnd.bottom - dst_u(x, y + 1);
                                 dst_v(x, y) = v_bnd.bottom;
                                 break;
                         }
@@ -301,19 +300,19 @@ namespace nast_hpx { namespace grid {
                         switch(bnd_type.top)
                         {
                         case noslip:
-                                dst_u(x, y) = 2 * u_bnd.top - src_u(x, y - 1);
+                                dst_u(x, y) = 2 * u_bnd.top - dst_u(x, y - 1);
                                 dst_v(x, y - 1) = 0;
                                 break;
                         case slip:
-                                dst_u(x, y) = src_u(x, y - 1);
+                                dst_u(x, y) = dst_u(x, y - 1);
                                 dst_v(x, y - 1) = 0;
                                 break;
                         case outstream:
-                                dst_u(x, y) = src_u(x, y - 1);
-                                dst_v(x, y - 1) = src_v(x, y - 1);
+                                dst_u(x, y) = dst_u(x, y - 1);
+                                dst_v(x, y - 1) = dst_v(x, y - 1);
                                 break;
                         case instream:
-                                dst_u(x, y) = 2 * u_bnd.top - src_u(x, y - 1);
+                                dst_u(x, y) = 2 * u_bnd.top - dst_u(x, y - 1);
                                 dst_v(x, y - 1) = v_bnd.top;
                                 break;
                         }
@@ -328,12 +327,12 @@ namespace nast_hpx { namespace grid {
                     auto const& cell_type = cell_types(x, y);
 
                     dst_u(x, y) =
-                        - src_u(x, y - 1) * cell_type.test(has_fluid_south)
-                        - src_u(x, y + 1) * cell_type.test(has_fluid_north);
+                        - dst_u(x, y - 1) * cell_type.test(has_fluid_south)
+                        - dst_u(x, y + 1) * cell_type.test(has_fluid_north);
 
                     dst_v(x, y) =
-                        - src_v(x - 1, y) * cell_type.test(has_fluid_west)
-                        - src_v(x + 1, y) * cell_type.test(has_fluid_east);
+                        - dst_v(x - 1, y) * cell_type.test(has_fluid_west)
+                        - dst_v(x + 1, y) * cell_type.test(has_fluid_east);
 
                 }
             }

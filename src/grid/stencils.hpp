@@ -309,7 +309,7 @@ namespace nast_hpx { namespace grid {
                                 break;
                         case outstream:
                                 dst_u(x, y) = dst_u(x, y - 1);
-                                dst_v(x, y - 1) = dst_v(x, y - 1);
+                                dst_v(x, y - 1) = dst_v(x, y - 2);
                                 break;
                         case instream:
                                 dst_u(x, y) = 2 * u_bnd.top - dst_u(x, y - 1);

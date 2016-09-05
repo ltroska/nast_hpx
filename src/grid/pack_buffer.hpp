@@ -3,6 +3,7 @@
 
 #include <hpx/runtime/serialization/serialize_buffer.hpp>
 
+#include "direction.hpp"
 #include "partition_data.hpp"
 #include "util/array_deleter.hpp"
 
@@ -16,15 +17,7 @@ namespace nast_hpx { namespace grid {
         template <typename BufferType>
         static void call(partition_data<Real> const& p, BufferType& buffer, std::size_t offset, std::size_t size)
         {
-            buffer = BufferType(new Real[size], size, BufferType::take, util::array_deleter<Real>());
 
-            typename BufferType::value_type * src = buffer.data();
-
-            for(std::size_t y = 1 + offset; y != 1 + offset + size; ++y)
-            {
-                *src = p(1, y);
-                ++src;
-            }
         }
     };
 
@@ -34,15 +27,7 @@ namespace nast_hpx { namespace grid {
         template <typename BufferType>
         static void call(partition_data<Real> const& p, BufferType& buffer, std::size_t offset, std::size_t size)
         {
-            buffer = BufferType(new Real[size], size, BufferType::take, util::array_deleter<Real>());
 
-            typename BufferType::value_type * src = buffer.data();
-
-            for(std::size_t y = 1 + offset; y != 1 + offset + size; ++y)
-            {
-                *src = p(p.size_x_ - 2, y);
-                ++src;
-            }
         }
     };
 
@@ -52,7 +37,6 @@ namespace nast_hpx { namespace grid {
         template <typename BufferType>
         static void call(partition_data<Real> const& p, BufferType& buffer, std::size_t offset, std::size_t size)
         {
-            buffer = BufferType(p.data_.data() + p.size_x_ + 1 + offset, size, BufferType::reference);
         }
     };
 
@@ -62,7 +46,6 @@ namespace nast_hpx { namespace grid {
         template <typename BufferType>
         static void call(partition_data<Real> const& p, BufferType& buffer, std::size_t offset, std::size_t size)
         {
-            buffer = BufferType(p.data_.data() + p.size_ - 2 * p.size_x_ + 1 + offset, size, BufferType::reference);
         }
     };
 
@@ -72,7 +55,6 @@ namespace nast_hpx { namespace grid {
         template <typename BufferType>
         static void call(partition_data<Real> const& p, BufferType& buffer, std::size_t offset, std::size_t size)
         {
-            buffer = BufferType(p.data_.data() + 2 * p.size_x_ - 2, 1, BufferType::reference);
         }
     };
 
@@ -82,7 +64,6 @@ namespace nast_hpx { namespace grid {
         template <typename BufferType>
         static void call(partition_data<Real> const& p, BufferType& buffer, std::size_t offset, std::size_t size)
         {
-            buffer = BufferType(p.data_.data() + p.size_ - 2 * p.size_x_ + 1, 1, BufferType::reference);
         }
     };
 

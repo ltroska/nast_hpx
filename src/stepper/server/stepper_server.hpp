@@ -32,13 +32,13 @@ struct HPX_COMPONENT_EXPORT stepper_server
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_dt, set_dt_action);
 
     private:
-        uint num_localities, num_localities_x, num_localities_y;
+        uint num_localities, num_localities_x, num_localities_y, num_localities_z;
         hpx::lcos::local::receive_buffer<Real> dt_buffer;
 
         grid::partition part;
 
         std::size_t rank, max_timesteps, step;
-        Real init_dt, dx, dy, re, pr, tau, t_end;
+        Real init_dt, dx, dy, dz, re, pr, tau, t_end;
 
         std::vector<hpx::naming::id_type> localities;
 

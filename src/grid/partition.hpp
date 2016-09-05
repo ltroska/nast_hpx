@@ -59,16 +59,10 @@ struct partition
         init().wait();
     }
 
-    hpx::future<std::pair<Real, Real> > do_timestep(Real dt)
+    hpx::future<triple<Real>> do_timestep(Real dt)
     {
         typename server::partition_server::do_timestep_action act;
         return hpx::async(act, get_id(), dt);
-    }
-
-    hpx::future<std::pair<Real, Real> > do_timestep_fut(hpx::future<Real> dt)
-    {
-        typename server::partition_server::do_timestep_action act;
-        return hpx::dataflow(act, get_id(), dt.get());
     }
 };
 

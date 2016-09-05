@@ -17,16 +17,9 @@ namespace nast_hpx { namespace io {
         cfg.num_localities = num_localities;
         cfg.rank = rank;
 
-        if (cfg.num_localities == 2)
-        {
-            cfg.num_localities_x = 2;
-            cfg.num_localities_y = 1;
-        }
-        else
-        {
-            cfg.num_localities_x = static_cast<uint> (sqrt(cfg.num_localities));
-            cfg.num_localities_y = cfg.num_localities_x;
-        }
+        cfg.num_localities_x = static_cast<uint> (std::cbrt(cfg.num_localities));
+        cfg.num_localities_y = cfg.num_localities_x;
+        cfg.num_localities_z = cfg.num_localities_x;
 
         pugi::xml_document doc;
 
@@ -62,6 +55,15 @@ namespace nast_hpx { namespace io {
             std::exit(1);
         }
 
+        if(config_node.child("kMax") != NULL)
+        {
+            cfg.k_max = config_node.child("kMax").first_attribute().as_int();
+        }
+        else {
+            std::cerr << "Error: kMax not set!" << std::endl;
+            std::exit(1);
+        }
+
         if(config_node.child("iRes") != NULL)
         {
             cfg.num_x_blocks = config_node.child("iRes").first_attribute().as_int();
@@ -80,6 +82,15 @@ namespace nast_hpx { namespace io {
             std::exit(1);
         }
 
+        if(config_node.child("kRes") != NULL)
+        {
+            cfg.num_z_blocks = config_node.child("kRes").first_attribute().as_int();
+        }
+        else {
+            std::cerr << "Error: kRes not set!" << std::endl;
+            std::exit(1);
+        }
+
         cfg.cells_x_per_block = (cfg.i_max + 2) / cfg.num_localities_x / cfg.num_x_blocks;
 
         if (cfg.cells_x_per_block * cfg.num_localities_x * cfg.num_x_blocks != cfg.i_max + 2)
@@ -95,6 +106,15 @@ namespace nast_hpx { namespace io {
         {
             std::cerr << "Error: localities_y * num_y_blocks does not divide j_max + 2 evenly!" << std::endl;
             std::cerr << "localities_y = " << cfg.num_localities_y << ", num_y_blocks = " << cfg.num_y_blocks << ", j_max + 2 = " << cfg.j_max + 2 << std::endl;
+            std::exit(1);
+        }
+
+        cfg.cells_z_per_block = (cfg.k_max + 2) / cfg.num_localities_z / cfg.num_z_blocks;
+
+        if (cfg.cells_z_per_block * cfg.num_localities_z * cfg.num_z_blocks != cfg.k_max + 2)
+        {
+            std::cerr << "Error: localities_z * num_z_blocks does not divide k_max + 2 evenly!" << std::endl;
+            std::cerr << "localities_z = " << cfg.num_localities_z << ", num_z_blocks = " << cfg.num_z_blocks << ", k_max + 2 = " << cfg.k_max + 2 << std::endl;
             std::exit(1);
         }
 
@@ -118,17 +138,31 @@ namespace nast_hpx { namespace io {
             std::exit(1);
         }
 
+        if(config_node.child("zLength") != NULL)
+        {
+            cfg.z_length =
+                config_node.child("zLength").first_attribute().as_double();
+        }
+        else {
+            std::cerr << "Error: zLength not set!" << std::endl;
+            std::exit(1);
+        }
+
         cfg.dx = cfg.x_length / cfg.i_max;
         cfg.dy = cfg.y_length / cfg.j_max;
+        cfg.dz = cfg.z_length / cfg.k_max;
 
         cfg.dx_sq = std::pow(cfg.dx, 2);
         cfg.dy_sq = std::pow(cfg.dy, 2);
+        cfg.dz_sq = std::pow(cfg.dz, 2);
 
         cfg.over_dx = 1. / cfg.dx;
         cfg.over_dy = 1. / cfg.dy;
+        cfg.over_dz = 1. / cfg.dz;
 
         cfg.over_dx_sq = 1. / cfg.dx_sq;
         cfg.over_dy_sq = 1. / cfg.dy_sq;
+        cfg.over_dz_sq = 1. / cfg.dz_sq;
 
         if(config_node.child("Re") != NULL)
         {
@@ -278,7 +312,16 @@ namespace nast_hpx { namespace io {
             cfg.gy = 0;
         }
 
-        if(config_node.child("UT") != NULL)
+        if(config_node.child("GZ") != NULL)
+        {
+            cfg.gz = config_node.child("GZ").first_attribute().as_double();
+        }
+        else
+        {
+            cfg.gz = 0;
+        }
+
+      /*  if(config_node.child("UT") != NULL)
         {
             cfg.u_bnd.top =
                 config_node.child("UT").first_attribute().as_double();
@@ -486,7 +529,7 @@ namespace nast_hpx { namespace io {
         {
             cfg.bnd_type.top = 1;
         }
-
+*/
         if(config_node.child("deltaVec") != NULL)
         {
             cfg.delta_vec =
@@ -499,8 +542,6 @@ namespace nast_hpx { namespace io {
 
         if(config_node.child("gridFile") != NULL)
         {
-            cfg.with_flag_grid = true;
-
             std::ifstream file(
                 config_node.child("gridFile").first_attribute().as_string());
 

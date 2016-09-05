@@ -8,6 +8,7 @@
 #include "grid/partition_data.hpp"
 #include "grid/send_buffer.hpp"
 #include "grid/recv_buffer.hpp"
+#include "grid/direction.hpp"
 
 #include "io/config.hpp"
 
@@ -28,8 +29,6 @@ void serialize(output_archive& ar, std::bitset<6> const& b, unsigned version)
     ar << b.to_ulong();
 }
 
-
-
 }}
 
 namespace nast_hpx { namespace grid { namespace server {
@@ -43,52 +42,23 @@ struct HPX_COMPONENT_EXPORT partition_server
 {
 public:
 
-    static const std::size_t U = 0;
-    static const std::size_t V = 1;
-    static const std::size_t F = 2;
-    static const std::size_t G = 3;
-    static const std::size_t P = 4;
-    static const std::size_t NUM_VARIABLES = 5;
+    enum {
+        U = 0,
+        V,
+        W,
+        F,
+        G,
+        H,
+        P,
+        NUM_VARIABLES
+    } variables;
 
     typedef hpx::serialization::serialize_buffer<Real> buffer_type;
     typedef std::vector<hpx::shared_future<void> > future_vector;
     typedef std::vector<future_vector> future_grid;
 
-
     partition_server() {}
     ~partition_server() {}
-
-    partition_server(partition_server const& other)
-    : c(other.c)
-    {
-        std::cout << "constr" << std::endl;
-    }
-
-    partition_server(partition_server && other)
-    : c(other.c),
-      is_left_(other.is_left_),
-      is_right_(other.is_right_),
-      is_bottom_(other.is_bottom_),
-      is_top_(other.is_top_),
-      current(other.current),
-      last(other.last),
-      rhs_data_(std::move(other.rhs_data_)),
-      cell_type_data_(other.cell_type_data_),
-      fluid_cells_(other.fluid_cells_),
-      boundary_cells_(other.boundary_cells_),
-      obstacle_cells_(other.obstacle_cells_),
-      cells_x_(other.cells_x_),
-      cells_y_(other.cells_y_),
-      idx_(other.idx_),
-      idy_(other.idy_),
-      step_(other.step_),
-      outcount_(other.outcount_),
-      t_(other.t_),
-      next_out_(other.next_out_)
-    {
-        for (std::size_t var = 0; var < NUM_VARIABLES; ++var)
-            data_[var] = std::move(other.data_[var]);
-    }
 
     partition_server(io::config const& cfg);
 
@@ -96,7 +66,7 @@ public:
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, init, init_action);
 
     /// return the sliced data appropriate for given direction
-    std::pair<Real, Real> do_timestep(Real dt);
+    triple<Real> do_timestep(Real dt);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, do_timestep, do_timestep_action);
 
     void set_left_boundary(buffer_type buffer, std::size_t step, std::size_t var)
@@ -227,24 +197,26 @@ private:
     template <typename Archive>
     void serialize(Archive& ar, const unsigned version)
     {
-        ar & c & is_left_ & is_right_ & is_bottom_ & is_top_ & current & last & data_ & rhs_data_ & cell_type_data_
+        ar & c & is_left_ & is_right_ & is_bottom_ & is_top_ & is_front_ & is_back_ & current & last & data_ & rhs_data_ & cell_type_data_
            & fluid_cells_ & boundary_cells_ & obstacle_cells_ & cells_x_ & cells_y_ & idx_ & idy_
            & step_ & outcount_ & t_ & next_out_;
     }
 
     partition_data<Real> data_[NUM_VARIABLES];
     partition_data<Real> rhs_data_;
-    partition_data<std::bitset<6> > cell_type_data_;
+    partition_data<std::bitset<9> > cell_type_data_;
 
-    partition_data<std::vector<std::pair<std::size_t, std::size_t> > > fluid_cells_;
-    partition_data<std::vector<std::pair<std::size_t, std::size_t> > > boundary_cells_;
-    partition_data<std::vector<std::pair<std::size_t, std::size_t> > > obstacle_cells_;
+    partition_data<std::vector<index> > fluid_cells_;
+    partition_data<std::vector<index> > boundary_cells_;
+    partition_data<std::vector<index> > obstacle_cells_;
 
     partition_data<hpx::shared_future<void> > set_velocity_futures;
     future_grid send_futures_U;
     future_grid send_futures_V;
+    future_grid send_futures_W;
     future_grid recv_futures_U;
     future_grid recv_futures_V;
+    future_grid recv_futures_W;
 
     partition_data<hpx::shared_future<void> > compute_fg_futures;
     future_grid send_futures_F;
@@ -264,14 +236,14 @@ private:
     std::array<future_grid, 2> recv_futures_P;
     std::array<partition_data<hpx::shared_future<void> >, 2> sor_cycle_futures;
 
-    std::vector<hpx::future<std::pair<Real, Real> > > local_max_uvs;
+    std::vector<hpx::future<triple<Real> > > local_max_uvs;
 
     std::vector<hpx::id_type> ids_;
 
     io::config c;
 
-    std::size_t cells_x_, cells_y_;
-    std::size_t idx_, idy_;
+    std::size_t cells_x_, cells_y_, cells_z_;
+    std::size_t idx_, idy_, idz_;
     std::size_t step_;
     std::size_t outcount_;
 
@@ -279,7 +251,7 @@ private:
 
     util::cancellation_token token;
 
-    bool is_left_, is_right_, is_bottom_, is_top_;
+    bool is_left_, is_right_, is_bottom_, is_top_, is_back_, is_front_;
 };
 
 }//namespace server

@@ -7,6 +7,8 @@
 
 #include "stepper_server.hpp"
 
+#include "util/triple.hpp"
+
 
 typedef nast_hpx::stepper::server::stepper_server stepper_component;
 typedef hpx::components::component<stepper_component> stepper_server_type;
@@ -19,8 +21,8 @@ HPX_REGISTER_ACTION(nast_hpx::stepper::server::stepper_server::setup_action,
 HPX_REGISTER_ACTION(nast_hpx::stepper::server::stepper_server::run_action,
     stepper_server_run_action);
 
-typedef std::pair<Real, Real> vec2;
-HPX_REGISTER_GATHER(vec2, stepper_server_velocity_gather);
+typedef nast_hpx::triple<Real> vec3;
+HPX_REGISTER_GATHER(vec3, stepper_server_velocity_gather);
 
 namespace nast_hpx { namespace stepper { namespace server {
 
@@ -35,6 +37,7 @@ void stepper_server::setup(io::config const& cfg)
 
     dx = cfg.dx;
     dy = cfg.dy;
+    dz = cfg.dz;
     re = cfg.re;
     pr = cfg.pr;
     tau = cfg.tau;
@@ -65,13 +68,13 @@ void stepper_server::run()
             break;
 
        // std::cout << "step " << step << std::endl;
-        hpx::future<std::pair<Real, Real> > local_max_velocity =
+        hpx::future<triple<Real> > local_max_velocity =
            part.do_timestep(dt);
 
         // if this is the root locality gather all remote residuals and sum up
         if (hpx::get_locality_id() == 0)
         {
-            hpx::future<std::vector<std::pair<Real, Real> > >
+            hpx::future<std::vector<triple<Real> > >
             max_velocities =
                 hpx::lcos::gather_here(velocity_basename,
                                         std::move(local_max_velocity),
@@ -79,27 +82,31 @@ void stepper_server::run()
 
             max_velocities.then(
                 hpx::util::unwrapped(
-                    [=, &t](std::vector<std::pair<Real, Real> > local_max_uvs)
+                    [=, &t](std::vector<triple<Real> > local_max_uvws)
                     {
-                        std::pair<Real, Real> global_max_uv(0, 0);
+                        triple<Real> global_max_uvw(0);
 
-                        for (auto& max_uv : local_max_uvs)
+                        for (auto& max_uvw : local_max_uvws)
                         {
-                            global_max_uv.first =
-                                (max_uv.first > global_max_uv.first
-                                    ? max_uv.first : global_max_uv.first);
+                            global_max_uvw.x =
+                                (max_uvw.x > global_max_uvw.x
+                                    ? max_uvw.x : global_max_uvw.x);
 
-                            global_max_uv.second =
-                                (max_uv.second > global_max_uv.second
-                                    ? max_uv.second : global_max_uv.second);
+                            global_max_uvw.y =
+                                (max_uvw.y > global_max_uvw.y
+                                    ? max_uvw.y : global_max_uvw.y);
+
+                            global_max_uvw.z =
+                                (max_uvw.z > global_max_uvw.z
+                                    ? max_uvw.z : global_max_uvw.z);
                         }
 
                         Real new_dt =
                             std::min(re / 2. * 1. / (1. / std::pow(dx, 2)
                                         + 1. / std::pow(dy, 2))
                                     ,
-                                    std::min(dx / global_max_uv.first,
-                                            dy / global_max_uv.second)
+                                    std::min(dx / global_max_uvw.x,
+                                            dy / global_max_uvw.z)
                             );
 
                         new_dt *= tau;

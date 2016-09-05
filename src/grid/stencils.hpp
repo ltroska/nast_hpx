@@ -35,7 +35,7 @@ namespace nast_hpx { namespace grid {
     template <std::size_t stencil>
     struct stencils;
 
-    template<>
+ /*   template<>
     struct stencils<STENCIL_NONE>
     {
         static void call(partition_data<Real>& dst, partition_data<Real> const& src,
@@ -476,7 +476,7 @@ namespace nast_hpx { namespace grid {
                                   * (middle_temperature
                                         + right_temperature )
                                   * gx*/
-                );
+         /*       );
 
                 dst_g(x, y) = src_v(x, y) + cell_type.test(has_fluid_north)
                     * ( dt * (
@@ -505,7 +505,7 @@ namespace nast_hpx { namespace grid {
                                         * (middle_temperature
                                             + top_temperature )
                                         * gy*/
-                );
+        /*        );
             }
         }
     };
@@ -563,7 +563,7 @@ namespace nast_hpx { namespace grid {
                                   * (middle_temperature
                                         + right_temperature )
                                   * gx*/
-                );
+       /*         );
 
                 dst_g(x, y) = src_v(x, y) + cell_type.test(has_fluid_north)
                     * ( dt * (
@@ -592,7 +592,7 @@ namespace nast_hpx { namespace grid {
                                         * (middle_temperature
                                             + top_temperature )
                                         * gy*/
-                );
+         /*       );
             }
             #ifdef WITH_FOR_EACH
             );
@@ -1010,7 +1010,7 @@ namespace nast_hpx { namespace grid {
             return std::make_pair(max_u, max_v);
             #endif
         }
-    };
+    };*/
 }
 }
 

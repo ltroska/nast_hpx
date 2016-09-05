@@ -16,18 +16,24 @@ struct config
 {
         uint i_max;
         uint j_max;
+        uint k_max;
         uint num_fluid_cells;
 
         Real x_length;
         Real y_length;
+        Real z_length;
         Real dx;
         Real dy;
+        Real dz;
         Real over_dx;
         Real over_dy;
+        Real over_dz;
         Real dx_sq;
         Real dy_sq;
+        Real dz_sq;
         Real over_dx_sq;
         Real over_dy_sq;
+        Real over_dz_sq;
 
         Real part1;
         Real part2;
@@ -41,6 +47,7 @@ struct config
         Real beta;
         Real gx;
         Real gy;
+        Real gz;
 
         bool vtk;
         Real delta_vec;
@@ -58,30 +65,28 @@ struct config
         std::size_t num_localities;
         std::size_t num_localities_x;
         std::size_t num_localities_y;
+        std::size_t num_localities_z;
 
         std::size_t num_partitions;
         std::size_t num_partitions_x;
         std::size_t num_partitions_y;
+        std::size_t num_partitions_z;
 
         std::size_t num_x_blocks;
         std::size_t num_y_blocks;
+        std::size_t num_z_blocks;
 
         std::size_t cells_x_per_block;
         std::size_t cells_y_per_block;
+        std::size_t cells_z_per_block;
 
         std::size_t rank;
         std::size_t idx;
         std::size_t idy;
+        std::size_t idz;
 
-        grid::boundary_data u_bnd;
-        grid::boundary_data v_bnd;
-        grid::boundary_type bnd_type;
+        grid::boundary_condition bnd_condition;
 
-        grid::boundary_data temp_bnd;
-        grid::boundary_type temp_data_type;
-        Real ti;
-
-        bool with_flag_grid;
         std::vector<std::bitset<6> > flag_grid;
 
         bool with_initial_uv_grid;
@@ -90,16 +95,16 @@ struct config
         template <typename Archive>
         void serialize(Archive& ar, const unsigned int version)
         {
-            ar & i_max & j_max & num_fluid_cells & x_length
-                & y_length & dx & dy & over_dx & over_dy
-                & dx_sq & dy_sq & part1 & part2 & factor_jacobi & re & pr & omega & tau & alpha
-                & beta & gx & gy & vtk & delta_vec & verbose & t_end & initial_dt & max_timesteps
+            ar & i_max & j_max & k_max & num_fluid_cells & x_length
+                & y_length & z_length & dx & dy & dz & over_dx & over_dy & over_dz
+                & dx_sq & dy_sq & dz_sq & part1 & part2 & factor_jacobi & re & pr & omega & tau & alpha
+                & beta & gx & gy & gz & vtk & delta_vec & verbose & t_end & initial_dt & max_timesteps
                 & sub_iterations & iter_max & eps & eps_sq & num_localities
-                & num_localities_x & num_localities_y & num_partitions
-                & num_partitions_x & num_partitions_y & num_x_blocks
-                & num_y_blocks & cells_x_per_block & cells_y_per_block
-                & rank & idx & idy & ti & with_flag_grid & with_initial_uv_grid
-                & u_bnd & v_bnd & bnd_type;
+                & num_localities_x & num_localities_y & num_localities_z & num_partitions
+                & num_partitions_x & num_partitions_y & num_partitions_z & num_x_blocks
+                & num_y_blocks & num_z_blocks & cells_x_per_block & cells_y_per_block & cells_z_per_block
+                & rank & idx & idy & idz & with_initial_uv_grid
+                & bnd_condition;
         }
 
         friend std::ostream& operator<<(std::ostream& os, config const& config)
@@ -109,46 +114,53 @@ struct config
                 << "\nGEOMETRY:"
                 << "\n\ti_max = " << config.i_max
                 << "\n\tj_max = " << config.j_max
+                << "\n\tk_max = " << config.k_max
                 << "\n\tdx = " << config.dx
                 << "\n\tdy = " << config.dy
+                << "\n\tdz = " << config.dz
                 << "\n\tdx_sq = " << config.dx_sq
                 << "\n\tdy_sq = " << config.dy_sq
+                << "\n\tdz_sq = " << config.dz_sq
                 << "\n\tover_dx = " << config.over_dx
                 << "\n\tover_dy = " << config.over_dy
+                << "\n\tover_dz = " << config.over_dz
                 << "\n\tover_dx_sq = " << config.over_dx_sq
                 << "\n\tover_dy_sq = " << config.over_dy_sq
+                << "\n\tover_dz_sq = " << config.over_dz_sq
                 << "\n\tnum_localities = " << config.num_localities
                 << "\n\tnum_localities_x = " << config.num_localities_x
                 << "\n\tnum_localities_y = " << config.num_localities_y
+                << "\n\tnum_localities_z = " << config.num_localities_z
                 << "\n\tnum_partitions = " << config.num_partitions
                 << "\n\tnum_partitions_x = " << config.num_partitions_x
                 << "\n\tnum_partitions_y = " << config.num_partitions_y
+                << "\n\tnum_partitions_z = " << config.num_partitions_z
                 << "\n\tnum_x_blocks = " << config.num_x_blocks
                 << "\n\tnum_y_blocks = " << config.num_y_blocks
+                << "\n\tnum_z_blocks = " << config.num_z_blocks
                 << "\n\tnum_cells_x_per_block = " << config.cells_x_per_block
                 << "\n\tnum_cells_y_per_block = " << config.cells_y_per_block
+                << "\n\tnum_cells_z_per_block = " << config.cells_z_per_block
                 << "\n\trank = " << config.rank
                 << "\n\tidx = " << config.idx
                 << "\n\tidy = " << config.idy
+                << "\n\tidy = " << config.idz
                 << "\n\tnumFluid = " << config.num_fluid_cells
                 << "\n\txLength = " << config.x_length
                 << "\n\tyLength = " << config.y_length
+                << "\n\tyLength = " << config.z_length
                 << "\nDATA:"
                 << "\n\tRe = " << config.re
                 << "\n\tPr = " << config.pr
                 << "\n\tomega = " << config.omega
                 << "\n\tgx = " << config.gx
                 << "\n\tgy = " << config.gy
+                << "\n\tgy = " << config.gz
                 << "\n\tbeta = " << config.beta
                 << "\n\tdt = " << config.initial_dt
                 << "\n\tt_end = " << config.t_end
                 << "\n\tmax_timesteps = " << config.max_timesteps
-                << "\n\tu_bnd " << config.u_bnd
-                << "\n\tv_bnd " << config.v_bnd
-                << "\n\tbnd_type " << config.bnd_type
-                << "\n\ttemp_bnd " << config.temp_bnd
-                << "\n\ttemp_data_type " << config.temp_data_type
-                << "\n\tt_inital = " << config.ti
+              //  << "\n\tboundary = " << config.bnd_condition
                 << "\nSIMULATION:"
                 << "\n\ttau = " << config.tau
                 << "\n\teps = " << config.eps

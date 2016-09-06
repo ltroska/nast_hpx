@@ -4,12 +4,15 @@
 #define Real double
 #define uint std::size_t
 
-#define has_fluid_north 0
-#define has_fluid_south 1
-#define has_fluid_west 2
-#define has_fluid_east 3
-#define is_fluid 4
-#define is_boundary 5
+#define has_fluid_left 0
+#define has_fluid_right 1
+#define has_fluid_bottom 2
+#define has_fluid_top 3
+#define has_fluid_front 4
+#define has_fluid_back 5
+#define is_fluid 6
+#define is_obstacle 7
+#define is_boundary 7
 
 #define noslip 1
 #define slip 2

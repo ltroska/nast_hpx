@@ -78,13 +78,13 @@ inline Real first_derivative_of_square_x(
 }
 
 inline Real first_derivative_of_square_y(
-    grid_type grid, std::size_t i, std::size_t j, std::size_t k, Real dz,
+    grid_type grid, std::size_t i, std::size_t j, std::size_t k, Real dy,
     Real alpha = 0.9)
 {
     return 1./dy * (std::pow((grid(i, j, k) + grid(i, j + 1, k)) / 2., 2)
                         - std::pow((grid(i, j - 1, k) + grid(i, j, k)) / 2., 2))
             + alpha / dy
-            * (std::abs(grid(i, j, k) + grid(i, j + 1, k) * (grid(i, j, k) - grid(i, j + 1, k)) / 4.
+            * (std::abs(grid(i, j, k) + grid(i, j + 1, k)) * (grid(i, j, k) - grid(i, j + 1, k)) / 4.
                 - std::abs(grid(i, j - 1, k) + grid(i, j, k)) * (grid(i, j - 1, k) - grid(i, j, k)) / 4.);
 }
 
@@ -92,10 +92,10 @@ inline Real first_derivative_of_square_z(
     grid_type grid, std::size_t i, std::size_t j, std::size_t k, Real dz,
     Real alpha = 0.9)
 {
-    return 1./dy * (std::pow((grid(i, j, k) + grid(i, j, k + 1)) / 2., 2)
+    return 1./dz * (std::pow((grid(i, j, k) + grid(i, j, k + 1)) / 2., 2)
                         - std::pow((grid(i, j, k - 1) + grid(i, j, k)) / 2., 2))
-            + alpha / dy
-            * (std::abs(grid(i, j, k) + grid(i, j, k + 1) * (grid(i, j, k) - grid(i, j, k + 1)) / 4.
+            + alpha / dz
+            * (std::abs(grid(i, j, k) + grid(i, j, k + 1)) * (grid(i, j, k) - grid(i, j, k + 1)) / 4.
                 - std::abs(grid(i, j, k - 1) + grid(i, j, k)) * (grid(i, j, k - 1) - grid(i, j, k)) / 4.);
 }
 
@@ -106,7 +106,7 @@ inline Real first_derivative_of_uv_x(
     return 1./dx * ((u(i, j, k) + u(i, j + 1, k))
                         * (v(i, j, k) + v(i + 1, j, k)) / 4.
                         - (u(i - 1, j, k) + u(i - 1, j + 1, k)) * (v(i - 1, j , k) + v(i, j, k)) / 4.)
-            + alpha / dx * (std::abs(u(i, j, k) + u(i + 1, j, k))
+            + alpha / dx * (std::abs(u(i, j, k) + u(i, j + 1, k))
                 * (v(i, j, k) - v(i + 1, j, k)) / 4.
             - std::abs(u(i - 1, j, k) + u(i - 1, j + 1, k)) * (v(i - 1, j, k) - v(i, j, k)) / 4.);
 }
@@ -118,7 +118,7 @@ inline Real first_derivative_of_uw_x(
     return 1./dx * ((u(i, j, k) + u(i, j, k + 1))
                         * (w(i, j, k) + w(i + 1, j, k)) / 4.
                         - (u(i - 1, j, k) + u(i - 1, j, k + 1)) * (w(i - 1, j , k) + w(i, j, k)) / 4.)
-            + alpha / dx * (std::abs(u(i, j, k) + u(i + 1, j, k))
+            + alpha / dx * (std::abs(u(i, j, k) + u(i, j, k + 1))
                 * (w(i, j, k) - w(i + 1, j, k)) / 4.
             - std::abs(u(i - 1, j, k) + u(i - 1, j, k + 1)) * (w(i - 1, j, k) - w(i, j, k)) / 4.);
 }
@@ -128,7 +128,7 @@ inline Real first_derivative_of_uv_y(
     , Real alpha = 0.9)
 {
     return 1./dy * ((v(i, j, k) + v(i + 1, j, k))  * (u(i, j, k) + u(i, j + 1, k)) / 4.
-            - (v(i, j - 1, k)) + (i + 1, j - 1, k)) * (u(i, j - 1, k) + u(i, j, k)) / 4.)
+            - (v(i, j - 1, k) + v(i + 1, j - 1, k)) * (u(i, j - 1, k) + u(i, j, k)) / 4.)
             + alpha / dy * (std::abs(v(i, j, k) + v(i + 1, j, k))
                 * (u(i, j, k) - u(i, j + 1, k)) / 4.
             - std::abs(v(i, j - 1, k) + v(i + 1, j - 1, k)) * (u(i, j - 1, k) - u(i, j, k)) / 4.);
@@ -139,7 +139,7 @@ inline Real first_derivative_of_vw_y(
     , Real alpha = 0.9)
 {
     return 1./dy * ((v(i, j, k) + v(i, j, k + 1))  * (w(i, j, k) + w(i, j + 1, k)) / 4.
-            - (v(i, j - 1, k)) + v(i, j - 1, k + 1)) * (w(i, j - 1, k) + w(i, j, k)) / 4.)
+            - (v(i, j - 1, k) + v(i, j - 1, k + 1)) * (w(i, j - 1, k) + w(i, j, k)) / 4.)
             + alpha / dy * (std::abs(v(i, j, k) + v(i, j, k + 1))
                 * (w(i, j, k) - w(i, j + 1, k)) / 4.
             - std::abs(v(i, j - 1, k) + v(i, j - 1, k + 1)) * (w(i, j - 1, k) - w(i, j, k)) / 4.);
@@ -150,9 +150,11 @@ inline Real first_derivative_of_uw_z(
     , Real alpha = 0.9)
 {
     return 1./dz * ((w(i, j, k) + w(i + 1, j, k))  * (u(i, j, k) + u(i, j, k + 1)) / 4.
-            - (w(i, j, k - 1)) + w(i + 1, j, k - 1)) * (u(i, j, k - 1) + u(i, j, k)) / 4.)
-            + alpha / dz * (std::abs(w(i, j, k) + w(i + 1, j, k))
-                * (u(i, j, k) - u(i, j, k + 1)) / 4.
+            -
+            (w(i, j, k - 1) + w(i + 1, j, k - 1)) * (u(i, j, k - 1) + u(i, j, k)) / 4.)
+            +
+            alpha / dz *
+                (std::abs(w(i, j, k) + w(i + 1, j, k)) * (u(i, j, k) - u(i, j, k + 1)) / 4.
             - std::abs(w(i, j, k - 1) + w(i + 1, j, k - 1)) * (u(i, j, k - 1) - u(i, j, k)) / 4.);
 }
 
@@ -161,7 +163,7 @@ inline Real first_derivative_of_vw_z(
     , Real alpha = 0.9)
 {
     return 1./dz * ((w(i, j, k) + w(i, j + 1, k))  * (v(i, j, k) + v(i, j, k + 1)) / 4.
-            - (w(i, j, k - 1)) + w(i, j + 1, k - 1)) * (v(i, j, k - 1) + v(i, j, k)) / 4.)
+            - (w(i, j, k - 1) + w(i, j + 1, k - 1)) * (v(i, j, k - 1) + v(i, j, k)) / 4.)
             + alpha / dz * (std::abs(w(i, j, k) + w(i, j + 1, k))
                 * (v(i, j, k) - v(i, j, k + 1)) / 4.
             - std::abs(w(i, j, k - 1) + w(i, j + 1, k - 1)) * (v(i, j, k - 1) - v(i, j, k)) / 4.);

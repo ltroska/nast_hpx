@@ -87,7 +87,7 @@ struct config
 
         grid::boundary_condition bnd_condition;
 
-        std::vector<std::bitset<6> > flag_grid;
+        std::vector<std::bitset<9> > flag_grid;
 
         bool with_initial_uv_grid;
         std::vector<std::pair<Real, Real> > initial_uv_grid;
@@ -155,12 +155,12 @@ struct config
                 << "\n\tomega = " << config.omega
                 << "\n\tgx = " << config.gx
                 << "\n\tgy = " << config.gy
-                << "\n\tgy = " << config.gz
+                << "\n\tgz = " << config.gz
                 << "\n\tbeta = " << config.beta
                 << "\n\tdt = " << config.initial_dt
                 << "\n\tt_end = " << config.t_end
                 << "\n\tmax_timesteps = " << config.max_timesteps
-              //  << "\n\tboundary = " << config.bnd_condition
+                << "\n\tboundary = " << config.bnd_condition
                 << "\nSIMULATION:"
                 << "\n\ttau = " << config.tau
                 << "\n\teps = " << config.eps

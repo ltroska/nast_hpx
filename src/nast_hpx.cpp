@@ -13,7 +13,8 @@ int hpx_main(boost::program_options::variables_map& vm)
     nast_hpx::io::config cfg = nast_hpx::io::config::read_config_from_file(cfg_path.c_str(), hpx::get_locality_id(), hpx::get_num_localities_sync());
     cfg.max_timesteps = timesteps;
     cfg.verbose = vm.count("verbose") ? true : false;
-
+    //DRIVEN CAVITY: TODO REMOVE THIS
+    cfg.bnd_condition.back.x = 1;
     if (cfg.verbose)
         std::cout << "Threads on locality " << hpx::get_locality_id()
             << " = " << hpx::get_os_thread_count() << std::endl;

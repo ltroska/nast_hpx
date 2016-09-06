@@ -93,10 +93,12 @@ partition_server::partition_server(io::config const& cfg)
                     for (std::size_t j = y_range.first; j < y_range.second; ++j)
                         for (std::size_t i = x_range.first; i < x_range.second; ++i)
                         {
-                           // cell_type_data_(i, j, k) = std::move(c.flag_grid[k * cells_x_ * cells_y_ + j * cells_x_ + i]);
-                            data_[U](i, j, k) = i - 1;
-                            data_[V](i, j, k) = j - 1;
-                            data_[W](i, j, k) = k - 1;
+                            cell_type_data_(i, j, k) = std::move(c.flag_grid[k * cells_x_ * cells_y_ + j * cells_x_ + i]);
+
+                          //  data_[P](i, j, k) = cell_type_data_(i, j, k).to_ulong();
+                         //   data_[U](i, j, k) = i - 1;
+                          //  data_[V](i, j, k) = j - 1;
+                          //  data_[W](i, j, k) = k - 1;
 
                             if (cell_type_data_(i, j, k).test(is_fluid))
                             {
@@ -526,29 +528,214 @@ void partition_server::wait_all_boundaries(future_grid& recv_futures)
 
 triple<Real> partition_server::do_timestep(Real dt)
 {
-   /* for (std::size_t nz_block = 0; nz_block < c.num_z_blocks; ++nz_block)
+    for (std::size_t nz_block = 0; nz_block < c.num_z_blocks; ++nz_block)
         for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
             for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
             {
                 hpx::shared_future<void> calc_future =
                     hpx::async(
                         hpx::util::bind(
-                            &stencils<STENCIL_SET_VELOCITY>::call,
+                            &stencils<STENCIL_SET_VELOCITY_OBSTACLE>::call,
                             boost::ref(data_[U]), boost::ref(data_[V]), boost::ref(data_[W]),
+                            boost::ref(cell_type_data_),
                             boost::ref(boundary_cells_(nx_block, ny_block, nz_block)),
+                            boost::ref(obstacle_cells_(nx_block, ny_block, nz_block)),
+                            boost::ref(c.bnd_condition)
                         )
                     );
-            }*/
+
+                 set_velocity_futures(nx_block, ny_block, nz_block) = calc_future;
+            }
+
+    hpx::wait_all(set_velocity_futures.data_);
+
+    for (std::size_t nz_block = 0; nz_block < c.num_z_blocks; ++nz_block)
+        for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
+            for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
+            {
+                hpx::shared_future<void> calc_future =
+                    hpx::async(
+                        hpx::util::bind(
+                            &stencils<STENCIL_COMPUTE_FG>::call,
+                            boost::ref(data_[F]), boost::ref(data_[G]), boost::ref(data_[H]),
+                            boost::ref(data_[U]), boost::ref(data_[V]), boost::ref(data_[W]),
+                            boost::ref(cell_type_data_),
+                            boost::ref(boundary_cells_(nx_block, ny_block, nz_block)),
+                            boost::ref(obstacle_cells_(nx_block, ny_block, nz_block)),
+                            boost::ref(fluid_cells_(nx_block, ny_block, nz_block)),
+                            c.re, c.gx, c.gy, c.gz, c.beta, c.dx, c.dy, c.dz,
+                            c.dx_sq, c.dy_sq, c.dz_sq, dt, c.alpha
+                        )
+                    );
+
+                 compute_fg_futures(nx_block, ny_block, nz_block) = calc_future;
+            }
+
+    hpx::wait_all(compute_fg_futures.data_);
+
+    for (std::size_t nz_block = 0; nz_block < c.num_z_blocks; ++nz_block)
+        for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
+            for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
+            {
+                hpx::shared_future<void> calc_future =
+                    hpx::async(
+                        hpx::util::bind(
+                            &stencils<STENCIL_COMPUTE_RHS>::call,
+                            boost::ref(rhs_data_),
+                            boost::ref(data_[F]), boost::ref(data_[G]), boost::ref(data_[H]),
+                            boost::ref(cell_type_data_),
+                            boost::ref(fluid_cells_(nx_block, ny_block, nz_block)),
+                            c.dx, c.dy, c.dz, dt
+                        )
+                    );
+
+                 compute_rhs_futures(nx_block, ny_block, nz_block) = calc_future;
+            }
+
+    hpx::wait_all(compute_rhs_futures.data_);
+
+    Real res = c.eps_sq + 1;
+
+    for (std::size_t iter; iter < c.iter_max && res > c.eps_sq; ++iter)
+    {
+         for (std::size_t nz_block = 0; nz_block < c.num_z_blocks; ++nz_block)
+                for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
+                    for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
+                    {
+                        hpx::shared_future<void> calc_future =
+                            hpx::async(
+                                hpx::util::bind(
+                                    &stencils<STENCIL_SET_P_OBSTACLE>::call,
+                                    boost::ref(data_[P]),
+                                    boost::ref(cell_type_data_),
+                                    boost::ref(boundary_cells_(nx_block, ny_block, nz_block)),
+                                    boost::ref(obstacle_cells_(nx_block, ny_block, nz_block)),
+                                    token
+                                )
+                            );
+
+                         set_p_futures(nx_block, ny_block, nz_block) = calc_future;
+                    }
+
+            hpx::wait_all(set_p_futures.data_);
+
+            for (std::size_t nz_block = 0; nz_block < c.num_z_blocks; ++nz_block)
+                for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
+                    for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
+                    {
+                        hpx::shared_future<void> calc_future =
+                            hpx::async(
+                                hpx::util::bind(
+                                    &stencils<STENCIL_JACOBI>::call,
+                                    boost::ref(data_[P]),
+                                    boost::ref(rhs_data_),
+                                    boost::ref(fluid_cells_(nx_block, ny_block, nz_block)),
+                                    c.dx_sq, c.dy_sq, c.dz_sq, token
+                                )
+                            );
+
+                         sor_cycle_futures[current](nx_block, ny_block, nz_block) = calc_future;
+                    }
+
+            hpx::wait_all(sor_cycle_futures[current].data_);
+
+            for (std::size_t nz_block = 0; nz_block < c.num_z_blocks; ++nz_block)
+                for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
+                    for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
+                    {
+                        hpx::shared_future<Real> calc_future =
+                            hpx::async(
+                                hpx::util::bind(
+                                    &stencils<STENCIL_COMPUTE_RESIDUAL>::call,
+                                    boost::ref(data_[P]),
+                                    boost::ref(rhs_data_),
+                                    boost::ref(fluid_cells_(nx_block, ny_block, nz_block)),
+                                    c.dx_sq, c.dy_sq, c.dz_sq, token
+                                )
+                            );
+
+                         compute_res_futures(nx_block, ny_block, nz_block) = calc_future;
+                    }
+
+            hpx::wait_all(compute_res_futures.data_);
+
+            hpx::future<Real> local_residual =
+            hpx::dataflow(
+                hpx::util::unwrapped(
+                    [num_fluid_cells = c.num_fluid_cells](std::vector<Real> residuals)
+                    -> Real
+                    {
+                        Real sum = 0;
+
+                        for (std::size_t i = 0; i < residuals.size(); ++i)
+                            sum += residuals[i];
+
+                        return sum / num_fluid_cells;
+                    }
+                )
+                , compute_res_futures.data_
+            );
+
+            local_residual.wait();
+            res = local_residual.get();
+
+            if (res < c.eps_sq || iter == c.iter_max - 1)
+                std::cout << "Iter: " << iter + 1 << "\tResidual: " << res << "\tdt: " << dt << std::endl;
+    }
+
+    local_max_uvs.clear();
+    local_max_uvs.reserve(c.num_x_blocks * c.num_y_blocks * c.num_z_blocks);
+
+    for (std::size_t nz_block = 0; nz_block < c.num_z_blocks; ++nz_block)
+        for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
+            for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
+            {
+                    local_max_uvs.push_back(hpx::async(
+                        hpx::util::bind(
+                            &stencils<STENCIL_UPDATE_VELOCITY>::call,
+                            boost::ref(data_[U]), boost::ref(data_[V]), boost::ref(data_[W]),
+                            boost::ref(data_[F]), boost::ref(data_[G]), boost::ref(data_[H]),
+                            boost::ref(data_[P]),
+                            boost::ref(cell_type_data_),
+                            boost::ref(fluid_cells_(nx_block, ny_block, nz_block)),
+                            dt, c.over_dx, c.over_dy, c.over_dz
+                        )
+                    ));
+
+            }
+
+    hpx::future<triple<Real> > local_max_uv =
+                hpx::dataflow(
+                    hpx::util::unwrapped(
+                        [](std::vector<triple<Real> > max_uvs)
+                        -> triple<Real>
+                        {
+                            triple<Real> max_uv(0);
+
+                            for (std::size_t i = 0; i < max_uvs.size(); ++i)
+                            {
+                                max_uv.x = max_uvs[i].x > max_uv.x ? max_uvs[i].x : max_uv.x;
+                                max_uv.y = max_uvs[i].y > max_uv.y ? max_uvs[i].y : max_uv.y;
+                                max_uv.z = max_uvs[i].z > max_uv.z ? max_uvs[i].z : max_uv.z;
+                            }
+
+                            return max_uv;
+                        }
+                    )
+                    , local_max_uvs
+                );
 
     t_ += dt;
     ++step_;
 
-    io::writer::write_vtk(data_[P], data_[U], data_[V], data_[W], cell_type_data_, c.num_partitions_x, c.num_partitions_y, c.num_partitions_z,
+    local_max_uv.wait();
+
+    io::writer::write_vtk(data_[P], data_[U], data_[V], data_[W], data_[F], data_[G], data_[H], cell_type_data_, c.num_partitions_x, c.num_partitions_y, c.num_partitions_z,
                           c.i_max, c.j_max, c.k_max, c.dx, c.dy, c.dz, outcount_++, c.rank, c.idx, c.idy, c.idz);
 
    // hpx::wait_all(compute_res_futures.data_);
 
-    return triple<Real>(0);
+    return local_max_uv.get();
 }
 
 }

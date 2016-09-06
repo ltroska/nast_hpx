@@ -9,7 +9,9 @@
 namespace nast_hpx { namespace io {
 
 void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
-            grid_type const& v_data, grid_type const& w_data, type_grid const& cell_types,
+            grid_type const& v_data, grid_type const& w_data,
+            grid_type const& f_data,
+            grid_type const& g_data, grid_type const& h_data,type_grid const& cell_types,
             std::size_t res_x, std::size_t res_y, std::size_t res_z, std::size_t i_max,
             std::size_t j_max, std::size_t k_max, Real dx, Real dy, Real dz, std::size_t step,
             std::size_t loc, std::size_t idx, std::size_t idy, std::size_t idz)
@@ -47,10 +49,11 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
           //  << "<DataArray type=\"Float32\" Name=\"heat\" />" << std::endl
             << "</PPointData>" << std::endl
             << "<PCellData>" << std::endl
-         //   << "<DataArray type=\"Float32\" Name=\"pressure\" />" << std::endl
+            << "<DataArray type=\"Float32\" Name=\"pressure\" />" << std::endl
           //  << "<DataArray type=\"Int32\" Name=\"obstacle\" />" << std::endl
           //  << "<DataArray type=\"Float32\" Name=\"temperature\" />" << std::endl
             << "<DataArray type=\"Float32\" Name=\"velocity\" NumberOfComponents=\"3\" />"
+            << "<DataArray type=\"Float32\" Name=\"fgh\" NumberOfComponents=\"3\" />"
         //        << std::endl
             << "</PCellData>" << std::endl
             << "<PCoordinates>" << std::endl
@@ -130,6 +133,8 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
 
     std::stringstream uv_stream;
     uv_stream << std::setprecision(std::numeric_limits<Real>::digits10);
+    std::stringstream fgh_stream;
+    fgh_stream << std::setprecision(std::numeric_limits<Real>::digits10);
 
     std::stringstream vorticity_stream;
     vorticity_stream
@@ -144,67 +149,63 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
     std::stringstream temp_stream;
     temp_stream << std::setprecision(std::numeric_limits<Real>::digits10);
 
-    std::cout << cells_x  << std::endl;
     for (uint i = 0; i < (cells_x * partitions_x + 2) * (cells_y * partitions_y + 2); i++)
     {
         uv_stream << "0 0 0\n";
+        fgh_stream << "0 0 0\n";
+        p_stream << "0\n";
     }
 
     for (uint l = 0; l < partitions_z; ++l)
     {
-        for (uint k = 1; k < cells_z + 1; ++k)
+        for (uint k = 1; k <= cells_z; ++k)
         {
 
             for (uint i = 0; i < cells_x * partitions_x + 2; i++)
             {
                 uv_stream << "0 0 0\n";
+                fgh_stream << "0 0 0\n";
+                p_stream << "0\n";
             }
 
 
             for (uint m = 0; m < partitions_y; ++m)
             {
-                for (uint j = 1; j < cells_y + 1; ++j)
+                for (uint j = 1; j <= cells_y; ++j)
                 {
                     uv_stream << "0 0 0\n";
+                    fgh_stream << "0 0 0\n";
+                    p_stream << "0\n";
+
 
                     for (uint n = 0; n < partitions_x; ++n)
                     {
-                        for (uint i = 1; i < cells_x + 1; ++i)
+                        for (uint i = 1; i <= cells_x; ++i)
                         {
-                            uv_stream << u_data(i, j, k) << " " << v_data(i, j, k) << " " << w_data(i, j, k) << "\n";
-
+                           // uv_stream << u_data(i, j, k) << " " << v_data(i, j, k) << " " << w_data(i, j, k) << "\n";
+                            fgh_stream << f_data(i, j, k) << " " << g_data(i, j, k) << " " << h_data(i, j, k) << "\n";
+                          //  p_stream << cell_types(i, j, k).to_ulong() << "\n";
                            /* if (cell_types(i, j, k).test(is_fluid))
                                 obstacle_stream << "0\n";
                             else
                                 obstacle_stream << "1\n";
+                            */
 
-                            if (cell_types(i, j, k).count() == 1 || cell_types(i, j, k).none())
+                            if (cell_types(i, j, k).test(is_boundary) || cell_types(i, j, k).none())
                             {
                                 p_stream << "0\n";
-                                //uv_stream << "0 0 0\n";
+                                uv_stream << "0 0 0\n";
                             }
                             else
                             {
-                            p_stream
-                                << p_data(i, j, k)  << "\n";
+                                p_stream << p_data(i, j, k)  << "\n";
 
-
-                           /* if (i == 0)
-                                uv_stream << "0 ";
-                            else
                                 uv_stream << (u_data(i, j, k) + u_data(i - 1, j, k)) / 2. << " ";
 
-                            if (j == 0)
-                                uv_stream << "0";
-                            else
-                                uv_stream << (v_data(i, j, k) + v_data(i, j - 1, k)) / 2. << "\n";
+                                uv_stream << (v_data(i, j, k) + v_data(i, j - 1, k)) / 2. << " ";
 
-                            if (k == 0)
-                                uv_stream << "0\n";
-                            else
-                                uv_stream << (v_data(i, j, k) + v_data(i, j - 1, k)) / 2. << "\n";*/
-
-                          //  }
+                                uv_stream << (w_data(i, j, k) + w_data(i, j, k - 1)) / 2. << "\n";
+                            }
 
                     /*        if (cell_types(i, j, k).test(is_fluid))
                             {
@@ -223,6 +224,9 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
                     }
 
                     uv_stream << "0 0 0\n";
+                    fgh_stream << "0 0 0\n";
+                    p_stream << "0\n";
+
                 }
             }
 
@@ -230,6 +234,9 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
             for (uint i = 0; i < cells_x * partitions_x + 2; i++)
             {
                 uv_stream << "0 0 0\n";
+                fgh_stream << "0 0 0\n";
+                p_stream << "0\n";
+
             }
         }
     }
@@ -237,11 +244,14 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
     for (uint i = 0; i < (cells_x * partitions_x + 2) * (cells_y * partitions_y + 2); i++)
     {
         uv_stream << "0 0 0\n";
+        fgh_stream << "0 0 0\n";
+        p_stream << "0\n";
     }
 
 
     std::string pdatastring = p_stream.str();
     std::string uvdatastring = uv_stream.str();
+    std::string fghdatastring = fgh_stream.str();
     std::string vorticitystring = vorticity_stream.str();
     std::string stromstring = strom_stream.str();
     std::string heatstring = heat_stream.str();
@@ -267,9 +277,9 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
        // << "</DataArray>" << std::endl*/
         << "</PointData>" << std::endl
         << "<CellData>" << std::endl
-     //   << "<DataArray type=\"Float32\" Name=\"pressure\">" << std::endl
-    //    << pdatastring << std::endl
-    //    << "</DataArray>" << std::endl
+        << "<DataArray type=\"Float32\" Name=\"pressure\">" << std::endl
+        << pdatastring << std::endl
+        << "</DataArray>" << std::endl
     //    << "<DataArray type=\"Int32\" Name=\"obstacle\">" << std::endl
    //     << obstacle_stream.str() << std::endl
    //     << "</DataArray>" << std::endl
@@ -279,6 +289,10 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
         << "<DataArray type=\"Float32\" Name=\"velocity\" NumberOfComponents=\"3\">"
             << std::endl
         << uvdatastring << std::endl
+        << "</DataArray>" << std::endl
+        << "<DataArray type=\"Float32\" Name=\"fgh\" NumberOfComponents=\"3\">"
+            << std::endl
+        << fghdatastring << std::endl
         << "</DataArray>" << std::endl
         << "</CellData>" << std::endl
         << "<Coordinates>" << std::endl

@@ -37,9 +37,9 @@ struct boundary_condition
          & left_type & right_type & bottom_type & top_type & back_type & front_type;
     }
 
-    friend std::ostream& operator<<(std::ostream& os, data const& data)
+    friend std::ostream& operator<<(std::ostream& os, boundary_condition const& data)
     {
-        os << "boundary={data: "
+        os << "{data: "
                        << "left:" << data.left
                 << "," << "right:" << data.right
                 << "," << "bottom:" << data.bottom

@@ -557,31 +557,41 @@ namespace nast_hpx { namespace io {
 
             std::size_t flag_res_x = cfg.num_x_blocks * cfg.cells_x_per_block + 2;
             std::size_t flag_res_y = cfg.num_y_blocks * cfg.cells_y_per_block + 2;
+            std::size_t flag_res_z = cfg.num_y_blocks * cfg.cells_y_per_block + 2;
 
           //  std::cout << "resx " << flag_res_x << " resy " << flag_res_y << std::endl;
 
-            cfg.flag_grid.resize(flag_res_x * flag_res_y);
+            cfg.flag_grid.resize(flag_res_x * flag_res_y * flag_res_z);
 
           //  std::cout << "s " << cfg.flag_grid.size() << std::endl;
-            std::size_t i = 0;
-            std::size_t j = cfg.j_max + 1;
 
-            std::size_t start_i = (rank % cfg.num_localities_x) * cfg.num_x_blocks * cfg.cells_x_per_block;
+            std::size_t idx = (rank % (cfg.num_localities_x * cfg.num_localities_y)) % cfg.num_localities_x;
+            std::size_t idy = (rank % (cfg.num_localities_x * cfg.num_localities_y)) / cfg.num_localities_x;
+            std::size_t idz = rank / (cfg.num_localities_x * cfg.num_localities_y);
+
+            std::size_t start_i = idx * cfg.num_x_blocks * cfg.cells_x_per_block;
             std::size_t end_i = start_i + cfg.num_x_blocks * cfg.cells_x_per_block;
 
-            std::size_t start_j = (rank / cfg.num_localities_x) * cfg.num_y_blocks * cfg.cells_y_per_block;
+            std::size_t start_j = idy * cfg.num_y_blocks * cfg.cells_y_per_block;
             std::size_t end_j = start_j + cfg.num_y_blocks * cfg.cells_y_per_block;
+
+            std::size_t start_k = idz * cfg.num_z_blocks * cfg.cells_z_per_block;
+            std::size_t end_k = start_j + cfg.num_z_blocks * cfg.cells_z_per_block;
+
+
 
            // std::cout <<  " starti " << start_i << " endi " << end_i << std::endl;
            // std::cout <<  " startj " << start_j << " endj " << end_j << std::endl;
 
             std::size_t offset_x = 0;
-            std::size_t offset_y = flag_res_y - 1;
+            std::size_t offset_y = 0;
+            std::size_t offset_z = 0;
 
             if (start_i == 0)
             {
-                for (std::size_t j = 0; j < flag_res_y; ++j)
-                    cfg.flag_grid[j * flag_res_x + 0] = std::bitset<6>("000000");
+                for (std::size_t k = 0; k < flag_res_z; ++k)
+                    for (std::size_t j = 0; j < flag_res_y; ++j)
+                        cfg.flag_grid[k * flag_res_x * flag_res_y + j * flag_res_x + 0] = std::bitset<9>(0);
 
                 ++offset_x;
             }
@@ -590,37 +600,65 @@ namespace nast_hpx { namespace io {
 
             if (start_j == 0)
             {
-                for (std::size_t i = 0; i < flag_res_x; ++i)
-                    cfg.flag_grid[0 * flag_res_x + i] = std::bitset<6>("000000");
+                for (std::size_t k = 0; k < flag_res_z; ++k)
+                    for (std::size_t i = 0; i < flag_res_x; ++i)
+                        cfg.flag_grid[k * flag_res_x * flag_res_y + 0 * flag_res_x + i] = std::bitset<9>(0);
 
+                ++offset_y;
             }
             else
                 --start_j;
 
+            if (start_k == 0)
+            {
+                for (std::size_t j = 0; j < flag_res_y; ++j)
+                    for (std::size_t i = 0; i < flag_res_x; ++i)
+                        cfg.flag_grid[j * flag_res_x + i] = std::bitset<9>(0);
+
+                ++offset_z;
+            }
+            else
+                --start_k;
+
 
             if (end_i == cfg.i_max + 2)
             {
-                for (std::size_t j = 0; j < flag_res_y; ++j)
-                    cfg.flag_grid[j * flag_res_x + flag_res_x - 1] = std::bitset<6>("000000");
+                for (std::size_t k = 0; k < flag_res_z; ++k)
+                    for (std::size_t j = 0; j < flag_res_y; ++j)
+                        cfg.flag_grid[k * flag_res_x * flag_res_y + j * flag_res_x + flag_res_x - 1] = std::bitset<9>(0);
 
                 --end_i;
             }
 
             if (end_j == cfg.j_max + 2)
             {
-                for (std::size_t i = 0; i < flag_res_x; ++i)
-                    cfg.flag_grid[(flag_res_y - 1) * flag_res_x + i] = std::bitset<6>("000000");
+                for (std::size_t k = 0; k < flag_res_z; ++k)
+                    for (std::size_t i = 0; i < flag_res_x; ++i)
+                        cfg.flag_grid[k * flag_res_x * flag_res_y + (flag_res_y - 1) * flag_res_x + i] = std::bitset<9>(0);
 
                 --end_j;
-                --offset_y;
             }
 
-          //  std::cout <<  " starti " << start_i << " endi " << end_i << std::endl;
-            //std::cout <<  " startj " << start_j << " endj " << end_j << std::endl;
+            if (end_k == cfg.k_max + 2)
+            {
+                for (std::size_t j = 0; j < flag_res_y; ++j)
+                    for (std::size_t i = 0; i < flag_res_x; ++i)
+                        cfg.flag_grid[(flag_res_y - 1) * flag_res_x * flag_res_y + j * flag_res_x + i] = std::bitset<9>(0);
+
+                --end_k;
+            }
+
+          //  std::cout <<  " starti " << start_i << " endi " << end_i << " " << offset_x << std::endl;
+         //   std::cout <<  " startj " << start_j << " endj " << end_j << " " << offset_y<< std::endl;
+         //   std::cout <<  " startk " << start_k << " endk " << end_k << " " << offset_z<< std::endl;
 
 
-            std::size_t insert_i = 0;
+            std::size_t insert_i = offset_x;
             std::size_t insert_j = offset_y;
+            std::size_t insert_k = offset_z;
+
+            std::size_t i, j, k;
+            i = j = k = 0;
 
             while (true)
             {
@@ -638,14 +676,14 @@ namespace nast_hpx { namespace io {
                     std::string cell_val;
                     std::getline(iss, cell_val, ',');
 
-                    std::bitset<6> flag(std::stoi(cell_val));
+                    std::bitset<9> flag(std::stoi(cell_val));
 
-                    if (flag.test(4))
+                    if (flag.test(is_fluid))
                         cfg.num_fluid_cells++;
 
-                    if (i >= start_i && i <= end_i && j >= start_j && j <= end_j)
+                    if (i >= start_i && i <= end_i && j >= start_j && j <= end_j && k >= start_k && k <= end_k)
                     {
-                        cfg.flag_grid[insert_j * flag_res_x + insert_i] = flag;
+                        cfg.flag_grid[insert_k * flag_res_x * flag_res_y + insert_j * flag_res_x + insert_i] = flag;
                         ++insert_i;
                     }
 
@@ -654,26 +692,50 @@ namespace nast_hpx { namespace io {
                     ++i;
                 }
 
-                if (j >= start_j && j <= end_j)
-                    --insert_j;
 
-                --j;
+                if (j >= start_j && j <= end_j)
+                    ++insert_j;
+
+                ++j;
+
+                if (j > end_j)
+                {
+                    insert_i = offset_x;
+                    insert_j = offset_y;
+                    j = 0;
+
+                    if (k >= start_k && k <= end_k)
+                        ++insert_k;
+
+                    ++k;
+                }
             }
 
-         /*   for (uint j = flag_res_y - 1; j < flag_res_y; --j)
+
+   /*         for (uint k = 0; k < flag_res_z; ++k)
             {
-                for (uint i = 0; i < flag_res_x; ++i)
-                    std::cout << cfg.flag_grid[j * flag_res_x + i].to_ulong() << " ";
+
+               for(uint j = 0; j < flag_res_y; ++j)
+                {
+                    for (uint i = 0; i < flag_res_x; ++i)
+                        std::cout << cfg.flag_grid[k * flag_res_x * flag_res_y + j * flag_res_x + i].to_ulong() << " ";
+                    std::cout << "\n";
+
+                }
                 std::cout << "\n";
 
-            }*/
+            }
 
-            std::cout << std::endl;
+            std::cout << std::endl;*/
         }
         else
         {
-            std::cerr << "Error: geometry file not set!" << std::endl;
-            std::exit(1);
+            std::size_t flag_res_x = cfg.num_x_blocks * cfg.cells_x_per_block + 2;
+            std::size_t flag_res_y = cfg.num_y_blocks * cfg.cells_y_per_block + 2;
+
+            cfg.flag_grid.resize(flag_res_x * flag_res_y);
+            //std::cerr << "Error: geometry file not set!" << std::endl;
+           // std::exit(1);
         }
 
         if(config_node.child("initialUVFile") != NULL)

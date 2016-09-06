@@ -44,6 +44,8 @@ void stepper_server::setup(io::config const& cfg)
     t_end = cfg.t_end;
     init_dt = cfg.initial_dt;
 
+
+
     max_timesteps = cfg.max_timesteps;
     step = 0;
 
@@ -103,10 +105,11 @@ void stepper_server::run()
 
                         Real new_dt =
                             std::min(re / 2. * 1. / (1. / std::pow(dx, 2)
-                                        + 1. / std::pow(dy, 2))
+                                        + 1. / std::pow(dy, 2)
+                                        + 1. / std::pow(dz, 2))
                                     ,
                                     std::min(dx / global_max_uvw.x,
-                                            dy / global_max_uvw.z)
+                                            std::min(dy / global_max_uvw.y, dz / global_max_uvw.z))
                             );
 
                         new_dt *= tau;

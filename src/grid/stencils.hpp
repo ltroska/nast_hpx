@@ -10,20 +10,17 @@
 #endif
 
 #include "partition_data.hpp"
-#include "util/fd_stencils.hpp"
+#include "util/derivatives.hpp"
 #include "util/cancellation_token.hpp"
 
 namespace nast_hpx { namespace grid {
 
     static const std::size_t STENCIL_NONE = 20;
-    static const std::size_t STENCIL_SET_VELOCITY_BOUNDARY = 21;
-    static const std::size_t STENCIL_SET_VELOCITY_OBSTACLE = 22;
-    static const std::size_t STENCIL_SET_VELOCITY = 23;
-    static const std::size_t STENCIL_COMPUTE_FG_BOUNDARY_AND_OBSTACLE = 24;
-    static const std::size_t STENCIL_COMPUTE_FG_FLUID = 25;
+    static const std::size_t STENCIL_SET_VELOCITY_OBSTACLE = 23;
+    static const std::size_t STENCIL_SET_FG_OBSTACLE = 24;
     static const std::size_t STENCIL_COMPUTE_FG = 33;
     static const std::size_t STENCIL_COMPUTE_RHS = 26;
-    static const std::size_t STENCIL_SET_P = 27;
+    static const std::size_t STENCIL_SET_P_OBSTACLE = 27;
     static const std::size_t STENCIL_SOR = 28;
     static const std::size_t STENCIL_JACOBI = 29;
     static const std::size_t STENCIL_COMPUTE_RESIDUAL = 30;
@@ -35,688 +32,294 @@ namespace nast_hpx { namespace grid {
     template <std::size_t stencil>
     struct stencils;
 
- /*   template<>
+    template<>
     struct stencils<STENCIL_NONE>
     {
         static void call(partition_data<Real>& dst, partition_data<Real> const& src,
-            std::vector<std::pair<std::size_t, std::size_t> > const& indices)
+                std::vector<index> const& indices)
             {
-                for (auto const& index_pair : indices)
+                for (auto const& ind : indices)
                 {
-                    dst(index_pair.first, index_pair.second) =
-                        src(index_pair.first, index_pair.second);
+                    dst(ind.x, ind.y, ind.z) =
+                        src(ind.x, ind.y, ind.z);
                 }
             }
     };
 
-    template<>
-    struct stencils<STENCIL_SET_VELOCITY_BOUNDARY>
-    {
-        static void call(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
-            partition_data<Real> const& src_u, partition_data<Real> const& src_v,
-            partition_data<std::bitset<6> > const& cell_types,
-            std::vector<std::pair<std::size_t, std::size_t> > boundary_cells,
-            boundary_data u_bnd, boundary_data v_bnd, boundary_type bnd_type
-            )
-            {
-                #ifdef WITH_FOR_EACH
-                hpx::parallel::for_each(
-                hpx::parallel::par,
-                std::begin(boundary_cells), std::end(boundary_cells),
-                [&](auto const& idx_pair)
-                {
-                #else
-                for (auto const& idx_pair : boundary_cells)
-                {
-                #endif
-                    auto x = idx_pair.first;
-                    auto y = idx_pair.second;
-
-                    auto const& cell_type = cell_types(x, y);
-
-                    if (cell_type.test(has_fluid_east))
-                    {
-                        switch(bnd_type.left)
-                        {
-                        case noslip:
-                                dst_u(x, y) = 0;
-                                dst_v(x, y) = -src_v(x + 1, y);
-                                break;
-                        case slip:
-                                dst_u(x, y) = 0;
-                                dst_v(x, y) = src_v(x + 1, y);
-                                break;
-                        case outstream:
-                                dst_u(x, y) = src_u(x + 1, y);
-                                dst_v(x, y) = src_v(x + 1, y);
-                                break;
-                        case instream:
-                                dst_u(x, y) = u_bnd.left;
-                                dst_v(x, y) = 2 * v_bnd.left - src_v(x + 1, y);
-                                break;
-                        }
-                    }
-
-                    else if (cell_type.test(has_fluid_west))
-                    {
-                        switch(bnd_type.right)
-                        {
-                        case noslip:
-                                dst_u(x - 1, y) = 0;
-                                dst_v(x, y) = -src_v(x - 1, y);
-                                break;
-                        case slip:
-                                dst_u(x - 1, y) = 0;
-                                dst_v(x, y) = src_v(x - 1, y);
-                                break;
-                        case outstream:
-                                dst_u(x - 1, y) = dst_u(x - 2, y);
-                                dst_v(x, y) = src_v(x - 1, y);
-                                break;
-                        case instream:
-                                dst_u(x - 1, y) = u_bnd.right;
-                                dst_v(x, y) = 2 * v_bnd.right - src_v(x - 1, y);
-                                break;
-                        }
-                    }
-
-                    else if (cell_type.test(has_fluid_north))
-                    {
-                        switch(bnd_type.bottom)
-                        {
-                        case noslip:
-                                dst_u(x, y) = -src_u(x, y + 1);
-                                dst_v(x, y) = 0;
-                                break;
-                        case slip:
-                                dst_u(x, y) = src_u(x, y + 1);
-                                dst_v(x, y) = 0;
-                                break;
-                        case outstream:
-                                dst_u(x, y) = src_u(x, y + 1);
-                                dst_v(x, y) = src_v(x, y + 1);
-                                break;
-                        case instream:
-                                dst_u(x, y) = 2 * u_bnd.bottom - src_u(x, y + 1);
-                                dst_v(x, y) = v_bnd.bottom;
-                                break;
-                        }
-                    }
-
-                    else if (cell_type.test(has_fluid_south))
-                    {
-                        switch(bnd_type.top)
-                        {
-                        case noslip:
-                                dst_u(x, y) = 2 * u_bnd.top - src_u(x, y - 1);
-                                dst_v(x, y - 1) = 0;
-                                break;
-                        case slip:
-                                dst_u(x, y) = src_u(x, y - 1);
-                                dst_v(x, y - 1) = 0;
-                                break;
-                        case outstream:
-                                dst_u(x, y) = src_u(x, y - 1);
-                                dst_v(x, y - 1) = src_v(x, y - 2);
-                                break;
-                        case instream:
-                                dst_u(x, y) = 2 * u_bnd.top - src_u(x, y - 1);
-                                dst_v(x, y - 1) = v_bnd.top;
-                                break;
-                        }
-                    }
-                }
-                #ifdef WITH_FOR_EACH
-                );
-                #endif
-            }
-    };
 
     template<>
     struct stencils<STENCIL_SET_VELOCITY_OBSTACLE>
     {
         static void call(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
-            partition_data<Real> const& src_u, partition_data<Real> const& src_v,
-            partition_data<std::bitset<6> > const& cell_types,
-            std::vector<std::pair<std::size_t, std::size_t> > const& obstacle_cells)
+                partition_data<Real>& dst_w,
+                partition_data<std::bitset<9> > const& cell_types,
+                std::vector<index> const& boundary_cells,
+                std::vector<index> const& obstacle_cells,
+                boundary_condition const& bnd_condition)
             {
-                #ifdef WITH_FOR_EACH
-                hpx::parallel::for_each(
-                hpx::parallel::par,
-                std::begin(obstacle_cells), std::end(obstacle_cells),
-                [&](auto const& idx_pair)
+                for  (auto const& ind : boundary_cells)
                 {
-                #else
-                for (auto const& idx_pair : obstacle_cells)
-                {
-                #endif
-                    auto const x = idx_pair.first;
-                    auto const y = idx_pair.second;
+                    auto const i = ind.x;
+                    auto const j = ind.y;
+                    auto const k = ind.z;
 
-                    auto const& cell_type = cell_types(x, y);
+                    auto const& cell_type = cell_types(i, j, k);
 
-                    dst_u(x, y) =
-                        - src_u(x, y - 1) * cell_type.test(has_fluid_south)
-                        - src_u(x, y + 1) * cell_type.test(has_fluid_north);
-
-                    dst_v(x, y) =
-                        - src_v(x - 1, y) * cell_type.test(has_fluid_west)
-                        - src_v(x + 1, y) * cell_type.test(has_fluid_east);
-
-                }
-                #ifdef WITH_FOR_EACH
-                );
-                #endif
-            }
-    };
-
-    template<>
-    struct stencils<STENCIL_SET_VELOCITY>
-    {
-        static void call(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
-            partition_data<std::bitset<6> > const& cell_types,
-            std::vector<std::pair<std::size_t, std::size_t> > const& boundary_cells,
-            std::vector<std::pair<std::size_t, std::size_t> > const& obstacle_cells,
-            boundary_data u_bnd, boundary_data v_bnd, boundary_type bnd_type)
-            {
-                for (auto const& idx_pair : boundary_cells)
-                {
-                    auto x = idx_pair.first;
-                    auto y = idx_pair.second;
-
-                    auto const& cell_type = cell_types(x, y);
-
-                    if (cell_type.test(has_fluid_east))
+                    if (cell_type.test(has_fluid_bottom))
                     {
-                        switch(bnd_type.left)
+                        switch(bnd_condition.top_type)
                         {
-                        case noslip:
-                                dst_u(x, y) = 0;
-                                dst_v(x, y) = -dst_v(x + 1, y);
-                                break;
-                        case slip:
-                                dst_u(x, y) = 0;
-                                dst_v(x, y) = dst_v(x + 1, y);
-                                break;
-                        case outstream:
-                                dst_u(x, y) = dst_u(x + 1, y);
-                                dst_v(x, y) = dst_v(x + 1, y);
-                                break;
-                        case instream:
-                                dst_u(x, y) = u_bnd.left;
-                                dst_v(x, y) = 2 * v_bnd.left - dst_v(x + 1, y);
+                            case noslip:
+                                dst_u(i, j, k) = 2 * bnd_condition.top.x - dst_u(i, j, k - 1);
+                                dst_v(i, j, k) = 2 * bnd_condition.top.y - dst_v(i, j, k - 1);
+                                dst_w(i, j, k - 1) = 0;
                                 break;
                         }
                     }
 
-                    else if (cell_type.test(has_fluid_west))
+                    if (cell_type.test(has_fluid_top))
                     {
-                        switch(bnd_type.right)
+                        switch(bnd_condition.bottom_type)
                         {
-                        case noslip:
-                                dst_u(x - 1, y) = 0;
-                                dst_v(x, y) = -dst_v(x - 1, y);
+                            case noslip:
+                                dst_u(i, j, k) = 2 * bnd_condition.bottom.x - dst_u(i, j, k + 1);
+                                dst_v(i, j, k) = 2 * bnd_condition.bottom.y - dst_v(i, j, k + 1);
+                                dst_w(i, j, k) = 0;
                                 break;
-                        case slip:
-                                dst_u(x - 1, y) = 0;
-                                dst_v(x, y) = dst_v(x - 1, y);
-                                break;
-                        case outstream:
-                                dst_u(x - 1, y) = dst_u(x - 2, y);
-                                dst_v(x, y) = dst_v(x - 1, y);
-                                break;
-                        case instream:
-                                dst_u(x - 1, y) = u_bnd.right;
-                                dst_v(x, y) = 2 * v_bnd.right - dst_v(x - 1, y);
+
+                        }
+                    }
+
+                    if (cell_type.test(has_fluid_left))
+                    {
+                        switch(bnd_condition.right_type)
+                        {
+                            case noslip:
+                                dst_u(i - 1, j, k) = 0;
+                                dst_v(i, j, k) = 2 * bnd_condition.right.y - dst_v(i - 1, j, k);
+                                dst_w(i, j, k) = 2 * bnd_condition.right.z - dst_w(i - 1, j, k);
                                 break;
                         }
                     }
 
-                    else if (cell_type.test(has_fluid_north))
+                    if (cell_type.test(has_fluid_right))
                     {
-                        switch(bnd_type.bottom)
+                        switch(bnd_condition.left_type)
                         {
-                        case noslip:
-                                dst_u(x, y) = -dst_u(x, y + 1);
-                                dst_v(x, y) = 0;
-                                break;
-                        case slip:
-                                dst_u(x, y) = dst_u(x, y + 1);
-                                dst_v(x, y) = 0;
-                                break;
-                        case outstream:
-                                dst_u(x, y) = dst_u(x, y + 1);
-                                dst_v(x, y) = dst_v(x, y + 1);
-                                break;
-                        case instream:
-                                dst_u(x, y) = 2 * u_bnd.bottom - dst_u(x, y + 1);
-                                dst_v(x, y) = v_bnd.bottom;
+                            case noslip:
+                                dst_u(i, j, k) = 0;
+                                dst_v(i, j, k) = 2 * bnd_condition.left.y - dst_v(i + 1, j, k);
+                                dst_w(i, j, k) = 2 * bnd_condition.left.z - dst_w(i + 1, j, k);
                                 break;
                         }
                     }
 
-                    else if (cell_type.test(has_fluid_south))
+                    if (cell_type.test(has_fluid_front))
                     {
-                        switch(bnd_type.top)
+                        switch(bnd_condition.back_type)
                         {
-                        case noslip:
-                                dst_u(x, y) = 2 * u_bnd.top - dst_u(x, y - 1);
-                                dst_v(x, y - 1) = 0;
+                            case noslip:
+                                dst_u(i, j, k) = 2 * bnd_condition.back.x - dst_u(i, j - 1, k);
+                                dst_v(i, j - 1, k) = 0;
+                                dst_w(i, j, k) = 2 * bnd_condition.back.z - dst_w(i, j - 1, k);
                                 break;
-                        case slip:
-                                dst_u(x, y) = dst_u(x, y - 1);
-                                dst_v(x, y - 1) = 0;
-                                break;
-                        case outstream:
-                                dst_u(x, y) = dst_u(x, y - 1);
-                                dst_v(x, y - 1) = dst_v(x, y - 2);
-                                break;
-                        case instream:
-                                dst_u(x, y) = 2 * u_bnd.top - dst_u(x, y - 1);
-                                dst_v(x, y - 1) = v_bnd.top;
+                        }
+                    }
+
+                    if (cell_type.test(has_fluid_back))
+                    {
+                        switch(bnd_condition.front_type)
+                        {
+                            case noslip:
+                                dst_u(i, j, k) = 2 * bnd_condition.front.x - dst_u(i, j + 1, k);
+                                dst_v(i, j, k) = 0;
+                                dst_w(i, j, k) = 2 * bnd_condition.front.z - dst_w(i, j + 1, k);
                                 break;
                         }
                     }
                 }
 
-                for (auto const& idx_pair : obstacle_cells)
-                {
-                    auto const x = idx_pair.first;
-                    auto const y = idx_pair.second;
-
-                    auto const& cell_type = cell_types(x, y);
-
-                    dst_u(x, y) =
-                        - dst_u(x, y - 1) * cell_type.test(has_fluid_south)
-                        - dst_u(x, y + 1) * cell_type.test(has_fluid_north);
-
-                    dst_v(x, y) =
-                        - dst_v(x - 1, y) * cell_type.test(has_fluid_west)
-                        - dst_v(x + 1, y) * cell_type.test(has_fluid_east);
-
-                }
             }
-    };
-
-    template<>
-    struct stencils<STENCIL_COMPUTE_FG_BOUNDARY_AND_OBSTACLE>
-    {
-        static void call(partition_data<Real>& dst_f, partition_data<Real>& dst_g,
-            partition_data<Real> const& src_u, partition_data<Real> const& src_v,
-            partition_data<std::bitset<6> > const& cell_types,
-            std::vector<std::pair<std::size_t, std::size_t> > const& boundary_cells,
-            std::vector<std::pair<std::size_t, std::size_t> > const& obstacle_cells
-           )
-        {
-            #ifdef WITH_FOR_EACH
-            auto f1 = hpx::parallel::for_each(
-            hpx::parallel::par(hpx::parallel::task),
-            std::begin(boundary_cells), std::end(boundary_cells),
-            [&](auto const& idx_pair)
-            {
-            #else
-            for (auto const& idx_pair : boundary_cells)
-            {
-            #endif
-                auto const x = idx_pair.first;
-                auto const y = idx_pair.second;
-
-                auto const& cell_type = cell_types(x, y);
-
-                if (cell_type.test(has_fluid_east))
-                    dst_f(x, y) = src_u(x, y);
-
-                if (cell_type.test(has_fluid_north))
-                    dst_g(x, y) = src_v(x, y);
-            }
-            #ifdef WITH_FOR_EACH
-            );
-
-            auto f2 = hpx::parallel::for_each(
-            hpx::parallel::par(hpx::parallel::task),
-            std::begin(obstacle_cells), std::end(obstacle_cells),
-            [&](auto const& idx_pair)
-            {
-            #else
-            for (auto const& idx_pair : obstacle_cells)
-            {
-            #endif
-                auto const x = idx_pair.first;
-                auto const y = idx_pair.second;
-
-                auto const& cell_type = cell_types(x, y);
-
-                if (cell_type.test(has_fluid_east))
-                    dst_f(x, y) = src_u(x, y);
-
-                if (cell_type.test(has_fluid_north))
-                    dst_g(x, y) = src_v(x, y);
-            }
-            #ifdef WITH_FOR_EACH
-            );
-
-            hpx::wait_all(f1, f2);
-            #endif
-        }
     };
 
     template<>
     struct stencils<STENCIL_COMPUTE_FG>
     {
         static void call(partition_data<Real>& dst_f, partition_data<Real>& dst_g,
+            partition_data<Real>& dst_h,
             partition_data<Real> const& src_u, partition_data<Real> const& src_v,
-            partition_data<std::bitset<6> > const& cell_types,
-            std::vector<std::pair<std::size_t, std::size_t> > const& boundary_cells,
-            std::vector<std::pair<std::size_t, std::size_t> > const& obstacle_cells,
-            std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
-            Real re, Real gx, Real gy, Real beta, Real dx, Real dy, Real dt,
-            Real alpha
+            partition_data<Real> const& src_w,
+            partition_data<std::bitset<9> > const& cell_types,
+            std::vector<index> const& boundary_cells,
+            std::vector<index> const& obstacle_cells,
+            std::vector<index> const& fluid_cells,
+            Real re, Real gx, Real gy, Real gz, Real beta, Real dx, Real dy, Real dz,
+            Real dx_sq, Real dy_sq, Real dz_sq, Real dt, Real alpha
            )
         {
-            for (auto const& idx_pair : boundary_cells)
+            for (auto const& ind : boundary_cells)
             {
-                auto const x = idx_pair.first;
-                auto const y = idx_pair.second;
+                auto const i = ind.x;
+                auto const j = ind.y;
+                auto const k = ind.z;
 
-                auto const& cell_type = cell_types(x, y);
+                auto const& cell_type = cell_types(i, j, k);
 
-                if (cell_type.test(has_fluid_east))
-                    dst_f(x, y) = src_u(x, y);
+                if (cell_type.test(has_fluid_top))
+                {
+                    dst_h(i, j, k) = src_w(i, j, k);
+                }
 
-                if (cell_type.test(has_fluid_north))
-                    dst_g(x, y) = src_v(x, y);
+                if (cell_type.test(has_fluid_right))
+                {
+                    dst_f(i, j, k) = src_u(i, j, k);
+                }
+
+                if (cell_type.test(has_fluid_back))
+                {
+                    dst_g(i, j, k) = src_v(i, j, k);
+                }
             }
 
-            for (auto const& idx_pair : obstacle_cells)
+            for (auto const& ind : fluid_cells)
             {
-                auto const x = idx_pair.first;
-                auto const y = idx_pair.second;
+                auto const i = ind.x;
+                auto const j = ind.y;
+                auto const k = ind.z;
 
-                auto const& cell_type = cell_types(x, y);
+                auto const& cell_type = cell_types(i, j, k);
 
-                if (cell_type.test(has_fluid_east))
-                    dst_f(x, y) = src_u(x, y);
+                dst_f(i, j, k) =
+                    src_u(i, j, k) + cell_type.test(has_fluid_right) *
+                      dt * (
+                        1. / re * (util::derivatives::second_derivative_fwd_bkwd_x(src_u, i, j, k, dx_sq)
+                                    + util::derivatives::second_derivative_fwd_bkwd_y(src_u, i, j, k, dy_sq)
+                                    + util::derivatives::second_derivative_fwd_bkwd_z(src_u, i, j, k, dz_sq)
+                                  )
 
-                if (cell_type.test(has_fluid_north))
-                    dst_g(x, y) = src_v(x, y);
-            }
-
-             for (auto const& idx_pair : fluid_cells)
-            {
-                auto const x = idx_pair.first;
-                auto const y = idx_pair.second;
-
-                auto const& cell_type = cell_types(x, y);
-
-
-                dst_f(x, y) = src_u(x, y) + cell_type.test(has_fluid_east)
-                    * ( dt * (
-                        1. / re * (
-                            util::fd_stencils::second_derivative_fwd_bkwd_x(
-                                src_u(x + 1, y), src_u(x, y), src_u(x - 1, y), dx
-                            )
-                            + util::fd_stencils::second_derivative_fwd_bkwd_y(
-                                src_u(x, y + 1), src_u(x, y), src_u(x, y - 1), dy
-                            )
-                        )
-
-                        - util::fd_stencils::first_derivative_of_square_x(
-                            src_u(x + 1, y), src_u(x, y), src_u(x - 1, y),
-                            dx, alpha
-                        )
-                        - util::fd_stencils::first_derivative_of_product_y(
-                            src_v(x + 1, y), src_v(x, y), src_v(x, y - 1),
-                            src_v(x + 1, y - 1), src_u(x, y - 1),
-                            src_u(x, y), src_u(x, y + 1), dy, alpha
-                        )
-
+                        - util::derivatives::first_derivative_of_square_x(src_u, i, j, k, dx, alpha)
+                        - util::derivatives::first_derivative_of_uv_y(src_u, src_v, i, j, k, dy, alpha)
+                    //    - util::derivatives::first_derivative_of_uw_z(src_u, src_w, i, j, k, dz, alpha)
                         + gx
-                    )
-               /* - beta * dt / 2.
-                                  * (middle_temperature
-                                        + right_temperature )
-                                  * gx*/
-         /*       );
+                    );
 
-                dst_g(x, y) = src_v(x, y) + cell_type.test(has_fluid_north)
-                    * ( dt * (
-                        1. / re * (
-                            util::fd_stencils::second_derivative_fwd_bkwd_x(
-                                src_v(x + 1, y), src_v(x, y), src_v(x - 1, y), dx
-                            )
-                            + util::fd_stencils::second_derivative_fwd_bkwd_y(
-                                src_v(x, y + 1), src_v(x, y), src_v(x, y - 1), dy
-                            )
-                        )
+                dst_g(i, j, k) =
+                    src_v(i, j, k) + cell_type.test(has_fluid_back) *
+                    dt * (
+                        1. / re * (util::derivatives::second_derivative_fwd_bkwd_x(src_v, i, j, k, dx_sq)
+                                   + util::derivatives::second_derivative_fwd_bkwd_y(src_v, i, j, k, dy_sq)
+                                   + util::derivatives::second_derivative_fwd_bkwd_z(src_v, i, j, k, dz_sq)
+                                   )
 
-                        - util::fd_stencils::first_derivative_of_product_x(
-                            src_u(x - 1, y), src_u(x, y), src_u(x, y + 1),
-                            src_u(x - 1, y + 1), src_v(x - 1, y),
-                            src_v(x, y), src_v(x + 1, y), dx, alpha
-                        )
-                        - util::fd_stencils::first_derivative_of_square_y(
-                            src_v(x, y + 1), src_v(x, y), src_v(x, y - 1),
-                            dy, alpha
-                        )
-
+                        - util::derivatives::first_derivative_of_uv_x(src_u, src_v, i, j, k, dx, alpha)
+                        - util::derivatives::first_derivative_of_square_y(src_v, i, j, k, dy, alpha)
+                      //  - util::derivatives::first_derivative_of_vw_z(src_v, src_w, i, j, k, dz, alpha)
                         + gy
-                    )
-               /* - beta * dt / 2.
-                                        * (middle_temperature
-                                            + top_temperature )
-                                        * gy*/
-        /*        );
+                    );
+
+                dst_h(i, j, k) =
+                    src_w(i, j, k) + cell_type.test(has_fluid_top) *
+                     dt * (
+                        1. / re * (util::derivatives::second_derivative_fwd_bkwd_x(src_w, i, j, k, dx_sq)
+                                    + util::derivatives::second_derivative_fwd_bkwd_y(src_w, i, j, k, dy_sq)
+                                    + util::derivatives::second_derivative_fwd_bkwd_z(src_w, i, j, k, dz_sq)
+                                  )
+
+                        - util::derivatives::first_derivative_of_uw_x(src_u, src_w, i, j, k, dx, alpha)
+                        - util::derivatives::first_derivative_of_vw_y(src_v, src_w, i, j, k, dy, alpha)
+                        - util::derivatives::first_derivative_of_square_z(src_w, i, j, k, dz, alpha)
+                        + gz
+                    );
             }
         }
     };
 
-    template<>
-    struct stencils<STENCIL_COMPUTE_FG_FLUID>
-    {
-        static void call(partition_data<Real>& dst_f, partition_data<Real>& dst_g,
-            partition_data<Real> const& src_u, partition_data<Real> const& src_v,
-            partition_data<std::bitset<6> > const& cell_types,
-            std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
-            Real re, Real gx, Real gy, Real beta, Real dx, Real dy, Real dt,
-            Real alpha)
-        {
-            #ifdef WITH_FOR_EACH
-            hpx::parallel::for_each(
-            hpx::parallel::par,
-            std::begin(fluid_cells), std::end(fluid_cells),
-            [&](auto const& idx_pair)
-            {
-            #else
-            for (auto const& idx_pair : fluid_cells)
-            {
-            #endif
-                auto const x = idx_pair.first;
-                auto const y = idx_pair.second;
-
-                auto const& cell_type = cell_types(x, y);
-
-
-                dst_f(x, y) = src_u(x, y) + cell_type.test(has_fluid_east)
-                    * ( dt * (
-                        1. / re * (
-                            util::fd_stencils::second_derivative_fwd_bkwd_x(
-                                src_u(x + 1, y), src_u(x, y), src_u(x - 1, y), dx
-                            )
-                            + util::fd_stencils::second_derivative_fwd_bkwd_y(
-                                src_u(x, y + 1), src_u(x, y), src_u(x, y - 1), dy
-                            )
-                        )
-
-                        - util::fd_stencils::first_derivative_of_square_x(
-                            src_u(x + 1, y), src_u(x, y), src_u(x - 1, y),
-                            dx, alpha
-                        )
-                        - util::fd_stencils::first_derivative_of_product_y(
-                            src_v(x + 1, y), src_v(x, y), src_v(x, y - 1),
-                            src_v(x + 1, y - 1), src_u(x, y - 1),
-                            src_u(x, y), src_u(x, y + 1), dy, alpha
-                        )
-
-                        + gx
-                    )
-               /* - beta * dt / 2.
-                                  * (middle_temperature
-                                        + right_temperature )
-                                  * gx*/
-       /*         );
-
-                dst_g(x, y) = src_v(x, y) + cell_type.test(has_fluid_north)
-                    * ( dt * (
-                        1. / re * (
-                            util::fd_stencils::second_derivative_fwd_bkwd_x(
-                                src_v(x + 1, y), src_v(x, y), src_v(x - 1, y), dx
-                            )
-                            + util::fd_stencils::second_derivative_fwd_bkwd_y(
-                                src_v(x, y + 1), src_v(x, y), src_v(x, y - 1), dy
-                            )
-                        )
-
-                        - util::fd_stencils::first_derivative_of_product_x(
-                            src_u(x - 1, y), src_u(x, y), src_u(x, y + 1),
-                            src_u(x - 1, y + 1), src_v(x - 1, y),
-                            src_v(x, y), src_v(x + 1, y), dx, alpha
-                        )
-                        - util::fd_stencils::first_derivative_of_square_y(
-                            src_v(x, y + 1), src_v(x, y), src_v(x, y - 1),
-                            dy, alpha
-                        )
-
-                        + gy
-                    )
-               /* - beta * dt / 2.
-                                        * (middle_temperature
-                                            + top_temperature )
-                                        * gy*/
-         /*       );
-            }
-            #ifdef WITH_FOR_EACH
-            );
-            #endif
-        }
-    };
 
     template<>
     struct stencils<STENCIL_COMPUTE_RHS>
     {
         static void call(partition_data<Real>& dst_rhs,
             partition_data<Real> const& src_f, partition_data<Real> const& src_g,
-            partition_data<std::bitset<6> > const& cell_types,
-            std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
-            Real dx, Real dy, Real dt)
+            partition_data<Real> const& src_h,
+            partition_data<std::bitset<9> > const& cell_types,
+            std::vector<index> const& fluid_cells,
+            Real dx, Real dy, Real dz, Real dt)
         {
-            #ifdef WITH_FOR_EACH
-            hpx::parallel::for_each(
-            hpx::parallel::par,
-            std::begin(fluid_cells), std::end(fluid_cells),
-            [&](auto const& idx_pair)
+            for (auto const& ind : fluid_cells)
             {
-            #else
-            for (auto const& idx_pair : fluid_cells)
-            {
-            #endif
-                auto const x = idx_pair.first;
-                auto const y = idx_pair.second;
+                auto const i = ind.x;
+                auto const j = ind.y;
+                auto const k = ind.z;
 
-                dst_rhs(x, y) =
+                dst_rhs(i, j, k) =
                     1. / dt *   (
-                                    (src_f(x, y) - src_f(x - 1, y)) / dx
+                                    (src_f(i, j, k) - src_f(i - 1, j, k)) / dx
                                     +
-                                    (src_g(x, y) - src_g(x, y - 1)) / dy
+                                    (src_g(i, j, k) - src_g(i, j - 1, k)) / dy
+                               //     +
+                                //    (src_h(i, j, k) - src_h(i, j, k - 1)) / dz
                                 );
             }
-            #ifdef WITH_FOR_EACH
-            );
-            #endif
+
         }
     };
 
+
     template<>
-    struct stencils<STENCIL_SET_P>
+    struct stencils<STENCIL_SET_P_OBSTACLE>
     {
         static void call(partition_data<Real>& dst_p,
-            partition_data<std::bitset<6> > const& cell_types,
-            std::vector<std::pair<std::size_t, std::size_t> > const& boundary_cells,
-            std::vector<std::pair<std::size_t, std::size_t> > const& obstacle_cells,
+            partition_data<std::bitset<9> > const& cell_types,
+            std::vector<index> const& boundary_cells,
+            std::vector<index> const& obstacle_cells,
             util::cancellation_token token)
         {
             if (!token.was_cancelled())
             {
-                #ifdef WITH_FOR_EACH
-                auto f1 = hpx::parallel::for_each(
-                hpx::parallel::par(hpx::parallel::task),
-                std::begin(boundary_cells), std::end(boundary_cells),
-                [&](auto const& idx_pair)
+                for (auto const& ind : boundary_cells)
                 {
-                #else
-                for (auto& idx_pair : boundary_cells)
-                {
-                #endif
-                    auto x = idx_pair.first;
-                    auto y = idx_pair.second;
+                    auto const i = ind.x;
+                    auto const j = ind.y;
+                    auto const k = ind.z;
 
-                    auto const& cell_type = cell_types(x, y);
+                    auto const& cell_type = cell_types(i, j, k);
 
-                    dst_p(x, y) =
-                        (
-                            dst_p(x - 1, y) * cell_type.test(has_fluid_west)
-                            + dst_p(x + 1, y) * cell_type.test(has_fluid_east)
-                            + dst_p(x, y - 1) * cell_type.test(has_fluid_south)
-                            + dst_p(x, y + 1) * cell_type.test(has_fluid_north)
-                        )
-                        /
-                        (
-                            cell_type.test(has_fluid_west)
-                            + cell_type.test(has_fluid_east)
-                            + cell_type.test(has_fluid_south)
-                            + cell_type.test(has_fluid_north)
-                        );
+                    if (cell_type.test(has_fluid_left))
+                    {
+                        dst_p(i, j, k) = dst_p(i - 1, j, k);
+                    }
+
+                    if (cell_type.test(has_fluid_right))
+                    {
+                        dst_p(i, j, k) = dst_p(i + 1, j, k);
+                    }
+
+                    if (cell_type.test(has_fluid_bottom))
+                    {
+                        dst_p(i, j, k) = dst_p(i, j - 1, k);
+                    }
+
+                    if (cell_type.test(has_fluid_top))
+                    {
+                        dst_p(i, j, k) = dst_p(i, j + 1, k);
+                    }
+
+                    if (cell_type.test(has_fluid_front))
+                    {
+                        dst_p(i, j, k) = dst_p(i, j, k - 1);
+                    }
+
+                    if (cell_type.test(has_fluid_back))
+                    {
+                        dst_p(i, j, k) = dst_p(i, j, k + 1);
+                    }
                 }
-                #ifdef WITH_FOR_EACH
-                );
 
-                auto f2 = hpx::parallel::for_each(
-                hpx::parallel::par(hpx::parallel::task),
-                std::begin(obstacle_cells), std::end(obstacle_cells),
-                [&](auto const& idx_pair)
-                {
-                #else
-                for (auto& idx_pair : obstacle_cells)
-                {
-                #endif
-                    auto x = idx_pair.first;
-                    auto y = idx_pair.second;
-
-                    auto const& cell_type = cell_types(x, y);
-
-                    dst_p(x, y) =
-                        (
-                            dst_p(x - 1, y) * cell_type.test(has_fluid_west)
-                            + dst_p(x + 1, y) * cell_type.test(has_fluid_east)
-                            + dst_p(x, y - 1) * cell_type.test(has_fluid_south)
-                            + dst_p(x, y + 1) * cell_type.test(has_fluid_north)
-                        )
-                        /
-                        (
-                            cell_type.test(has_fluid_west)
-                            + cell_type.test(has_fluid_east)
-                            + cell_type.test(has_fluid_south)
-                            + cell_type.test(has_fluid_north)
-                        );
-                }
-                #ifdef WITH_FOR_EACH
-                );
-
-                hpx::wait_all(f1, f2);
-                #endif
             }
         }
     };
 
+    /*
     template<>
     struct stencils<STENCIL_SOR>
     {
@@ -760,6 +363,8 @@ namespace nast_hpx { namespace grid {
             }
         }
     };
+    */
+
 
     template<>
     struct stencils<STENCIL_JACOBI>
@@ -767,43 +372,31 @@ namespace nast_hpx { namespace grid {
         //TODO remove idx, idy (was for debug)
         static void call(partition_data<Real>& dst_p,
             partition_data<Real> const& src_rhs,
-            std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
-            Real dx_sq, Real dy_sq, util::cancellation_token token)
+            std::vector<index> const& fluid_cells,
+            Real dx_sq, Real dy_sq, Real dz_sq, util::cancellation_token token)
         {
             if (!token.was_cancelled())
             {
-               // std::cout << "jacobi " << iter << " | " << xd << " " << yd << std::endl;
-              //  hpx::this_thread::sleep_for(boost::chrono::milliseconds(3000));
-
-              //  if (hpx::get_locality_id() == 1)
-              //      hpx::this_thread::sleep_for(boost::chrono::milliseconds(4000));
-                #ifdef WITH_FOR_EACH
-                hpx::parallel::for_each(
-                hpx::parallel::par,
-                std::begin(fluid_cells), std::end(fluid_cells),
-                [&](auto const& idx_pair)
+                for (auto const& ind : fluid_cells)
                 {
-                #else
-                for (auto& idx_pair : fluid_cells)
-                {
-                #endif
-                    auto x = idx_pair.first;
-                    auto y = idx_pair.second;
+                    auto const i = ind.x;
+                    auto const j = ind.y;
+                    auto const k = ind.z;
 
-                    dst_p(x, y) =
-                         ( (dst_p(x + 1, y) + dst_p(x - 1, y)) * dy_sq
-                            + (dst_p(x, y + 1) + dst_p(x, y - 1)) * dx_sq
-                            - dx_sq * dy_sq * src_rhs(x, y))
+                    dst_p(i, j, k) =
+                        (dz_sq * (dy_sq * (dst_p(i + 1, j, k) + dst_p(i - 1, j, k) - src_rhs(i, j, k) * dx_sq)
+                                    + (dst_p(i, j + 1, j) + dst_p(i, j - 1, k)) * dx_sq
+                                 )
+                        + dx_sq * dy_sq * (dst_p(i, j, k + 1) + dst_p(i, j, k - 1))
+                        )
                         /
-                        (2 * (dx_sq + dy_sq));
+                        (2 * (dx_sq * (dy_sq + dz_sq) + dy_sq * dz_sq));
                 }
-                #ifdef WITH_FOR_EACH
-                );
-                #endif
             }
         }
     };
 
+    /*
     template<>
     struct stencils<STENCIL_TEST>
     {
@@ -880,55 +473,32 @@ namespace nast_hpx { namespace grid {
         }
     };
 
+    */
+
     template<>
     struct stencils<STENCIL_COMPUTE_RESIDUAL>
     {
         static Real call(partition_data<Real> const& src_p,
             partition_data<Real> const& src_rhs,
-            std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
-            Real over_dx_sq, Real over_dy_sq, util::cancellation_token token)
+            std::vector<index> const& fluid_cells,
+            Real over_dx_sq, Real over_dy_sq, Real over_dz_sq, util::cancellation_token token)
         {
             Real local_residual = 0;
 
-            if (!token.was_cancelled())
-            #ifdef WITH_FOR_EACH
-                local_residual =
-                hpx::parallel::transform_reduce(
-                hpx::parallel::par,
-                std::begin(fluid_cells), std::end(fluid_cells),
-                [&](auto const& idx_pair) -> Real
+            for (auto const& ind : fluid_cells)
                 {
-                    auto x = idx_pair.first;
-                    auto y = idx_pair.second;
+                    auto const i = ind.x;
+                    auto const j = ind.y;
+                    auto const k = ind.z;
 
                     Real tmp =
-                            (src_p(x + 1, y) - 2 * src_p(x, y) + src_p(x - 1, y)) * over_dx_sq
-                            + (src_p(x, y + 1) - 2 * src_p(x, y) + src_p(x, y - 1)) * over_dy_sq
-                            - src_rhs(x, y);
+                        (src_p(i + 1, j, k) - 2 * src_p(i, j, k) + src_p(i - 1, j, k)) / over_dx_sq
+                        + (src_p(i, j + 1, k) - 2 * src_p(i, j, k) + src_p(i, j - 1, k)) / over_dy_sq
+                        + (src_p(i, j, k + 1) - 2 * src_p(i, j, k) + src_p(i, j, k - 1)) / over_dz_sq
+                        - src_rhs(i, j, k);
 
-                    return std::pow(tmp, 2);
+                    local_residual += std::pow(tmp, 2);
                 }
-                , 0.
-                ,[](Real const a, Real const b) -> Real
-                {
-                    return a + b;
-                }
-                );
-
-            #else
-                for (auto& idx_pair : fluid_cells)
-                    {
-                        auto x = idx_pair.first;
-                        auto y = idx_pair.second;
-
-                        Real tmp =
-                            (src_p(x + 1, y) - 2 * src_p(x, y) + src_p(x - 1, y)) * over_dx_sq
-                            + (src_p(x, y + 1) - 2 * src_p(x, y) + src_p(x, y - 1)) * over_dy_sq
-                            - src_rhs(x, y);
-
-                        local_residual += std::pow(tmp, 2);
-                    }
-            #endif
 
             return local_residual;
         }
@@ -937,80 +507,56 @@ namespace nast_hpx { namespace grid {
     template<>
     struct stencils<STENCIL_UPDATE_VELOCITY>
     {
-        static std::pair<Real, Real>  call(partition_data<Real>& dst_u,
+        static triple<Real> call(partition_data<Real>& dst_u,
             partition_data<Real>& dst_v,
+            partition_data<Real>& dst_w,
             partition_data<Real> const& src_f,
             partition_data<Real> const& src_g,
+            partition_data<Real> const& src_h,
             partition_data<Real> const& src_p,
-            partition_data<std::bitset<6> > const& cell_types,
-            std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
-            Real dt, Real over_dx, Real over_dy
+            partition_data<std::bitset<9> > const& cell_types,
+            std::vector<index> const& fluid_cells,
+            Real dt, Real over_dx, Real over_dy, Real over_dz
             )
         {
-            #ifdef WITH_FOR_EACH
-            std::pair<Real, Real> max_uv =
-                hpx::parallel::transform_reduce(
-                    hpx::parallel::par,
-                    std::begin(fluid_cells), std::end(fluid_cells),
-                    [&](auto const& idx_pair) -> std::pair<Real, Real>
-                    {
-                        auto const x = idx_pair.first;
-                        auto const y = idx_pair.second;
+            triple<Real> max_uvw(0);
 
-                        auto const& cell_type = cell_types(x, y);
-
-
-                        if (cell_type.test(has_fluid_east))
-                            dst_u(x, y) = src_f(x, y) - dt * over_dx *
-                                (src_p(x + 1, y) - src_p(x, y));
-
-                        if (cell_type.test(has_fluid_north))
-                            dst_v(x, y) = src_g(x, y) - dt * over_dy *
-                                (src_p(x, y + 1) - src_p(x, y));
-
-                        return std::make_pair(std::abs(dst_u(x, y)), std::abs(dst_v(x, y)));
-                    },
-                    std::make_pair(0., 0.),
-                    [](auto const& a, auto const& b) -> std::pair<Real, Real>
-                    {
-                        return std::make_pair(a.first > b.first ? a.first : b.first, a.second > b.second ? a.second : b.second);
-                    }
-                );
-
-            return max_uv;
-
-            #else
-            Real max_u = 0;
-            Real max_v = 0;
-
-            for (auto const& idx_pair : fluid_cells)
+            for (auto const& ind : fluid_cells)
             {
-                auto const x = idx_pair.first;
-                auto const y = idx_pair.second;
+                auto const i = ind.x;
+                auto const j = ind.y;
+                auto const k = ind.z;
 
-                auto const& cell_type = cell_types(x, y);
+                auto const& cell_type = cell_types(i, j, k);
 
-                if (cell_type.test(has_fluid_east))
+                if (cell_type.test(has_fluid_right))
                 {
-                    dst_u(x, y) = src_f(x, y) - dt * over_dx *
-                        (src_p(x + 1, y) - src_p(x, y));
+                    dst_u(i, j, k) = src_f(i, j, k) - dt * over_dx *
+                        (src_p(i + 1, j, k) - src_p(i, j, k));
 
-                    max_u = std::abs(dst_u(x, y)) > max_u ? std::abs(dst_u(x, y)) : max_u;
+                    max_uvw.x = std::abs(dst_u(i, j, k)) > max_uvw.x ? std::abs(dst_u(i, j, k)) : max_uvw.x;
                 }
 
-                if (cell_type.test(has_fluid_north))
+                if (cell_type.test(has_fluid_back))
                 {
-                    dst_v(x, y) = src_g(x, y) - dt * over_dy *
-                        (src_p(x, y + 1) - src_p(x, y));
+                    dst_v(i, j, k) = src_g(i, j, k) - dt * over_dy *
+                        (src_p(i, j + 1, k) - src_p(i, j, k));
 
-                    max_v = std::abs(dst_v(x, y)) > max_v ? std::abs(dst_v(x, y)) : max_v;
+                    max_uvw.y = std::abs(dst_v(i, j, k)) > max_uvw.y ? std::abs(dst_v(i, j, k)) : max_uvw.y;
+                }
+
+                if (cell_type.test(has_fluid_top))
+                {
+                 //   dst_w(i, j, k) = src_h(i, j, k) - dt * over_dz *
+                 //       (src_p(i, j, k + 1) - src_p(i, j, k));
+
+                    max_uvw.z = std::abs(dst_w(i, j, k)) > max_uvw.z ? std::abs(dst_w(i, j, k)) : max_uvw.z;
                 }
             }
 
-            return std::make_pair(max_u, max_v);
-            #endif
+            return max_uvw;
         }
-    };*/
+    };
 }
 }
 

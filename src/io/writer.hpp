@@ -13,7 +13,9 @@ namespace nast_hpx { namespace io {
     struct writer
     {
         static void write_vtk(grid_type const& p_data, grid_type const& u_data,
-            grid_type const& v_data, grid_type const& w_data, type_grid const& cell_types,
+            grid_type const& v_data, grid_type const& w_data,
+            grid_type const& f_data,
+            grid_type const& g_data, grid_type const& h_data, type_grid const& cell_types,
             std::size_t res_x, std::size_t res_y, std::size_t res_z, std::size_t i_max,
             std::size_t j_max, std::size_t k_max, Real dx, Real dy, Real dz, std::size_t step,
             std::size_t loc, std::size_t idx, std::size_t idy, std::size_t idz);

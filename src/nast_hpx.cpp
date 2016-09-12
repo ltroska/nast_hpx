@@ -14,7 +14,7 @@ int hpx_main(boost::program_options::variables_map& vm)
     cfg.max_timesteps = timesteps;
     cfg.verbose = vm.count("verbose") ? true : false;
     //DRIVEN CAVITY: TODO REMOVE THIS
-    cfg.bnd_condition.back.x = 1;
+    cfg.bnd_condition.top.y = 1;
     if (cfg.verbose)
         std::cout << "Threads on locality " << hpx::get_locality_id()
             << " = " << hpx::get_os_thread_count() << std::endl;

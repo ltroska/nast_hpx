@@ -195,7 +195,7 @@ namespace nast_hpx { namespace io {
         }
 
         cfg.part1 = 1. - cfg.omega;
-        cfg.part2 = cfg.omega * cfg.dx_sq * cfg.dy_sq / (2. * (cfg.dx_sq + cfg.dy_sq));
+        cfg.part2 = cfg.omega * cfg.dx_sq * cfg.dy_sq * cfg.dz_sq / (2. * (cfg.dx_sq * cfg.dy_sq + cfg.dx_sq * cfg.dz_sq + cfg.dy_sq * cfg.dz_sq));
         cfg.factor_jacobi = cfg.dx_sq * cfg.dy_sq / (2. * (cfg.dx_sq + cfg.dy_sq));
 
         if(config_node.child("tau") != NULL)

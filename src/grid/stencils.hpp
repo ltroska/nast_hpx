@@ -199,7 +199,7 @@ namespace nast_hpx { namespace grid {
 
                         - util::derivatives::first_derivative_of_square_x(src_u, i, j, k, dx, alpha)
                         - util::derivatives::first_derivative_of_uv_y(src_u, src_v, i, j, k, dy, alpha)
-                    //    - util::derivatives::first_derivative_of_uw_z(src_u, src_w, i, j, k, dz, alpha)
+                        - util::derivatives::first_derivative_of_uw_z(src_u, src_w, i, j, k, dz, alpha)
                         + gx
                     );
 
@@ -213,7 +213,7 @@ namespace nast_hpx { namespace grid {
 
                         - util::derivatives::first_derivative_of_uv_x(src_u, src_v, i, j, k, dx, alpha)
                         - util::derivatives::first_derivative_of_square_y(src_v, i, j, k, dy, alpha)
-                      //  - util::derivatives::first_derivative_of_vw_z(src_v, src_w, i, j, k, dz, alpha)
+                        - util::derivatives::first_derivative_of_vw_z(src_v, src_w, i, j, k, dz, alpha)
                         + gy
                     );
 
@@ -256,8 +256,8 @@ namespace nast_hpx { namespace grid {
                                     (src_f(i, j, k) - src_f(i - 1, j, k)) / dx
                                     +
                                     (src_g(i, j, k) - src_g(i, j - 1, k)) / dy
-                               //     +
-                                //    (src_h(i, j, k) - src_h(i, j, k - 1)) / dz
+                                    +
+                                    (src_h(i, j, k) - src_h(i, j, k - 1)) / dz
                                 );
             }
 
@@ -319,15 +319,15 @@ namespace nast_hpx { namespace grid {
         }
     };
 
-    /*
+
     template<>
     struct stencils<STENCIL_SOR>
     {
         //TODO remove idx, idy (was for debug)
         static void call(partition_data<Real>& dst_p,
             partition_data<Real> const& src_rhs,
-            std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
-            Real part1, Real part2, Real dx_sq, Real dy_sq,
+            std::vector<index> const& fluid_cells,
+            Real part1, Real part2, Real dx_sq, Real dy_sq, Real dz_sq,
             util::cancellation_token token)
         {
 
@@ -336,34 +336,24 @@ namespace nast_hpx { namespace grid {
           //       std::cout << "SOR " << iter << " | " << xd << " " << yd << std::endl;
           //  hpx::this_thread::sleep_for(boost::chrono::milliseconds(3000));
 
-                #ifdef WITH_FOR_EACH
-                hpx::parallel::for_each(
-                hpx::parallel::par,
-                std::begin(fluid_cells), std::end(fluid_cells),
-                [&](auto const& idx_pair)
+                for (auto const& idx_pair : fluid_cells)
                 {
-                #else
-                for (auto& idx_pair : fluid_cells)
-                {
-                #endif
-                    auto x = idx_pair.first;
-                    auto y = idx_pair.second;
+                    auto i = idx_pair.x;
+                    auto j = idx_pair.y;
+                    auto k = idx_pair.z;
 
-                    dst_p(x, y) =
-                        part1 * dst_p(x, y)
+                    dst_p(i, j, k) =
+                        part1 * dst_p(i, j, k)
                         + part2 * (
-                                (dst_p(x + 1, y) + dst_p(x - 1, y)) / dx_sq
-                                + (dst_p(x, y + 1) + dst_p(x, y - 1)) / dy_sq
-                                - src_rhs(x, y)
+                                (dst_p(i + 1, j, k) + dst_p(i - 1, j, k)) / dx_sq
+                                + (dst_p(i, j + 1, k) + dst_p(i, j - 1, k)) / dy_sq
+                                + (dst_p(i, j, k + 1) + dst_p(i, j, k - 1)) / dz_sq
+                                - src_rhs(i, j, k)
                         );
                 }
-                #ifdef WITH_FOR_EACH
-                );
-                #endif
             }
         }
     };
-    */
 
 
     template<>
@@ -384,13 +374,13 @@ namespace nast_hpx { namespace grid {
                     auto const k = ind.z;
 
                     dst_p(i, j, k) =
-                        (dz_sq * (dy_sq * (dst_p(i + 1, j, k) + dst_p(i - 1, j, k) - src_rhs(i, j, k) * dx_sq)
-                                    + (dst_p(i, j + 1, j) + dst_p(i, j - 1, k)) * dx_sq
-                                 )
-                        + dx_sq * dy_sq * (dst_p(i, j, k + 1) + dst_p(i, j, k - 1))
-                        )
-                        /
-                        (2 * (dx_sq * (dy_sq + dz_sq) + dy_sq * dz_sq));
+                        dx_sq * dy_sq * dz_sq / (2. * (dx_sq * dy_sq + dx_sq * dz_sq + dy_sq * dz_sq)) *
+                        (
+                                (dst_p(i + 1, j, k) + dst_p(i - 1, j, k)) / dx_sq
+                                + (dst_p(i, j + 1, k) + dst_p(i, j - 1, k)) / dy_sq
+                                + (dst_p(i, j, k + 1) + dst_p(i, j, k - 1)) / dz_sq
+                                - src_rhs(i, j, k)
+                        );
                 }
             }
         }
@@ -547,8 +537,8 @@ namespace nast_hpx { namespace grid {
 
                 if (cell_type.test(has_fluid_top))
                 {
-                 //   dst_w(i, j, k) = src_h(i, j, k) - dt * over_dz *
-                 //       (src_p(i, j, k + 1) - src_p(i, j, k));
+                    dst_w(i, j, k) = src_h(i, j, k) - dt * over_dz *
+                        (src_p(i, j, k + 1) - src_p(i, j, k));
 
                     max_uvw.z = std::abs(dst_w(i, j, k)) > max_uvw.z ? std::abs(dst_w(i, j, k)) : max_uvw.z;
                 }

@@ -634,6 +634,17 @@ triple<Real> partition_server::do_timestep(Real dt)
                                 )
                             );
 
+                     /*       hpx::shared_future<void> calc_future =
+                            hpx::async(
+                                hpx::util::bind(
+                                    &stencils<STENCIL_SOR>::call,
+                                    boost::ref(data_[P]),
+                                    boost::ref(rhs_data_),
+                                    boost::ref(fluid_cells_(nx_block, ny_block, nz_block)),
+                                    c.part1, c.part2, c.dx_sq, c.dy_sq, c.dz_sq, token
+                                )
+                            );*/
+
                          sor_cycle_futures[current](nx_block, ny_block, nz_block) = calc_future;
                     }
 

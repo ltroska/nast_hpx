@@ -21,7 +21,7 @@ struct partition
         if (cfg.verbose)
             std::cout << "registering " << cfg.idy * cfg.num_localities_x + cfg.idx << " " << cfg.idx << " " << cfg.idy <<  std::endl;
         hpx::register_with_basename(server::partition_basename, get_id(),
-                                        cfg.idy * cfg.num_localities_x + cfg.idx);
+                                        cfg.idz * cfg.num_localities_x * cfg.num_localities_y + cfg.idy * cfg.num_localities_x + cfg.idx);
     }
 
     // Create a new component on the locality co-located to the id 'where'. The

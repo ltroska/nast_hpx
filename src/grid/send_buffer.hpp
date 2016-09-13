@@ -39,13 +39,14 @@ namespace nast_hpx { namespace grid {
             return *this;
         }
 
-        void operator()(partition_data<value_type> const& p, std::size_t step, std::size_t var, std::size_t offset = 0, std::size_t size = 0)
+        void operator()(partition_data<value_type> const& p, std::size_t step,
+                            std::size_t var, std::size_t index1, std::size_t index2, std::size_t block_size1, std::size_t block_size2)
         {
             HPX_ASSERT(dest_);
 
             buffer_type buffer;
 
-            pack_buffer<dir>::call(p, buffer, offset, size);
+            pack_buffer<dir>::call(p, buffer, index1, index2, block_size1, block_size2);
 
             hpx::apply(Action(), dest_, buffer, step, var);
         }

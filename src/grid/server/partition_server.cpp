@@ -32,10 +32,10 @@ partition_server::partition_server(io::config const& cfg)
     cells_z_(c.cells_z_per_block * c.num_z_blocks + 2),
     is_left_(c.idx == 0),
     is_right_(c.idx == c.num_partitions_x - 1),
-    is_bottom_(c.idy == 0),
-    is_top_(c.idy == c.num_partitions_y - 1),
-    is_front_(c.idz == 0),
-    is_back_(c.idy == c.num_partitions_z - 1)
+    is_bottom_(c.idz == 0),
+    is_top_(c.idz == c.num_partitions_z - 1),
+    is_front_(c.idy == 0),
+    is_back_(c.idy == c.num_partitions_y - 1)
 {
 
 #ifdef WITH_SOR
@@ -93,18 +93,13 @@ partition_server::partition_server(io::config const& cfg)
                     for (std::size_t j = y_range.first; j < y_range.second; ++j)
                         for (std::size_t i = x_range.first; i < x_range.second; ++i)
                         {
+
+                            data_[U](i, j, k) = i + 100 * j + 10000 * k + 0.1 * hpx::get_locality_id();
+
                             cell_type_data_(i, j, k) = std::move(c.flag_grid[k * cells_x_ * cells_y_ + j * cells_x_ + i]);
 
-                          //  data_[P](i, j, k) = cell_type_data_(i, j, k).to_ulong();
-                         //   data_[U](i, j, k) = i - 1;
-                          //  data_[V](i, j, k) = j - 1;
-                          //  data_[W](i, j, k) = k - 1;
-
                             if (cell_type_data_(i, j, k).test(is_fluid))
-                            {
                                 fluid_cells_(nx_block, ny_block, nz_block).emplace_back(i, j, k);
-
-                            }
                             else if (cell_type_data_(i, j, k).test(is_boundary))
                                 boundary_cells_(nx_block, ny_block, nz_block).emplace_back(i, j, k);
                             else if (!cell_type_data_(i, j, k).none())
@@ -120,7 +115,7 @@ partition_server::partition_server(io::config const& cfg)
 void partition_server::init()
 {
    // for (std::size_t var = 0; var < NUM_VARIABLES; ++var)
-       // data_[var].clear(0);
+  //      data_[var].clear(0);
 
     rhs_data_.clear(0);
 
@@ -141,77 +136,120 @@ void partition_server::init()
 
     if (!is_left_)
     {
-        send_buffer_left_.dest_ = ids_[c.idy * c.num_partitions_x + c.idx - 1];
-
+        send_buffer_left_.dest_ = ids_[c.idz * c.num_partitions_x * c.num_partitions_y + c.idy * c.num_partitions_x + c.idx - 1];
         recv_buffer_left_[P].valid_ = true;
         recv_buffer_left_[F].valid_ = true;
         recv_buffer_left_[G].valid_ = true;
+        recv_buffer_left_[H].valid_ = true;
         recv_buffer_left_[U].valid_ = true;
         recv_buffer_left_[V].valid_ = true;
-
-
-        if (!is_top_)
-        {
-            send_buffer_top_left_.dest_ = ids_[(c.idy + 1) * c.num_partitions_x + c.idx - 1];
-
-            recv_buffer_top_left_[U].valid_ = true;
-            recv_buffer_top_left_[V].valid_ = true;
-        }
+        recv_buffer_left_[W].valid_ = true;
     }
 
     if (!is_right_)
     {
-        send_buffer_right_.dest_ = ids_[c.idy * c.num_partitions_x + c.idx + 1];
+        send_buffer_right_.dest_ = ids_[c.idz * c.num_partitions_x * c.num_partitions_y + c.idy * c.num_partitions_x + c.idx + 1];
 
         recv_buffer_right_[P].valid_ = true;
         recv_buffer_right_[U].valid_ = true;
         recv_buffer_right_[V].valid_ = true;
-
-        if (!is_bottom_)
-        {
-            send_buffer_bottom_right_.dest_ = ids_[(c.idy - 1) * c.num_partitions_x + c.idx + 1];
-            recv_buffer_bottom_right_[U].valid_ = true;
-            recv_buffer_bottom_right_[V].valid_ = true;
-        }
     }
 
     if (!is_bottom_)
     {
-        send_buffer_bottom_.dest_ = ids_[(c.idy - 1) * c.num_partitions_x + c.idx];
+        send_buffer_bottom_.dest_ = ids_[(c.idz - 1) * c.num_partitions_x * c.num_partitions_y + c.idy * c.num_partitions_x + c.idx];
 
-        recv_buffer_bottom_[P].valid_= true;
-        recv_buffer_bottom_[F].valid_= true;
-        recv_buffer_bottom_[G].valid_= true;
-        recv_buffer_bottom_[U].valid_= true;
-        recv_buffer_bottom_[V].valid_= true;
+        recv_buffer_bottom_[U].valid_ = true;
     }
 
     if (!is_top_)
     {
-        send_buffer_top_.dest_ = ids_[(c.idy + 1) * c.num_partitions_x + c.idx];
+        send_buffer_top_.dest_ = ids_[(c.idz + 1) * c.num_partitions_x * c.num_partitions_y + c.idy * c.num_partitions_x + c.idx];
 
-        recv_buffer_top_[P].valid_ = true;
         recv_buffer_top_[U].valid_ = true;
-        recv_buffer_top_[V].valid_ = true;
     }
 
-    send_futures_U.resize(NUM_DIRECTIONS);
-    send_futures_V.resize(NUM_DIRECTIONS);
-    recv_futures_U.resize(NUM_DIRECTIONS);
-    recv_futures_V.resize(NUM_DIRECTIONS);
-    send_futures_F.resize(NUM_DIRECTIONS);
-    send_futures_G.resize(NUM_DIRECTIONS);
-    recv_futures_F.resize(NUM_DIRECTIONS);
-    recv_futures_G.resize(NUM_DIRECTIONS);
-    send_futures_P.resize(NUM_DIRECTIONS);
+    if (!is_front_)
+    {
+        send_buffer_front_.dest_ = ids_[c.idz * c.num_partitions_x * c.num_partitions_y + (c.idy - 1) * c.num_partitions_x + c.idx];
+
+        recv_buffer_front_[U].valid_ = true;
+    }
+
+    if (!is_back_)
+    {
+        send_buffer_back_.dest_ = ids_[c.idz * c.num_partitions_x * c.num_partitions_y + (c.idy + 1) * c.num_partitions_x + c.idx];
+
+        recv_buffer_back_[U].valid_ = true;
+    }
+
+    if (!is_back_ && !is_left_)
+    {
+        send_buffer_back_left_.dest_ = ids_[c.idz * c.num_partitions_x * c.num_partitions_y + (c.idy + 1) * c.num_partitions_x + c.idx - 1];
+
+        recv_buffer_back_left_[U].valid_ = true;
+    }
+
+    if (!is_front_ && !is_right_)
+    {
+        send_buffer_front_right_.dest_ = ids_[c.idz * c.num_partitions_x * c.num_partitions_y + (c.idy - 1) * c.num_partitions_x + c.idx + 1];
+
+        recv_buffer_front_right_[U].valid_ = true;
+    }
+
+    if (!is_bottom_ && !is_right_)
+    {
+        send_buffer_bottom_right_.dest_ = ids_[(c.idz - 1) * c.num_partitions_x * c.num_partitions_y + c.idy * c.num_partitions_x + c.idx + 1];
+
+        recv_buffer_bottom_right_[U].valid_ = true;
+    }
+
+    if (!is_top_ && !is_left_)
+    {
+        send_buffer_top_left_.dest_ = ids_[(c.idz + 1) * c.num_partitions_x * c.num_partitions_y + c.idy * c.num_partitions_x + c.idx - 1];
+
+        recv_buffer_top_left_[U].valid_ = true;
+    }
+
+    if (!is_back_ && !is_bottom_)
+    {
+        send_buffer_back_bottom_.dest_ = ids_[(c.idz - 1) * c.num_partitions_x * c.num_partitions_y + (c.idy + 1) * c.num_partitions_x + c.idx];
+
+        recv_buffer_back_bottom_[U].valid_ = true;
+    }
+
+    if (!is_front_ && !is_top_)
+    {
+        send_buffer_front_top_.dest_ = ids_[(c.idz + 1) * c.num_partitions_x * c.num_partitions_y + (c.idy - 1) * c.num_partitions_x + c.idx];
+
+        recv_buffer_front_top_[U].valid_ = true;
+    }
+
+
+    recv_futures.resize(NUM_VARIABLES);
+
+    for (std::size_t var = 0; var < NUM_VARIABLES; ++var)
+    {
+        recv_futures[var].resize(NUM_DIRECTIONS);
+
+        recv_futures[var][RIGHT].resize(c.num_y_blocks, c.num_z_blocks);
+        recv_futures[var][LEFT].resize(c.num_y_blocks, c.num_z_blocks);
+        recv_futures[var][BOTTOM].resize(c.num_x_blocks, c.num_y_blocks);
+        recv_futures[var][TOP].resize(c.num_x_blocks, c.num_y_blocks);
+        recv_futures[var][FRONT].resize(c.num_x_blocks, c.num_z_blocks);
+        recv_futures[var][BACK].resize(c.num_x_blocks, c.num_z_blocks);
+        recv_futures[var][BACK_LEFT].resize(c.num_z_blocks, 1);
+        recv_futures[var][FRONT_RIGHT].resize(c.num_z_blocks, 1);
+        recv_futures[var][BOTTOM_RIGHT].resize(c.num_y_blocks, 1);
+        recv_futures[var][TOP_LEFT].resize(c.num_y_blocks, 1);
+        recv_futures[var][BACK_BOTTOM].resize(c.num_x_blocks, 1);
+        recv_futures[var][FRONT_TOP].resize(c.num_x_blocks, 1);
+    }
 
     set_velocity_futures.resize(c.num_x_blocks, c.num_y_blocks, c.num_z_blocks);
-    init_future_grid(recv_futures_U);
-    init_future_grid(recv_futures_V);
 
     compute_fg_futures.resize(c.num_x_blocks, c.num_y_blocks, c.num_z_blocks);
-    init_future_grid(recv_futures_F);
-    init_future_grid(recv_futures_G);
+
 
     compute_rhs_futures.resize(c.num_x_blocks, c.num_y_blocks, c.num_z_blocks);
     compute_res_futures.resize(c.num_x_blocks, c.num_y_blocks, c.num_z_blocks);
@@ -222,8 +260,6 @@ void partition_server::init()
     set_p_futures.resize(c.num_x_blocks, c.num_y_blocks, c.num_z_blocks);
     recv_futures_P[current].resize(NUM_DIRECTIONS);
     recv_futures_P[last].resize(NUM_DIRECTIONS);
-    init_future_grid(recv_futures_P[current]);
-    init_future_grid(recv_futures_P[last]);
 
     for (auto& a : recv_futures_P[last])
         for (auto& b : a)
@@ -239,295 +275,490 @@ void partition_server::init()
 }
 
 template<>
-void partition_server::send_boundary<LEFT>(std::size_t step, std::size_t var, future_vector& send_futures)
+void partition_server::send_boundary<LEFT>(std::size_t step, std::size_t var, partition_data<hpx::shared_future<void> >& send_futures)
 {
-    if (!send_futures.empty())
-        for (std::size_t i = 0; i < send_futures.size(); ++i)
-            send_futures[i].then(
+    for (std::size_t y = 0; y < send_futures.size_y_; ++y)
+        for (std::size_t z = 0; z < send_futures.size_z_; ++z)
+            send_futures(0, y, z).then(
                 hpx::launch::async,
                 hpx::util::bind(
                     boost::ref(send_buffer_left_),
                     boost::ref(data_[var]),
-                    step * c.num_y_blocks + i,
+                    step * c.num_y_blocks * c.num_z_blocks + (z * c.num_y_blocks + y),
                     var,
-                    i * c.cells_y_per_block,
-                    c.cells_y_per_block
+                    y,
+                    z,
+                    c.cells_y_per_block,
+                    c.cells_z_per_block
                 )
             );
 }
 
 template<>
-void partition_server::send_boundary<RIGHT>(std::size_t step, std::size_t var, future_vector& send_futures)
+void partition_server::send_boundary<RIGHT>(std::size_t step, std::size_t var, partition_data<hpx::shared_future<void> >& send_futures)
 {
-    if (!send_futures.empty())
-        for (std::size_t i = 0; i < send_futures.size(); ++i)
-            send_futures[i].then(
+    for (std::size_t y = 0; y < send_futures.size_y_; ++y)
+        for (std::size_t z = 0; z < send_futures.size_z_; ++z)
+            send_futures(send_futures.size_x_ - 1, y, z).then(
                 hpx::launch::async,
                 hpx::util::bind(
                     boost::ref(send_buffer_right_),
                     boost::ref(data_[var]),
-                    step * c.num_y_blocks + i,
+                    step * c.num_y_blocks * c.num_z_blocks + (z * c.num_y_blocks + y),
                     var,
-                    i * c.cells_y_per_block,
+                    y,
+                    z,
+                    c.cells_y_per_block,
+                    c.cells_z_per_block
+                )
+            );
+}
+
+template<>
+void partition_server::send_boundary<BOTTOM>(std::size_t step, std::size_t var, partition_data<hpx::shared_future<void> >& send_futures)
+{
+    for (std::size_t x = 0; x < send_futures.size_x_; ++x)
+        for (std::size_t y = 0; y < send_futures.size_y_; ++y)
+            send_futures(x, y, 0).then(
+                hpx::launch::async,
+                hpx::util::bind(
+                    boost::ref(send_buffer_bottom_),
+                    boost::ref(data_[var]),
+                    step * c.num_x_blocks * c.num_y_blocks + (y * c.num_x_blocks + x),
+                    var,
+                    x,
+                    y,
+                    c.cells_x_per_block,
                     c.cells_y_per_block
                 )
             );
 }
 
 template<>
-void partition_server::send_boundary<BOTTOM>(std::size_t step, std::size_t var, future_vector& send_futures)
+void partition_server::send_boundary<TOP>(std::size_t step, std::size_t var, partition_data<hpx::shared_future<void> >& send_futures)
 {
-    if (!send_futures.empty())
-        for (std::size_t i = 0; i < send_futures.size(); ++i)
-            send_futures[i].then(
-                hpx::launch::async,
-                hpx::util::bind(
-                    boost::ref(send_buffer_bottom_),
-                    boost::ref(data_[var]),
-                    step * c.num_x_blocks + i,
-                    var,
-                    i * c.cells_x_per_block,
-                    c.cells_x_per_block
-                )
-            );
-}
-
-template<>
-void partition_server::send_boundary<TOP>(std::size_t step, std::size_t var, future_vector& send_futures)
-{
-    if (!send_futures.empty())
-        for (std::size_t i = 0; i < send_futures.size(); ++i)
-            send_futures[i].then(
+    for (std::size_t x = 0; x < send_futures.size_x_; ++x)
+        for (std::size_t y = 0; y < send_futures.size_y_; ++y)
+            send_futures(x, y, send_futures.size_z_ - 1).then(
                 hpx::launch::async,
                 hpx::util::bind(
                     boost::ref(send_buffer_top_),
                     boost::ref(data_[var]),
-                    step * c.num_x_blocks + i,
+                    step * c.num_x_blocks * c.num_y_blocks + (y * c.num_x_blocks + x),
                     var,
-                    i * c.cells_x_per_block,
-                    c.cells_x_per_block
+                    x,
+                    y,
+                    c.cells_x_per_block,
+                    c.cells_y_per_block
                 )
             );
 }
 
 template<>
-void partition_server::send_boundary<BOTTOM_RIGHT>(std::size_t step, std::size_t var, future_vector& send_futures)
+void partition_server::send_boundary<FRONT>(std::size_t step, std::size_t var, partition_data<hpx::shared_future<void> >& send_futures)
 {
-    if (!send_futures.empty())
-        hpx::when_all(send_futures).then(
+    for (std::size_t x = 0; x < send_futures.size_x_; ++x)
+        for (std::size_t z = 0; z < send_futures.size_z_; ++z)
+            send_futures(x, 0, z).then(
+                hpx::launch::async,
+                hpx::util::bind(
+                    boost::ref(send_buffer_front_),
+                    boost::ref(data_[var]),
+                    step * c.num_x_blocks * c.num_z_blocks + (z * c.num_x_blocks + x),
+                    var,
+                    x,
+                    z,
+                    c.cells_x_per_block,
+                    c.cells_z_per_block
+                )
+            );
+}
+
+template<>
+void partition_server::send_boundary<BACK>(std::size_t step, std::size_t var, partition_data<hpx::shared_future<void> >& send_futures)
+{
+    for (std::size_t x = 0; x < send_futures.size_x_; ++x)
+        for (std::size_t z = 0; z < send_futures.size_z_; ++z)
+            send_futures(x, send_futures.size_y_ - 1, z).then(
+                hpx::launch::async,
+                hpx::util::bind(
+                    boost::ref(send_buffer_back_),
+                    boost::ref(data_[var]),
+                    step * c.num_x_blocks * c.num_z_blocks + (z * c.num_x_blocks + x),
+                    var,
+                    x,
+                    z,
+                    c.cells_x_per_block,
+                    c.cells_z_per_block
+                )
+            );
+}
+
+template<>
+void partition_server::send_boundary<BACK_LEFT>(std::size_t step, std::size_t var, partition_data<hpx::shared_future<void> >& send_futures)
+{
+    for (std::size_t z = 0; z < send_futures.size_z_; ++z)
+        send_futures(0, send_futures.size_y_ - 1, z).then(
+            hpx::launch::async,
+            hpx::util::bind(
+                boost::ref(send_buffer_back_left_),
+                boost::ref(data_[var]),
+                step * c.num_z_blocks + z,
+                var,
+                z,
+                0,
+                c.cells_z_per_block,
+                0
+            )
+        );
+}
+
+template<>
+void partition_server::send_boundary<FRONT_RIGHT>(std::size_t step, std::size_t var, partition_data<hpx::shared_future<void> >& send_futures)
+{
+    for (std::size_t z = 0; z < send_futures.size_z_; ++z)
+        send_futures(send_futures.size_x_ - 1, 0, z).then(
+            hpx::launch::async,
+            hpx::util::bind(
+                boost::ref(send_buffer_front_right_),
+                boost::ref(data_[var]),
+                step * c.num_z_blocks + z,
+                var,
+                z,
+                0,
+                c.cells_z_per_block,
+                0
+            )
+        );
+}
+
+template<>
+void partition_server::send_boundary<BOTTOM_RIGHT>(std::size_t step, std::size_t var, partition_data<hpx::shared_future<void> >& send_futures)
+{
+    for (std::size_t y = 0; y < send_futures.size_y_; ++y)
+        send_futures(send_futures.size_x_ - 1, y, 0).then(
             hpx::launch::async,
             hpx::util::bind(
                 boost::ref(send_buffer_bottom_right_),
                 boost::ref(data_[var]),
-                step,
-                var
+                step * c.num_y_blocks + y,
+                var,
+                y,
+                0,
+                c.cells_y_per_block,
+                0
             )
         );
 }
 
 template<>
-void partition_server::send_boundary<TOP_LEFT>(std::size_t step, std::size_t var, future_vector& send_futures)
+void partition_server::send_boundary<TOP_LEFT>(std::size_t step, std::size_t var, partition_data<hpx::shared_future<void> >& send_futures)
 {
-    if (!send_futures.empty())
-        hpx::when_all(send_futures).then(
+    for (std::size_t y = 0; y < send_futures.size_y_; ++y)
+        send_futures(0, y, send_futures.size_z_ - 1).then(
             hpx::launch::async,
             hpx::util::bind(
                 boost::ref(send_buffer_top_left_),
                 boost::ref(data_[var]),
-                step,
-                var
+                step * c.num_y_blocks + y,
+                var,
+                y,
+                0,
+                c.cells_y_per_block,
+                0
             )
         );
 }
 
-
-template<std::size_t var>
-void partition_server::send_right_and_top_boundaries(std::size_t step, future_grid& send_futures)
+template<>
+void partition_server::send_boundary<BACK_BOTTOM>(std::size_t step, std::size_t var, partition_data<hpx::shared_future<void> >& send_futures)
 {
-    send_boundary<RIGHT>(step, var, send_futures[RIGHT]);
-    send_boundary<TOP>(step, var, send_futures[TOP]);
+    for (std::size_t x = 0; x < send_futures.size_x_; ++x)
+        send_futures(x, send_futures.size_y_ - 1, 0).then(
+            hpx::launch::async,
+            hpx::util::bind(
+                boost::ref(send_buffer_back_bottom_),
+                boost::ref(data_[var]),
+                step * c.num_x_blocks + x,
+                var,
+                x,
+                0,
+                c.cells_x_per_block,
+                0
+            )
+        );
 }
-
-template<std::size_t var>
-void partition_server::send_cross_boundaries(std::size_t step, future_grid& send_futures)
-{
-    send_boundary<LEFT>(step, var, send_futures[LEFT]);
-    send_boundary<RIGHT>(step, var, send_futures[RIGHT]);
-    send_boundary<BOTTOM>(step, var, send_futures[BOTTOM]);
-    send_boundary<TOP>(step, var, send_futures[TOP]);
-}
-
-template<std::size_t var>
-void partition_server::send_all_boundaries(std::size_t step, future_grid& send_futures)
-{
-    send_boundary<LEFT>(step, var, send_futures[LEFT]);
-    send_boundary<RIGHT>(step, var, send_futures[RIGHT]);
-    send_boundary<BOTTOM>(step, var, send_futures[BOTTOM]);
-    send_boundary<TOP>(step, var, send_futures[TOP]);
-    send_boundary<BOTTOM_RIGHT>(step, var, send_futures[BOTTOM_RIGHT]);
-    send_boundary<TOP_LEFT>(step, var, send_futures[TOP_LEFT]);
-}
-
 
 template<>
-void partition_server::receive_boundary<LEFT>(std::size_t step, std::size_t var, future_vector& recv_futures)
+void partition_server::send_boundary<FRONT_TOP>(std::size_t step, std::size_t var, partition_data<hpx::shared_future<void> >& send_futures)
 {
-    if (recv_buffer_left_[var].valid_)
-        for (std::size_t i = 0; i < recv_futures.size(); ++i)
-            recv_futures[i] =
+    for (std::size_t x = 0; x < send_futures.size_x_; ++x)
+        send_futures(x, 0, send_futures.size_z_ - 1).then(
+            hpx::launch::async,
+            hpx::util::bind(
+                boost::ref(send_buffer_front_top_),
+                boost::ref(data_[var]),
+                step * c.num_x_blocks + x,
+                var,
+                x,
+                0,
+                c.cells_x_per_block,
+                0
+            )
+        );
+}
+
+template<>
+void partition_server::receive_boundary<LEFT>(std::size_t step, std::size_t var, future_grid_4d& recv_futures)
+{
+     for (std::size_t y = 0; y < c.num_y_blocks; ++y)
+        for (std::size_t z = 0; z < c.num_z_blocks; ++z)
+            recv_futures[var][LEFT](y, z) =
                 hpx::async(
                     hpx::util::bind(
                         boost::ref(recv_buffer_left_[var]),
                         boost::ref(data_[var]),
-                        step * c.num_y_blocks + i,
-                        i * c.cells_y_per_block
+                        step * c.num_y_blocks * c.num_z_blocks + (z * c.num_y_blocks + y),
+                        var,
+                        y,
+                        z,
+                        c.cells_y_per_block,
+                        c.cells_z_per_block
                     )
-            );
+                );
 }
 
 template<>
-void partition_server::receive_boundary<RIGHT>(std::size_t step, std::size_t var, future_vector& recv_futures)
+void partition_server::receive_boundary<RIGHT>(std::size_t step, std::size_t var, future_grid_4d& recv_futures)
 {
-    if (recv_buffer_right_[var].valid_)
-        for (std::size_t i = 0; i < recv_futures.size(); ++i)
-            recv_futures[i] =
+     for (std::size_t y = 0; y < c.num_y_blocks; ++y)
+        for (std::size_t z = 0; z < c.num_z_blocks; ++z)
+            recv_futures[var][RIGHT](y, z) =
                 hpx::async(
                     hpx::util::bind(
                         boost::ref(recv_buffer_right_[var]),
                         boost::ref(data_[var]),
-                        step * c.num_y_blocks + i,
-                        i * c.cells_y_per_block
+                        step * c.num_y_blocks * c.num_z_blocks + (z * c.num_y_blocks + y),
+                        var,
+                        y,
+                        z,
+                        c.cells_y_per_block,
+                        c.cells_z_per_block
                     )
-            );
+                );
 }
 
 template<>
-void partition_server::receive_boundary<BOTTOM>(std::size_t step, std::size_t var, future_vector& recv_futures)
+void partition_server::receive_boundary<BOTTOM>(std::size_t step, std::size_t var, future_grid_4d& recv_futures)
 {
-    if (recv_buffer_bottom_[var].valid_)
-        for (std::size_t i = 0; i < recv_futures.size(); ++i)
-            recv_futures[i] =
+     for (std::size_t x = 0; x < c.num_x_blocks; ++x)
+        for (std::size_t y = 0; y < c.num_y_blocks; ++y)
+            recv_futures[var][BOTTOM](x, y) =
                 hpx::async(
                     hpx::util::bind(
                         boost::ref(recv_buffer_bottom_[var]),
                         boost::ref(data_[var]),
-                        step * c.num_x_blocks + i,
-                        i * c.cells_x_per_block
+                        step * c.num_x_blocks * c.num_y_blocks + (y * c.num_x_blocks + x),
+                        var,
+                        x,
+                        y,
+                        c.cells_x_per_block,
+                        c.cells_y_per_block
                     )
-            );
+                );
 }
 
 template<>
-void partition_server::receive_boundary<TOP>(std::size_t step, std::size_t var, future_vector& recv_futures)
+void partition_server::receive_boundary<TOP>(std::size_t step, std::size_t var, future_grid_4d& recv_futures)
 {
-    if (recv_buffer_top_[var].valid_)
-        for (std::size_t i = 0; i < recv_futures.size(); ++i)
-            recv_futures[i] =
+     for (std::size_t x = 0; x < c.num_x_blocks; ++x)
+        for (std::size_t y = 0; y < c.num_y_blocks; ++y)
+            recv_futures[var][TOP](x, y) =
                 hpx::async(
                     hpx::util::bind(
                         boost::ref(recv_buffer_top_[var]),
                         boost::ref(data_[var]),
-                        step * c.num_x_blocks + i,
-                        i * c.cells_x_per_block
+                        step * c.num_x_blocks * c.num_y_blocks + (y * c.num_x_blocks + x),
+                        var,
+                        x,
+                        y,
+                        c.cells_x_per_block,
+                        c.cells_y_per_block
                     )
+                );
+}
+
+template<>
+void partition_server::receive_boundary<FRONT>(std::size_t step, std::size_t var, future_grid_4d& recv_futures)
+{
+     for (std::size_t x = 0; x < c.num_x_blocks; ++x)
+        for (std::size_t z = 0; z < c.num_z_blocks; ++z)
+            recv_futures[var][FRONT](x, z) =
+                hpx::async(
+                    hpx::util::bind(
+                        boost::ref(recv_buffer_front_[var]),
+                        boost::ref(data_[var]),
+                        step * c.num_x_blocks * c.num_z_blocks + (z * c.num_x_blocks + x),
+                        var,
+                        x,
+                        z,
+                        c.cells_x_per_block,
+                        c.cells_z_per_block
+                    )
+                );
+}
+
+template<>
+void partition_server::receive_boundary<BACK>(std::size_t step, std::size_t var, future_grid_4d& recv_futures)
+{
+     for (std::size_t x = 0; x < c.num_x_blocks; ++x)
+        for (std::size_t z = 0; z < c.num_z_blocks; ++z)
+            recv_futures[var][BACK](x, z) =
+                hpx::async(
+                    hpx::util::bind(
+                        boost::ref(recv_buffer_back_[var]),
+                        boost::ref(data_[var]),
+                        step * c.num_x_blocks * c.num_z_blocks + (z * c.num_x_blocks + x),
+                        var,
+                        x,
+                        z,
+                        c.cells_x_per_block,
+                        c.cells_z_per_block
+                    )
+                );
+}
+
+template<>
+void partition_server::receive_boundary<BACK_LEFT>(std::size_t step, std::size_t var, future_grid_4d& recv_futures)
+{
+    for (std::size_t z = 0; z < c.num_z_blocks; ++z)
+        recv_futures[var][BACK_LEFT](z, 0) =
+            hpx::async(
+                hpx::util::bind(
+                    boost::ref(recv_buffer_back_left_[var]),
+                    boost::ref(data_[var]),
+                    step * c.num_z_blocks + z,
+                    var,
+                    z,
+                    0,
+                    c.cells_z_per_block,
+                    0
+                )
             );
 }
 
 template<>
-void partition_server::receive_boundary<BOTTOM_RIGHT>(std::size_t step, std::size_t var, future_vector& recv_futures)
+void partition_server::receive_boundary<FRONT_RIGHT>(std::size_t step, std::size_t var, future_grid_4d& recv_futures)
 {
-    if (recv_buffer_bottom_right_[var].valid_)
-        recv_futures[0] =
+    for (std::size_t z = 0; z < c.num_z_blocks; ++z)
+        recv_futures[var][FRONT_RIGHT](z, 0) =
+            hpx::async(
+                hpx::util::bind(
+                    boost::ref(recv_buffer_front_right_[var]),
+                    boost::ref(data_[var]),
+                    step * c.num_z_blocks + z,
+                    var,
+                    z,
+                    0,
+                    c.cells_z_per_block,
+                    0
+                )
+            );
+}
+
+template<>
+void partition_server::receive_boundary<BOTTOM_RIGHT>(std::size_t step, std::size_t var, future_grid_4d& recv_futures)
+{
+    for (std::size_t y = 0; y < c.num_y_blocks; ++y)
+        recv_futures[var][BOTTOM_RIGHT](y, 0) =
             hpx::async(
                 hpx::util::bind(
                     boost::ref(recv_buffer_bottom_right_[var]),
                     boost::ref(data_[var]),
-                    step
+                    step * c.num_y_blocks + y,
+                    var,
+                    y,
+                    0,
+                    c.cells_y_per_block,
+                    0
                 )
-        );
+            );
 }
 
 template<>
-void partition_server::receive_boundary<TOP_LEFT>(std::size_t step, std::size_t var, future_vector& recv_futures)
+void partition_server::receive_boundary<TOP_LEFT>(std::size_t step, std::size_t var, future_grid_4d& recv_futures)
 {
-    if (recv_buffer_top_left_[var].valid_)
-        recv_futures[0] =
+    for (std::size_t y = 0; y < c.num_y_blocks; ++y)
+        recv_futures[var][TOP_LEFT](y, 0) =
             hpx::async(
                 hpx::util::bind(
                     boost::ref(recv_buffer_top_left_[var]),
                     boost::ref(data_[var]),
-                    step
+                    step * c.num_y_blocks + y,
+                    var,
+                    y,
+                    0,
+                    c.cells_y_per_block,
+                    0
                 )
-        );
+            );
 }
 
-template<std::size_t var>
-void partition_server::receive_left_and_bottom_boundaries(std::size_t step, future_grid& recv_futures)
+template<>
+void partition_server::receive_boundary<BACK_BOTTOM>(std::size_t step, std::size_t var, future_grid_4d& recv_futures)
 {
-    receive_boundary<LEFT>(step, var, recv_futures[LEFT]);
-    receive_boundary<BOTTOM>(step, var, recv_futures[BOTTOM]);
-
-    for (uint i = 0; i < recv_futures[RIGHT].size(); ++i)
-        recv_futures[RIGHT][i] = hpx::make_ready_future();
-
-    for (uint i = 0; i < recv_futures[TOP].size(); ++i)
-        recv_futures[TOP][i] = hpx::make_ready_future();
-
-    recv_futures[BOTTOM_RIGHT][0] = hpx::make_ready_future();
-    recv_futures[TOP_LEFT][0] = hpx::make_ready_future();
+    for (std::size_t x = 0; x < c.num_x_blocks; ++x)
+        recv_futures[var][BACK_BOTTOM](x, 0) =
+            hpx::async(
+                hpx::util::bind(
+                    boost::ref(recv_buffer_back_bottom_[var]),
+                    boost::ref(data_[var]),
+                    step * c.num_x_blocks + x,
+                    var,
+                    x,
+                    0,
+                    c.cells_x_per_block,
+                    0
+                )
+            );
 }
 
-template<std::size_t var>
-void partition_server::receive_cross_boundaries(std::size_t step, future_grid& recv_futures)
+template<>
+void partition_server::receive_boundary<FRONT_TOP>(std::size_t step, std::size_t var, future_grid_4d& recv_futures)
 {
-    receive_boundary<LEFT>(step, var, recv_futures[LEFT]);
-    receive_boundary<RIGHT>(step, var, recv_futures[RIGHT]);
-    receive_boundary<BOTTOM>(step, var, recv_futures[BOTTOM]);
-    receive_boundary<TOP>(step, var, recv_futures[TOP]);
-
-    recv_futures[BOTTOM_RIGHT][0] = hpx::make_ready_future();
-    recv_futures[TOP_LEFT][0] = hpx::make_ready_future();
-}
-
-template<std::size_t var>
-void partition_server::receive_all_boundaries(std::size_t step, future_grid& recv_futures)
-{
-    receive_boundary<LEFT>(step, var, recv_futures[LEFT]);
-    receive_boundary<RIGHT>(step, var, recv_futures[RIGHT]);
-    receive_boundary<BOTTOM>(step, var, recv_futures[BOTTOM]);
-    receive_boundary<TOP>(step, var, recv_futures[TOP]);
-    receive_boundary<BOTTOM_RIGHT>(step, var, recv_futures[BOTTOM_RIGHT]);
-    receive_boundary<TOP_LEFT>(step, var, recv_futures[TOP_LEFT]);
-}
-
-void partition_server::wait_all_boundaries(future_grid& recv_futures)
-{
-    if (!is_left_)
-        hpx::wait_all(recv_futures[LEFT]);
-
-    if (!is_right_)
-        hpx::wait_all(recv_futures[RIGHT]);
-
-    if (!is_bottom_)
-    {
-        hpx::wait_all(recv_futures[BOTTOM]);
-
-        if (!is_right_)
-            recv_futures[BOTTOM_RIGHT][0].wait();
-    }
-
-    if (!is_top_)
-    {
-        hpx::wait_all(recv_futures[TOP]);
-
-        if (!is_left_)
-            recv_futures[TOP_LEFT][0].wait();
-    }
+    for (std::size_t x = 0; x < c.num_x_blocks; ++x)
+        recv_futures[var][FRONT_TOP](x, 0) =
+            hpx::async(
+                hpx::util::bind(
+                    boost::ref(recv_buffer_front_top_[var]),
+                    boost::ref(data_[var]),
+                    step * c.num_x_blocks + x,
+                    var,
+                    x,
+                    0,
+                    c.cells_x_per_block,
+                    0
+                )
+            );
 }
 
 
 triple<Real> partition_server::do_timestep(Real dt)
 {
+   if (hpx::get_locality_id() == 0 || hpx::get_locality_id() == 1 || hpx::get_locality_id() == 2 || hpx::get_locality_id() == 4)
+    {
+        std::cout << "received " << std::endl;
+        for (std::size_t z = data_[U].size_z_ - 1; z <= data_[U].size_z_ - 1; z--)
+        {
+            for (std::size_t y = data_[U].size_y_ - 1; y <= data_[U].size_y_ - 1; y--)
+            {
+                for (std::size_t x = 0; x < data_[U].size_x_; x++)
+                    std::cout << data_[U](x, y, z) << " ";
+                std::cout << std::endl;
+            }
+            std::cout << std::endl;
+        }
+    }
     for (std::size_t nz_block = 0; nz_block < c.num_z_blocks; ++nz_block)
         for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
             for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
@@ -548,6 +779,165 @@ triple<Real> partition_server::do_timestep(Real dt)
             }
 
     hpx::wait_all(set_velocity_futures.data_);
+
+    if (hpx::get_locality_id() == 1)
+    {
+        std::cout << " sending left" << std::endl;
+        send_boundary<LEFT>(0, U, set_velocity_futures);
+        std::cout << " done sending left " << std::endl;
+
+        std::cout << " sending back left" << std::endl;
+        send_boundary<BACK_LEFT>(0, U, set_velocity_futures);
+        std::cout << " done sending back left " << std::endl;
+
+        std::cout << " sending top left" << std::endl;
+        send_boundary<TOP_LEFT>(0, U, set_velocity_futures);
+        std::cout << " done sending top left " << std::endl;
+
+            std::cout << " receiving left " << std::endl;
+
+        receive_boundary<LEFT>(0, U, recv_futures);
+        hpx::wait_all(recv_futures[U][LEFT].data_);
+        std::cout << " done receiving left" << std::endl;
+
+            std::cout << " receiving back left " << std::endl;
+
+        receive_boundary<BACK_LEFT>(0, U, recv_futures);
+        hpx::wait_all(recv_futures[U][BACK_LEFT].data_);
+        std::cout << " done receiving back left" << std::endl;
+
+            std::cout << " receiving top left " << std::endl;
+
+        receive_boundary<TOP_LEFT>(0, U, recv_futures);
+        hpx::wait_all(recv_futures[U][TOP_LEFT].data_);
+        std::cout << " done receiving top left" << std::endl;
+    }
+    if (hpx::get_locality_id() == 0)
+    {
+                std::cout << " sending right" << std::endl;
+
+        send_boundary<RIGHT>(0, U, set_velocity_futures);
+                std::cout << " done sending right" << std::endl;
+
+            std::cout << " sending top" << std::endl;
+
+        send_boundary<TOP>(0, U, set_velocity_futures);
+                std::cout << " done sending top" << std::endl;
+
+        std::cout << " sending back" << std::endl;
+
+        send_boundary<BACK>(0, U, set_velocity_futures);
+                std::cout << " done sending back" << std::endl;
+
+                        std::cout << " receiving right" << std::endl;
+
+        receive_boundary<RIGHT>(0, U, recv_futures);
+        hpx::wait_all(recv_futures[U][RIGHT].data_);
+        std::cout << " done receiving right " << std::endl;
+
+                   std::cout << " receiving TOP" << std::endl;
+
+        receive_boundary<TOP>(0, U, recv_futures);
+        hpx::wait_all(recv_futures[U][TOP].data_);
+        std::cout << " done receiving TOP " << std::endl;
+
+           std::cout << " receiving BACK" << std::endl;
+
+        receive_boundary<BACK>(0, U, recv_futures);
+        hpx::wait_all(recv_futures[U][BACK].data_);
+        std::cout << " done receiving BACK " << std::endl;
+
+    }
+
+    if (hpx::get_locality_id() == 2)
+    {
+                std::cout << " sending front" << std::endl;
+
+        send_boundary<FRONT>(0, U, set_velocity_futures);
+                std::cout << " done sending front" << std::endl;
+
+        std::cout << " sending front right" << std::endl;
+
+        send_boundary<FRONT_RIGHT>(0, U, set_velocity_futures);
+                std::cout << " done sending front right" << std::endl;
+
+        std::cout << " sending front top" << std::endl;
+
+        send_boundary<FRONT_TOP>(0, U, set_velocity_futures);
+                std::cout << " done sending front front" << std::endl;
+
+                        std::cout << " receiving front" << std::endl;
+
+        receive_boundary<FRONT>(0, U, recv_futures);
+        hpx::wait_all(recv_futures[U][FRONT].data_);
+        std::cout << " done receiving front" << std::endl;
+
+                        std::cout << " receiving front right" << std::endl;
+
+        receive_boundary<FRONT_RIGHT>(0, U, recv_futures);
+        hpx::wait_all(recv_futures[U][FRONT_RIGHT].data_);
+        std::cout << " done receiving front right" << std::endl;
+
+                        std::cout << " receiving front top" << std::endl;
+
+        receive_boundary<FRONT_TOP>(0, U, recv_futures);
+        hpx::wait_all(recv_futures[U][FRONT_TOP].data_);
+        std::cout << " done receiving front top" << std::endl;
+
+    }
+
+     if (hpx::get_locality_id() == 4)
+    {
+                std::cout << " sending bottom" << std::endl;
+
+        send_boundary<BOTTOM>(0, U, set_velocity_futures);
+                std::cout << " done sending bottom" << std::endl;
+
+            std::cout << " sending bottom right" << std::endl;
+
+        send_boundary<BOTTOM_RIGHT>(0, U, set_velocity_futures);
+                std::cout << " done sending bottom right" << std::endl;
+
+            std::cout << " sending back bottom" << std::endl;
+
+        send_boundary<BACK_BOTTOM>(0, U, set_velocity_futures);
+                std::cout << " done sending back bottom" << std::endl;
+
+                        std::cout << " receiving bottom " << std::endl;
+
+        receive_boundary<BOTTOM>(0, U, recv_futures);
+        hpx::wait_all(recv_futures[U][BOTTOM].data_);
+        std::cout << " done receiving bottom" << std::endl;
+
+                        std::cout << " receiving bottom right" << std::endl;
+
+        receive_boundary<BOTTOM_RIGHT>(0, U, recv_futures);
+        hpx::wait_all(recv_futures[U][BOTTOM_RIGHT].data_);
+        std::cout << " done receiving bottom right" << std::endl;
+
+                        std::cout << " receiving back bottom" << std::endl;
+
+        receive_boundary<BACK_BOTTOM>(0, U, recv_futures);
+        hpx::wait_all(recv_futures[U][BACK_BOTTOM].data_);
+        std::cout << " done receiving back bottom" << std::endl;
+
+    }
+
+   if (hpx::get_locality_id() == 0 || hpx::get_locality_id() == 1 || hpx::get_locality_id() == 2 || hpx::get_locality_id() == 4)
+    {
+        std::cout << "received " << std::endl;
+        for (std::size_t z = data_[U].size_z_ - 1; z <= data_[U].size_z_ - 1; z--)
+        {
+            for (std::size_t y = data_[U].size_y_ - 1; y <= data_[U].size_y_ - 1; y--)
+            {
+                for (std::size_t x = 0; x < data_[U].size_x_; x++)
+                    std::cout << data_[U](x, y, z) << " ";
+                std::cout << std::endl;
+            }
+            std::cout << std::endl;
+        }
+    }
+
 
     for (std::size_t nz_block = 0; nz_block < c.num_z_blocks; ++nz_block)
         for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)

@@ -56,6 +56,7 @@ public:
     typedef hpx::serialization::serialize_buffer<Real> buffer_type;
     typedef std::vector<hpx::shared_future<void> > future_vector;
     typedef std::vector<future_vector> future_grid;
+    typedef std::vector<std::vector<partition_data_2d<hpx::shared_future<void> > > > future_grid_4d;
 
     partition_server() {}
     ~partition_server() {}
@@ -93,6 +94,30 @@ public:
     }
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_top_boundary, set_top_boundary_action);
 
+    void set_front_boundary(buffer_type buffer, std::size_t step, std::size_t var)
+    {
+        recv_buffer_front_[var].set_buffer(buffer, step);
+    }
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_front_boundary, set_front_boundary_action);
+
+    void set_back_boundary(buffer_type buffer, std::size_t step, std::size_t var)
+    {
+        recv_buffer_back_[var].set_buffer(buffer, step);
+    }
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_back_boundary, set_back_boundary_action);
+
+    void set_back_left_boundary(buffer_type buffer, std::size_t step, std::size_t var)
+    {
+        recv_buffer_back_left_[var].set_buffer(buffer, step);
+    }
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_back_left_boundary, set_back_left_boundary_action);
+
+    void set_front_right_boundary(buffer_type buffer, std::size_t step, std::size_t var)
+    {
+        recv_buffer_front_right_[var].set_buffer(buffer, step);
+    }
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_front_right_boundary, set_front_right_boundary_action);
+
     void set_bottom_right_boundary(buffer_type buffer, std::size_t step, std::size_t var)
     {
         recv_buffer_bottom_right_[var].set_buffer(buffer, step);
@@ -104,6 +129,18 @@ public:
         recv_buffer_top_left_[var].set_buffer(buffer, step);
     }
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_top_left_boundary, set_top_left_boundary_action);
+
+    void set_back_bottom_boundary(buffer_type buffer, std::size_t step, std::size_t var)
+    {
+        recv_buffer_back_bottom_[var].set_buffer(buffer, step);
+    }
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_back_bottom_boundary, set_back_bottom_boundary_action);
+
+    void set_front_top_boundary(buffer_type buffer, std::size_t step, std::size_t var)
+    {
+        recv_buffer_front_top_[var].set_buffer(buffer, step);
+    }
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, set_front_top_boundary, set_front_top_boundary_action);
 
     void cancel()
     {
@@ -123,72 +160,41 @@ public:
     send_buffer<buffer_type, TOP, set_bottom_boundary_action> send_buffer_top_;
     recv_buffer<buffer_type, TOP> recv_buffer_top_[NUM_VARIABLES];
 
+    send_buffer<buffer_type, FRONT, set_back_boundary_action> send_buffer_front_;
+    recv_buffer<buffer_type, FRONT> recv_buffer_front_[NUM_VARIABLES];
+
+    send_buffer<buffer_type, BACK, set_front_boundary_action> send_buffer_back_;
+    recv_buffer<buffer_type, BACK> recv_buffer_back_[NUM_VARIABLES];
+
+    send_buffer<buffer_type, BACK_LEFT, set_front_right_boundary_action> send_buffer_back_left_;
+    recv_buffer<buffer_type, BACK_LEFT> recv_buffer_back_left_[NUM_VARIABLES];
+
+    send_buffer<buffer_type, FRONT_RIGHT, set_back_left_boundary_action> send_buffer_front_right_;
+    recv_buffer<buffer_type, FRONT_RIGHT> recv_buffer_front_right_[NUM_VARIABLES];
+
     send_buffer<buffer_type, BOTTOM_RIGHT, set_top_left_boundary_action> send_buffer_bottom_right_;
     recv_buffer<buffer_type, BOTTOM_RIGHT> recv_buffer_bottom_right_[NUM_VARIABLES];
 
     send_buffer<buffer_type, TOP_LEFT, set_bottom_right_boundary_action> send_buffer_top_left_;
     recv_buffer<buffer_type, TOP_LEFT> recv_buffer_top_left_[NUM_VARIABLES];
 
+    send_buffer<buffer_type, BACK_BOTTOM, set_front_top_boundary_action> send_buffer_back_bottom_;
+    recv_buffer<buffer_type, BACK_BOTTOM> recv_buffer_back_bottom_[NUM_VARIABLES];
+
+    send_buffer<buffer_type, FRONT_TOP, set_back_bottom_boundary_action> send_buffer_front_top_;
+    recv_buffer<buffer_type, FRONT_TOP> recv_buffer_front_top_[NUM_VARIABLES];
+
 protected:
     template<direction dir>
-    void send_boundary(std::size_t step, std::size_t var, future_vector& send_future);
-
-    template<std::size_t var>
-    void send_right_and_top_boundaries(std::size_t step, future_grid& send_futures);
-
-    template<std::size_t var>
-    void send_cross_boundaries(std::size_t step, future_grid& send_futures);
-
-    template<std::size_t var>
-    void send_all_boundaries(std::size_t step, future_grid& send_futures);
+    void send_boundary(std::size_t step, std::size_t var, partition_data<hpx::shared_future<void> >& send_future);
 
     template<direction dir>
-    void receive_boundary(std::size_t step, std::size_t var, future_vector& recv_futures);
-
-    template<std::size_t var>
-    void receive_left_and_bottom_boundaries(std::size_t step, future_grid& recv_futures);
-
-    template<std::size_t var>
-    void receive_cross_boundaries(std::size_t step, future_grid& recv_futures);
-
-    template<std::size_t var>
-    void receive_all_boundaries(std::size_t step, future_grid& recv_futures);
-
-    void wait_all_boundaries(future_grid& recv_futures);
+    void receive_boundary(std::size_t step, std::size_t var, future_grid_4d& recv_futures);
 
     template<direction dir>
     hpx::shared_future<void> get_dependency(std::size_t idx_block,
         std::size_t idy_block, future_grid const& recv_futures,
         partition_data<hpx::shared_future<void> > const& calc_futures);
-
-    void init_future_grid(future_grid& grid)
-    {
-        grid[LEFT].resize(c.num_y_blocks);
-        grid[RIGHT].resize(c.num_y_blocks);
-        grid[BOTTOM].resize(c.num_x_blocks);
-        grid[TOP].resize(c.num_x_blocks);
-        grid[BOTTOM_RIGHT].resize(1);
-        grid[TOP_LEFT].resize(1);
-    }
-
-    void clear_and_reserve(future_grid& grid)
-    {
-        for (std::size_t dir = 0; dir != NUM_DIRECTIONS; ++dir)
-            grid[dir].clear();
-
-        grid[LEFT].reserve(c.num_y_blocks);
-        grid[RIGHT].reserve(c.num_y_blocks);
-        grid[BOTTOM].reserve(c.num_x_blocks);
-        grid[TOP].reserve(c.num_x_blocks);
-        grid[BOTTOM_RIGHT].reserve(1);
-        grid[TOP_LEFT].reserve(1);
-    }
-
-    void clear(future_grid& grid)
-    {
-        for (std::size_t dir = 0; dir != NUM_DIRECTIONS; ++dir)
-            grid[dir].clear();
-    }
 
 private:
 
@@ -211,18 +217,14 @@ private:
     partition_data<std::vector<index> > obstacle_cells_;
 
     partition_data<hpx::shared_future<void> > set_velocity_futures;
-    future_grid send_futures_U;
-    future_grid send_futures_V;
-    future_grid send_futures_W;
-    future_grid recv_futures_U;
+    future_grid_4d recv_futures;
     future_grid recv_futures_V;
     future_grid recv_futures_W;
 
     partition_data<hpx::shared_future<void> > compute_fg_futures;
-    future_grid send_futures_F;
-    future_grid send_futures_G;
     future_grid recv_futures_F;
     future_grid recv_futures_G;
+    future_grid recv_futures_H;
 
     partition_data<hpx::shared_future<void> > compute_rhs_futures;
 
@@ -232,7 +234,6 @@ private:
     std::size_t last;
 
     partition_data<hpx::shared_future<void> > set_p_futures;
-    future_grid send_futures_P;
     std::array<future_grid, 2> recv_futures_P;
     std::array<partition_data<hpx::shared_future<void> >, 2> sor_cycle_futures;
 

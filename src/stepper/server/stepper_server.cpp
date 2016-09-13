@@ -128,6 +128,8 @@ void stepper_server::run()
             break;
         t += dt;
         dt = dt_buffer.receive(step).get();
+
+        std::exit(0);
     }
 }
 

@@ -1185,6 +1185,24 @@ triple<Real> partition_server::do_timestep(Real dt)
     send_boundaries_W(set_velocity_futures, step_);
     receive_boundaries_W(recv_futures, step_);
 
+    if (c.vtk && next_out_ < t_)
+    {
+        next_out_ += c.delta_vec;
+
+        if (c.verbose)
+            std::cout << "Output to .vtk in step " << step_ << std::endl;
+
+        hpx::when_all(set_velocity_futures.data_).then(
+            hpx::launch::async,
+            hpx::util::bind(
+                &io::writer::write_vtk,
+                boost::ref(data_[P]), boost::ref(data_[U]), boost::ref(data_[V]), boost::ref(data_[W]), boost::ref(cell_type_data_),
+                c.num_partitions_x, c.num_partitions_y, c.num_partitions_z, c.i_max, c.j_max, c.k_max, c.dx, c.dx, c.dz, outcount_++,
+                c.rank, c.idx, c.idy, c.idz
+            )
+        ).wait();
+    }
+
     for (std::size_t nz_block = 0; nz_block < c.num_z_blocks; ++nz_block)
         for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
             for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
@@ -1461,11 +1479,6 @@ triple<Real> partition_server::do_timestep(Real dt)
 
     t_ += dt;
     ++step_;
-
-    local_max_uv.wait();
-
-    io::writer::write_vtk(data_[P], data_[U], data_[V], data_[W], data_[F], data_[G], data_[H], cell_type_data_, c.num_partitions_x, c.num_partitions_y, c.num_partitions_z,
-                          c.i_max, c.j_max, c.k_max, c.dx, c.dy, c.dz, outcount_++, c.rank, c.idx, c.idy, c.idz);
 
    // hpx::wait_all(compute_res_futures.data_);
 

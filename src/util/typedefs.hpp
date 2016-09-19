@@ -12,7 +12,7 @@
 #define has_fluid_back 5
 #define is_fluid 6
 #define is_obstacle 7
-#define is_boundary 7
+#define is_boundary 8
 
 #define noslip 1
 #define slip 2

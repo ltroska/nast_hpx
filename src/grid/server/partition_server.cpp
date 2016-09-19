@@ -96,15 +96,15 @@ partition_server::partition_server(io::config const& cfg)
 
                             if (cell_type_data_(i, j, k).test(is_fluid))
                                 fluid_cells_(nx_block, ny_block, nz_block).emplace_back(i, j, k);
-                            else if (cell_type_data_(i, j, k).test(is_boundary))
-                                boundary_cells_(nx_block, ny_block, nz_block).emplace_back(i, j, k);
-                            else if (!cell_type_data_(i, j, k).none())
+                            else if (cell_type_data_(i, j, k).count() > 2)
                                 obstacle_cells_(nx_block, ny_block, nz_block).emplace_back(i, j, k);
                         }
 
             }
         }
     }
+
+    std::cout << boundary_cells_.data_.size() << std::endl;
 }
 
 void partition_server::init()

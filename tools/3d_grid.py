@@ -14,6 +14,7 @@ HAS_FLUID_FRONT = 2**4
 HAS_FLUID_BACK = 2**5
 IS_FLUID = 2**6
 IS_OBSTACLE = 2**7
+IS_BOUNDARY = 2**8
 
 def reverse_enumerate(iterable):
     """
@@ -24,10 +25,16 @@ def reverse_enumerate(iterable):
 
 class grid:	
 	def __init__(self, i_max, j_max, k_max):
-		self.__data = [[[1 for k in range(k_max + 2)] for j in range(j_max + 2)] for i in range(i_max + 2)]
+		self.__data = [[[1 for i in range(i_max + 2)] for j in range(j_max + 2)] for k in range(k_max + 2)]
 		self.__i_max = i_max
 		self.__j_max = j_max
 		self.__k_max = k_max
+
+		for k in range(self.__k_max + 2):
+			for j in range(self.__j_max + 2):
+				for i in range(self.__i_max + 2):
+					if i == 0 or j == 0 or k == 0 or i == self.__i_max + 1 or j == self.__j_max + 1 or k == self.__k_max + 1:
+						self[i, j, k] = 0
 		
 	def __getitem__(self, tup):
 		i, j, k = tup
@@ -49,6 +56,12 @@ class grid:
 			output += "\n"
 		
 		return output
+
+	def insert_rectangle(self, i_begin, i_end, j_begin, j_end, k_begin, k_end):
+		for k in range(k_begin, k_end + 1):
+			for j in range(j_begin, j_end + 1):
+				for i in range(i_begin, i_end + 1):
+					self[i, j, k] = 0
 		
 	def write_to(self, file_path):
 		with open(file_path, 'wb') as csvfile:
@@ -63,6 +76,8 @@ class grid:
 						
 						if cell == 1:
 							outvalue = IS_FLUID
+						elif i == 0 or i == self.__i_max + 1 or j == 0 or j == self.__j_max + 1 or k == 0 or k == self.__k_max + 1:
+							outvalue = IS_BOUNDARY + IS_OBSTACLE
 						else:
 							outvalue = IS_OBSTACLE
 						
@@ -95,12 +110,8 @@ k_max = int(sys.argv[3])
 outfile_path = sys.argv[4]
 
 b = grid(i_max, j_max, k_max)
+b.insert_rectangle(0, 1 + i_max/4, 0, j_max + 1, 0, 1 + k_max/2)
 
-for k in range(k_max + 2):
-	for j in range(j_max + 2):
-		for i in range(i_max + 2):
-			if i == 0 or j == 0 or k == 0 or i == i_max + 1 or j == j_max + 1 or k == k_max + 1:
-				b[i, j, k] = 0
 								
 b.write_to(outfile_path)
 				

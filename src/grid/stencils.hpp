@@ -57,7 +57,7 @@ namespace nast_hpx { namespace grid {
                 std::vector<index> const& obstacle_cells,
                 boundary_condition const& bnd_condition)
             {
-                for  (auto const& ind : boundary_cells)
+                for (auto const& ind : obstacle_cells)
                 {
                     auto const i = ind.x;
                     auto const j = ind.y;
@@ -65,77 +65,130 @@ namespace nast_hpx { namespace grid {
 
                     auto const& cell_type = cell_types(i, j, k);
 
-                    if (cell_type.test(has_fluid_bottom))
+                    if (cell_type.test(is_boundary))
                     {
-                        switch(bnd_condition.top_type)
+                        if (cell_type.test(has_fluid_bottom))
                         {
-                            case noslip:
-                                dst_u(i, j, k) = 2 * bnd_condition.top.x - dst_u(i, j, k - 1);
-                                dst_v(i, j, k) = 2 * bnd_condition.top.y - dst_v(i, j, k - 1);
-                                dst_w(i, j, k - 1) = 0;
-                                break;
+                            switch(bnd_condition.top_type)
+                            {
+                                case noslip:
+                                    dst_u(i, j, k) = 2 * bnd_condition.top.x - dst_u(i, j, k - 1);
+                                    dst_v(i, j, k) = 2 * bnd_condition.top.y - dst_v(i, j, k - 1);
+                                    dst_w(i, j, k - 1) = 0;
+                                    break;
+                            }
+                        }
+
+                        if (cell_type.test(has_fluid_top))
+                        {
+                            switch(bnd_condition.bottom_type)
+                            {
+                                case noslip:
+                                    dst_u(i, j, k) = 2 * bnd_condition.bottom.x - dst_u(i, j, k + 1);
+                                    dst_v(i, j, k) = 2 * bnd_condition.bottom.y - dst_v(i, j, k + 1);
+                                    dst_w(i, j, k) = 0;
+                                    break;
+
+                            }
+                        }
+
+                        if (cell_type.test(has_fluid_left))
+                        {
+                            switch(bnd_condition.right_type)
+                            {
+                                case noslip:
+                                    dst_u(i - 1, j, k) = 0;
+                                    dst_v(i, j, k) = 2 * bnd_condition.right.y - dst_v(i - 1, j, k);
+                                    dst_w(i, j, k) = 2 * bnd_condition.right.z - dst_w(i - 1, j, k);
+                                    break;
+
+                                case outstream:
+                                    dst_u(i - 1, j, k) = dst_u(i - 2, j, k);
+                                    dst_v(i, j, k) = dst_u(i - 1, j, k);
+                                    dst_w(i, j, k) = dst_u(i - 1, j, k);
+                                    break;
+                            }
+                        }
+
+                        if (cell_type.test(has_fluid_right))
+                        {
+                            switch(bnd_condition.left_type)
+                            {
+                                case noslip:
+                                    dst_u(i, j, k) = 0;
+                                    dst_v(i, j, k) = 2 * bnd_condition.left.y - dst_v(i + 1, j, k);
+                                    dst_w(i, j, k) = 2 * bnd_condition.left.z - dst_w(i + 1, j, k);
+                                    break;
+
+                                case instream:
+                                    dst_u(i, j, k) = bnd_condition.left.x;
+                                    dst_v(i, j, k) = bnd_condition.left.y;
+                                    dst_w(i, j, k) = bnd_condition.left.z;
+                                    break;
+                            }
+                        }
+
+                        if (cell_type.test(has_fluid_front))
+                        {
+                            switch(bnd_condition.back_type)
+                            {
+                                case noslip:
+                                    dst_u(i, j, k) = 2 * bnd_condition.back.x - dst_u(i, j - 1, k);
+                                    dst_v(i, j - 1, k) = 0;
+                                    dst_w(i, j, k) = 2 * bnd_condition.back.z - dst_w(i, j - 1, k);
+                                    break;
+                            }
+                        }
+
+                        if (cell_type.test(has_fluid_back))
+                        {
+                            switch(bnd_condition.front_type)
+                            {
+                                case noslip:
+                                    dst_u(i, j, k) = 2 * bnd_condition.front.x - dst_u(i, j + 1, k);
+                                    dst_v(i, j, k) = 0;
+                                    dst_w(i, j, k) = 2 * bnd_condition.front.z - dst_w(i, j + 1, k);
+                                    break;
+                            }
                         }
                     }
-
-                    if (cell_type.test(has_fluid_top))
+                    else
                     {
-                        switch(bnd_condition.bottom_type)
-                        {
-                            case noslip:
-                                dst_u(i, j, k) = 2 * bnd_condition.bottom.x - dst_u(i, j, k + 1);
-                                dst_v(i, j, k) = 2 * bnd_condition.bottom.y - dst_v(i, j, k + 1);
-                                dst_w(i, j, k) = 0;
-                                break;
+                        dst_u(i, j, k) =
+                            (
+                            - dst_u(i, j, k + 1) * cell_type.test(has_fluid_top)
+                            - dst_u(i, j, k - 1) * cell_type.test(has_fluid_bottom)
+                            - dst_u(i, j + 1, k) * cell_type.test(has_fluid_back)
+                            - dst_u(i, j - 1, k) * cell_type.test(has_fluid_front)
+                            )
+                            /
+                            (cell_type.test(has_fluid_top) + cell_type.test(has_fluid_bottom)
+                            + cell_type.test(has_fluid_front) + cell_type.test(has_fluid_back)
+                            )*(!cell_type.test(has_fluid_right));
 
-                        }
-                    }
+                        dst_v(i, j, k) =
+                            (
+                            - dst_v(i, j, k + 1) * cell_type.test(has_fluid_top)
+                            - dst_v(i, j, k - 1) * cell_type.test(has_fluid_bottom)
+                            - dst_v(i + 1, j, k) * cell_type.test(has_fluid_right)
+                            - dst_v(i - 1, j, k) * cell_type.test(has_fluid_left)
+                            )
+                            /
+                            (cell_type.test(has_fluid_top) + cell_type.test(has_fluid_bottom)
+                            + cell_type.test(has_fluid_right) + cell_type.test(has_fluid_left)
+                            )*(!cell_type.test(has_fluid_back));
 
-                    if (cell_type.test(has_fluid_left))
-                    {
-                        switch(bnd_condition.right_type)
-                        {
-                            case noslip:
-                                dst_u(i - 1, j, k) = 0;
-                                dst_v(i, j, k) = 2 * bnd_condition.right.y - dst_v(i - 1, j, k);
-                                dst_w(i, j, k) = 2 * bnd_condition.right.z - dst_w(i - 1, j, k);
-                                break;
-                        }
-                    }
-
-                    if (cell_type.test(has_fluid_right))
-                    {
-                        switch(bnd_condition.left_type)
-                        {
-                            case noslip:
-                                dst_u(i, j, k) = 0;
-                                dst_v(i, j, k) = 2 * bnd_condition.left.y - dst_v(i + 1, j, k);
-                                dst_w(i, j, k) = 2 * bnd_condition.left.z - dst_w(i + 1, j, k);
-                                break;
-                        }
-                    }
-
-                    if (cell_type.test(has_fluid_front))
-                    {
-                        switch(bnd_condition.back_type)
-                        {
-                            case noslip:
-                                dst_u(i, j, k) = 2 * bnd_condition.back.x - dst_u(i, j - 1, k);
-                                dst_v(i, j - 1, k) = 0;
-                                dst_w(i, j, k) = 2 * bnd_condition.back.z - dst_w(i, j - 1, k);
-                                break;
-                        }
-                    }
-
-                    if (cell_type.test(has_fluid_back))
-                    {
-                        switch(bnd_condition.front_type)
-                        {
-                            case noslip:
-                                dst_u(i, j, k) = 2 * bnd_condition.front.x - dst_u(i, j + 1, k);
-                                dst_v(i, j, k) = 0;
-                                dst_w(i, j, k) = 2 * bnd_condition.front.z - dst_w(i, j + 1, k);
-                                break;
-                        }
+                        dst_w(i, j, k) =
+                            (
+                            - dst_w(i, j + 1, k) * cell_type.test(has_fluid_back)
+                            - dst_w(i, j - 1, k) * cell_type.test(has_fluid_front)
+                            - dst_w(i + 1, j, k) * cell_type.test(has_fluid_right)
+                            - dst_w(i - 1, j, k) * cell_type.test(has_fluid_left)
+                            )
+                            /
+                            (cell_type.test(has_fluid_back) + cell_type.test(has_fluid_front)
+                            + cell_type.test(has_fluid_right) + cell_type.test(has_fluid_left)
+                            )*(!cell_type.test(has_fluid_top));
                     }
                 }
 
@@ -157,7 +210,7 @@ namespace nast_hpx { namespace grid {
             Real dx_sq, Real dy_sq, Real dz_sq, Real dt, Real alpha
            )
         {
-            for (auto const& ind : boundary_cells)
+            for (auto const& ind : obstacle_cells)
             {
                 auto const i = ind.x;
                 auto const j = ind.y;
@@ -276,7 +329,7 @@ namespace nast_hpx { namespace grid {
         {
             if (!token.was_cancelled())
             {
-                for (auto const& ind : boundary_cells)
+                for (auto const& ind : obstacle_cells)
                 {
                     auto const i = ind.x;
                     auto const j = ind.y;
@@ -286,35 +339,22 @@ namespace nast_hpx { namespace grid {
 
                     if (cell_type.test(has_fluid_left))
                     {
-                        dst_p(i, j, k) = dst_p(i - 1, j, k);
-                    }
-
-                    if (cell_type.test(has_fluid_right))
-                    {
-                        dst_p(i, j, k) = dst_p(i + 1, j, k);
-                    }
-
-                    if (cell_type.test(has_fluid_bottom))
-                    {
-                        dst_p(i, j, k) = dst_p(i, j - 1, k);
-                    }
-
-                    if (cell_type.test(has_fluid_top))
-                    {
-                        dst_p(i, j, k) = dst_p(i, j + 1, k);
-                    }
-
-                    if (cell_type.test(has_fluid_front))
-                    {
-                        dst_p(i, j, k) = dst_p(i, j, k - 1);
-                    }
-
-                    if (cell_type.test(has_fluid_back))
-                    {
-                        dst_p(i, j, k) = dst_p(i, j, k + 1);
+                        dst_p(i, j, k) = (
+                                                dst_p(i - 1, j, k) * cell_type.test(has_fluid_left)
+                                              + dst_p(i + 1, j, k) * cell_type.test(has_fluid_right)
+                                              + dst_p(i, j - 1, k) * cell_type.test(has_fluid_bottom)
+                                              + dst_p(i, j + 1, k) * cell_type.test(has_fluid_top)
+                                              + dst_p(i, j, k - 1) * cell_type.test(has_fluid_front)
+                                              + dst_p(i, j, k + 1) * cell_type.test(has_fluid_top)
+                                          )
+                                          /
+                                          (
+                                                cell_type.test(has_fluid_left) + cell_type.test(has_fluid_right)
+                                              + cell_type.test(has_fluid_bottom) + cell_type.test(has_fluid_top)
+                                              + cell_type.test(has_fluid_front) + cell_type.test(has_fluid_back)
+                                           );
                     }
                 }
-
             }
         }
     };
@@ -323,7 +363,6 @@ namespace nast_hpx { namespace grid {
     template<>
     struct stencils<STENCIL_SOR>
     {
-        //TODO remove idx, idy (was for debug)
         static void call(partition_data<Real>& dst_p,
             partition_data<Real> const& src_rhs,
             std::vector<index> const& fluid_cells,
@@ -385,85 +424,6 @@ namespace nast_hpx { namespace grid {
             }
         }
     };
-
-    /*
-    template<>
-    struct stencils<STENCIL_TEST>
-    {
-        //TODO remove idx, idy (was for debug)
-        static void call(partition_data<Real>& dst_p,
-            partition_data<Real> const& src_rhs,
-            std::vector<std::pair<std::size_t, std::size_t> > const& fluid_cells,
-            std::vector<std::pair<std::size_t, std::size_t> > const& boundary_cells,
-            std::vector<std::pair<std::size_t, std::size_t> > const& obstacle_cells,
-            partition_data<std::bitset<6> > const& cell_types,
-            Real dx_sq, Real dy_sq, util::cancellation_token token)
-        {
-            if (!token.was_cancelled())
-            {
-                for (auto& idx_pair : boundary_cells)
-                {
-                    auto x = idx_pair.first;
-                    auto y = idx_pair.second;
-
-                    auto const& cell_type = cell_types(x, y);
-
-                    dst_p(x, y) =
-                        (
-                            dst_p(x - 1, y) * cell_type.test(has_fluid_west)
-                            + dst_p(x + 1, y) * cell_type.test(has_fluid_east)
-                            + dst_p(x, y - 1) * cell_type.test(has_fluid_south)
-                            + dst_p(x, y + 1) * cell_type.test(has_fluid_north)
-                        )
-                        /
-                        (
-                            cell_type.test(has_fluid_west)
-                            + cell_type.test(has_fluid_east)
-                            + cell_type.test(has_fluid_south)
-                            + cell_type.test(has_fluid_north)
-                        );
-                }
-
-                for (auto& idx_pair : obstacle_cells)
-                {
-                    auto x = idx_pair.first;
-                    auto y = idx_pair.second;
-
-                    auto const& cell_type = cell_types(x, y);
-
-                    dst_p(x, y) =
-                        (
-                            dst_p(x - 1, y) * cell_type.test(has_fluid_west)
-                            + dst_p(x + 1, y) * cell_type.test(has_fluid_east)
-                            + dst_p(x, y - 1) * cell_type.test(has_fluid_south)
-                            + dst_p(x, y + 1) * cell_type.test(has_fluid_north)
-                        )
-                        /
-                        (
-                            cell_type.test(has_fluid_west)
-                            + cell_type.test(has_fluid_east)
-                            + cell_type.test(has_fluid_south)
-                            + cell_type.test(has_fluid_north)
-                        );
-                }
-
-                for (auto& idx_pair : fluid_cells)
-                {
-                    auto x = idx_pair.first;
-                    auto y = idx_pair.second;
-
-                    dst_p(x, y) =
-                         ( (dst_p(x + 1, y) + dst_p(x - 1, y)) * dy_sq
-                            + (dst_p(x, y + 1) + dst_p(x, y - 1)) * dx_sq
-                            - dx_sq * dy_sq * src_rhs(x, y))
-                        /
-                        (2 * (dx_sq + dy_sq));
-                }
-            }
-        }
-    };
-
-    */
 
     template<>
     struct stencils<STENCIL_COMPUTE_RESIDUAL>

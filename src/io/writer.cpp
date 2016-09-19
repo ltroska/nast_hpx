@@ -51,7 +51,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
             << "<DataArray type=\"Int32\" Name=\"obstacle\" />" << std::endl
           //  << "<DataArray type=\"Float32\" Name=\"temperature\" />" << std::endl
             << "<DataArray type=\"Float32\" Name=\"velocity\" NumberOfComponents=\"3\" />"
-        //        << std::endl
+            << std::endl
             << "</PCellData>" << std::endl
             << "<PCoordinates>" << std::endl
             << "<PDataArray type=\"Float32\" Name=\"X_COORDINATES\" NumberOfComponents=\"1\"/>"
@@ -189,12 +189,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
                                 obstacle_stream << "1\n";
 
 
-                            if (cell_types(i, j, k).test(is_boundary) || cell_types(i, j, k).none())
-                            {
-                                p_stream << "0\n";
-                                uv_stream << "0 0 0\n";
-                            }
-                            else
+                            if (cell_types(i, j, k).test(is_fluid))
                             {
                                 p_stream << p_data(i, j, k)  << "\n";
 
@@ -203,6 +198,11 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
                                 uv_stream << (v_data(i, j, k) + v_data(i, j - 1, k)) / 2. << " ";
 
                                 uv_stream << (w_data(i, j, k) + w_data(i, j, k - 1)) / 2. << "\n";
+                            }
+                            else
+                            {
+                                p_stream << "0\n";
+                                uv_stream << "0 0 0\n";
                             }
 
 
@@ -284,8 +284,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
         /*<< "<DataArray type=\"Float32\" Name=\"temperature\">" << std::endl
         << tempstring << std::endl
         << "</DataArray>" << std::endl*/
-        << "<DataArray type=\"Float32\" Name=\"velocity\" NumberOfComponents=\"3\">"
-            << std::endl
+        << "<DataArray type=\"Float32\" Name=\"velocity\" NumberOfComponents=\"3\">" << std::endl
         << uvdatastring << std::endl
         << "</DataArray>" << std::endl
         << "</CellData>" << std::endl

@@ -2,8 +2,25 @@
 from __future__ import print_function
 import sys
 import numpy as np
+import itertools
 
 import csv
+
+HAS_FLUID_LEFT = 2**0
+HAS_FLUID_RIGHT = 2**1
+HAS_FLUID_BOTTOM = 2**2
+HAS_FLUID_TOP = 2**3
+HAS_FLUID_FRONT = 2**4
+HAS_FLUID_BACK = 2**5
+IS_FLUID = 2**6
+IS_OBSTACLE = 2**7
+
+def reverse_enumerate(iterable):
+    """
+    Enumerate over an iterable in reverse order while retaining proper indexes
+    """
+    return itertools.izip(reversed(xrange(len(iterable))), reversed(iterable))
+
 
 class grid:	
 	def __init__(self, i_max, j_max, k_max):
@@ -37,30 +54,30 @@ class grid:
 		with open(file_path, 'wb') as csvfile:
 			gridwriter = csv.writer(csvfile, delimiter=',', quotechar='"')
 
-			for k, plane in enumerate(self.__data):
-				for j, row in enumerate(plane):
+			for k, plane in reverse_enumerate(self.__data):
+				for j, row in reverse_enumerate(plane):
 					outrow = [0] * len(row)
 										
 					for i, cell in enumerate(row):
 						outvalue = 0
 						
 						if cell == 1:
-							outvalue = 2**6
+							outvalue = IS_FLUID
 						else:
-							outvalue = 2**7	
+							outvalue = IS_OBSTACLE
 						
 						if i != 0 and self[i - 1, j, k] == 1:
-							outvalue += 2**0
+							outvalue += HAS_FLUID_LEFT
 						if i != self.__i_max + 1 and self[i + 1, j, k] == 1:
-							outvalue += 2**1
+							outvalue += HAS_FLUID_RIGHT
 						if j != 0 and self[i, j - 1, k] == 1:
-							outvalue += 2**4
+							outvalue += HAS_FLUID_FRONT
 						if j != self.__j_max + 1 and self[i, j + 1, k] == 1:
-							outvalue += 2**5
+							outvalue += HAS_FLUID_BACK
 						if k != 0 and self[i, j, k - 1] == 1:
-							outvalue += 2**2
+							outvalue += HAS_FLUID_BOTTOM
 						if k != self.__k_max + 1 and self[i, j, k + 1] == 1:
-							outvalue += 2**3
+							outvalue += HAS_FLUID_TOP
 							
 						outrow[i] = outvalue				  
 				  

@@ -50,7 +50,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
             << "</PPointData>" << std::endl
             << "<PCellData>" << std::endl
             << "<DataArray type=\"Float32\" Name=\"pressure\" />" << std::endl
-          //  << "<DataArray type=\"Int32\" Name=\"obstacle\" />" << std::endl
+            << "<DataArray type=\"Int32\" Name=\"obstacle\" />" << std::endl
           //  << "<DataArray type=\"Float32\" Name=\"temperature\" />" << std::endl
             << "<DataArray type=\"Float32\" Name=\"velocity\" NumberOfComponents=\"3\" />"
             << "<DataArray type=\"Float32\" Name=\"fgh\" NumberOfComponents=\"3\" />"
@@ -67,13 +67,17 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
 
         for (uint loc = 0; loc < num_localities; loc++)
         {
+            std::size_t tmp_idx = (loc % (res_x * res_y)) % res_x;
+            std::size_t tmp_idy = (loc % (res_x * res_y)) / res_x;
+            std::size_t tmp_idz = loc / (res_x * res_y);
+
             os  << "<Piece Extent=\""
-                       << static_cast<int>(cells_x * partitions_x * idx)
-                << " " << cells_x * partitions_x * (idx + 1)
-                << " " << static_cast<int>(cells_y * partitions_y * idy)
-                << " " << cells_y * partitions_y * (idy + 1)
-                << " " << static_cast<int>(cells_z * partitions_y * idz)
-                << " " << cells_y * partitions_y * (idz + 1)
+                       << static_cast<int>(cells_x * partitions_x * tmp_idx)
+                << " " << cells_x * partitions_x * (tmp_idx + 1)
+                << " " << static_cast<int>(cells_y * partitions_y * tmp_idy)
+                << " " << cells_y * partitions_y * (tmp_idy + 1)
+                << " " << static_cast<int>(cells_z * partitions_y * tmp_idz)
+                << " " << cells_y * partitions_y * (tmp_idz + 1)
                 << "\" Source=\"field_" << step
                     << "_locality_" << loc << ".vtr\"></Piece>" << std::endl;
         }
@@ -154,6 +158,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
         uv_stream << "0 0 0\n";
         fgh_stream << "0 0 0\n";
         p_stream << "0\n";
+        obstacle_stream << "0\n";
     }
 
     for (uint l = 0; l < partitions_z; ++l)
@@ -166,6 +171,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
                 uv_stream << "0 0 0\n";
                 fgh_stream << "0 0 0\n";
                 p_stream << "0\n";
+                obstacle_stream << "0\n";
             }
 
 
@@ -176,6 +182,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
                     uv_stream << "0 0 0\n";
                     fgh_stream << "0 0 0\n";
                     p_stream << "0\n";
+                    obstacle_stream << "0\n";
 
 
                     for (uint n = 0; n < partitions_x; ++n)
@@ -185,20 +192,32 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
                            // uv_stream << u_data(i, j, k) << " " << v_data(i, j, k) << " " << w_data(i, j, k) << "\n";
                             fgh_stream << f_data(i, j, k) << " " << g_data(i, j, k) << " " << h_data(i, j, k) << "\n";
                           //  p_stream << cell_types(i, j, k).to_ulong() << "\n";
-                           /* if (cell_types(i, j, k).test(is_fluid))
-                                obstacle_stream << "0\n";
-                            else
+                            if (cell_types(i, j, k).test(has_fluid_left))
                                 obstacle_stream << "1\n";
-                            */
+                            else if (cell_types(i, j, k).test(has_fluid_right))
+                                obstacle_stream << "2\n";
+                            else if (cell_types(i, j, k).test(has_fluid_bottom))
+                                obstacle_stream << "3\n";
+                            else if (cell_types(i, j, k).test(has_fluid_top))
+                                obstacle_stream << "4\n";
+                            else if (cell_types(i, j, k).test(has_fluid_front))
+                                obstacle_stream << "5\n";
+                            else if (cell_types(i, j, k).test(has_fluid_back))
+                                obstacle_stream << "6\n";
+                            else if (cell_types(i, j, k).test(is_obstacle))
+                                obstacle_stream << "7\n";
+                            else
+                                obstacle_stream << "0\n";
+
 
                             if (cell_types(i, j, k).test(is_boundary) || cell_types(i, j, k).none())
                             {
-                                p_stream << "0\n";
+                         //       p_stream << "0\n";
                                 uv_stream << "0 0 0\n";
                             }
                             else
                             {
-                                p_stream << p_data(i, j, k)  << "\n";
+                              //  p_stream << p_data(i, j, k)  << "\n";
 
                                 uv_stream << (u_data(i, j, k) + u_data(i - 1, j, k)) / 2. << " ";
 
@@ -206,6 +225,8 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
 
                                 uv_stream << (w_data(i, j, k) + w_data(i, j, k - 1)) / 2. << "\n";
                             }
+
+                            p_stream << cell_types(i, j, k).to_ulong() << "\n";
 
                     /*        if (cell_types(i, j, k).test(is_fluid))
                             {
@@ -226,6 +247,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
                     uv_stream << "0 0 0\n";
                     fgh_stream << "0 0 0\n";
                     p_stream << "0\n";
+                    obstacle_stream << "0\n";
 
                 }
             }
@@ -236,6 +258,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
                 uv_stream << "0 0 0\n";
                 fgh_stream << "0 0 0\n";
                 p_stream << "0\n";
+                obstacle_stream << "0\n";
 
             }
         }
@@ -246,6 +269,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
         uv_stream << "0 0 0\n";
         fgh_stream << "0 0 0\n";
         p_stream << "0\n";
+        obstacle_stream << "0\n";
     }
 
 
@@ -280,9 +304,9 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
         << "<DataArray type=\"Float32\" Name=\"pressure\">" << std::endl
         << pdatastring << std::endl
         << "</DataArray>" << std::endl
-    //    << "<DataArray type=\"Int32\" Name=\"obstacle\">" << std::endl
-   //     << obstacle_stream.str() << std::endl
-   //     << "</DataArray>" << std::endl
+        << "<DataArray type=\"Int32\" Name=\"obstacle\">" << std::endl
+        << obstacle_stream.str() << std::endl
+        << "</DataArray>" << std::endl
         /*<< "<DataArray type=\"Float32\" Name=\"temperature\">" << std::endl
         << tempstring << std::endl
         << "</DataArray>" << std::endl*/

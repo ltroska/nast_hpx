@@ -57,7 +57,7 @@ namespace nast_hpx { namespace grid {
                 std::vector<index> const& obstacle_cells,
                 boundary_condition const& bnd_condition)
             {
-               /* for  (auto const& ind : boundary_cells)
+                for  (auto const& ind : boundary_cells)
                 {
                     auto const i = ind.x;
                     auto const j = ind.y;
@@ -137,7 +137,7 @@ namespace nast_hpx { namespace grid {
                                 break;
                         }
                     }
-                }*/
+                }
 
             }
     };

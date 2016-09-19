@@ -14,23 +14,26 @@ int hpx_main(boost::program_options::variables_map& vm)
     cfg.max_timesteps = timesteps;
     cfg.verbose = vm.count("verbose") ? true : false;
     //DRIVEN CAVITY: TODO REMOVE THIS
-    cfg.bnd_condition.top.y = 1;
+    cfg.bnd_condition.front.z = 1;
     if (cfg.verbose)
         std::cout << "Threads on locality " << hpx::get_locality_id()
             << " = " << hpx::get_os_thread_count() << std::endl;
 
-    std::cout
-        << "Running simulation on " << cfg.i_max + 2 << "x" << cfg.j_max + 2
-        << " cells on " << cfg.num_localities << " nodes ";
-
-    if (timesteps == 0)
-        std::cout << "until t_end " << cfg.t_end << std::endl;
-    else
-        std::cout << "for " << timesteps << " iterations"
-            << " and " << iterations << " runs!" << std::endl;
-
     auto rank = hpx::get_locality_id();
     auto num_localities = hpx::get_num_localities_sync();
+
+    if (rank == 0)
+    {
+        std::cout
+            << "Running simulation on " << cfg.i_max + 2 << "x" << cfg.j_max + 2
+            << " cells on " << cfg.num_localities << " nodes ";
+
+        if (timesteps == 0)
+            std::cout << "until t_end " << cfg.t_end << std::endl;
+        else
+            std::cout << "for " << timesteps << " iterations"
+                << " and " << iterations << " runs!" << std::endl;
+    }
 
     cfg.idx = (rank % (cfg.num_localities_x * cfg.num_localities_y)) % cfg.num_localities_x;
     cfg.idy = (rank % (cfg.num_localities_x * cfg.num_localities_y)) / cfg.num_localities_x;
@@ -41,7 +44,7 @@ int hpx_main(boost::program_options::variables_map& vm)
     cfg.num_partitions_z = cfg.num_localities_z;
     cfg.num_partitions = cfg.num_localities;
 
-    double avgtime = 0.;
+  /*  double avgtime = 0.;
     double maxtime = 0.;
     double mintime = 365. * 24. * 3600.;
 
@@ -51,10 +54,10 @@ int hpx_main(boost::program_options::variables_map& vm)
     std::vector<std::size_t> min_idle_rates(num_localities, 20000);
     std::size_t avgidlerate = 0;
     std::size_t maxidlerate = 0;
-    std::size_t minidlerate = 20000;
+    std::size_t minidlerate = 20000;*/
 
-    for (std::size_t loc = 0; loc < num_localities; ++loc)
-        idle_rate_counters[loc] = hpx::performance_counters::performance_counter("/threads{locality#" + std::to_string(loc) + "/total}/idle-rate");
+    //for (std::size_t loc = 0; loc < num_localities; ++loc)
+    //    idle_rate_counters[loc] = hpx::performance_counters::performance_counter("/threads{locality#" + std::to_string(loc) + "/total}/idle-rate");
 
     nast_hpx::stepper::stepper step;
     step.setup(cfg);
@@ -67,7 +70,7 @@ int hpx_main(boost::program_options::variables_map& vm)
 
         double elapsed = t.elapsed();
 
-        if (iter > 0 || iterations == 1)
+      /*  if (iter > 0 || iterations == 1)
         {
             avgtime += elapsed;
             maxtime = std::max(maxtime, elapsed);
@@ -85,10 +88,10 @@ int hpx_main(boost::program_options::variables_map& vm)
                 maxidlerate = std::max(maxidlerate, idle_rate);
                 minidlerate = std::min(minidlerate, idle_rate);
             }
-        }
+        }*/
     }
 
-    if (rank == 0)
+  /*  if (rank == 0)
     {
         avgtime = avgtime / static_cast<double>(
                     (std::max)(iterations-1, static_cast<boost::uint64_t>(1)));
@@ -117,7 +120,7 @@ int hpx_main(boost::program_options::variables_map& vm)
 
         std::cout << std::endl;
 
-    }
+    }*/
 
 
     return hpx::finalize();

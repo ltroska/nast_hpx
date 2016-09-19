@@ -51,8 +51,13 @@ void stepper_server::setup(io::config const& cfg)
 
     part = grid::partition(hpx::find_here(), cfg);
 
-    for (uint loc = 0; loc < num_localities; loc++)
-        localities.push_back(hpx::find_from_basename(stepper_basename, loc).get());
+    std::vector<hpx::future<hpx::id_type > > steps =
+        hpx::find_all_from_basename(stepper_basename, num_localities);
+
+    localities = hpx::when_all(steps).then(hpx::util::unwrapped2(
+                [](std::vector<hpx::id_type>&& ids) -> std::vector<hpx::id_type>
+                { return ids;})
+            ).get();
 }
 
 void stepper_server::run()
@@ -128,8 +133,6 @@ void stepper_server::run()
             break;
         t += dt;
         dt = dt_buffer.receive(step).get();
-
-        std::exit(0);
     }
 }
 

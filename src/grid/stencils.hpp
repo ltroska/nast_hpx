@@ -76,6 +76,24 @@ namespace nast_hpx { namespace grid {
                                     dst_v(i, j, k) = 2 * bnd_condition.top.y - dst_v(i, j, k - 1);
                                     dst_w(i, j, k - 1) = 0;
                                     break;
+
+                                case slip:
+                                    dst_u(i, j, k) = dst_u(i, j, k - 1);
+                                    dst_v(i, j, k) = dst_v(i, j, k - 1);
+                                    dst_w(i, j, k - 1) = 0;
+                                    break;
+
+                                case outstream:
+                                    dst_u(i, j, k) = dst_u(i, j, k - 1);
+                                    dst_v(i, j, k) = dst_v(i, j, k - 1);
+                                    dst_w(i, j, k - 1) = dst_w(i, j, k - 2);
+                                    break;
+
+                                case instream:
+                                    dst_u(i, j, k) = 2 * bnd_condition.top.x - dst_u(i, j, k - 1);
+                                    dst_v(i, j, k) = 2 * bnd_condition.top.y - dst_v(i, j, k - 1);
+                                    dst_w(i, j, k - 1) = bnd_condition.top.z;
+                                    break;
                             }
                         }
 
@@ -88,6 +106,25 @@ namespace nast_hpx { namespace grid {
                                     dst_v(i, j, k) = 2 * bnd_condition.bottom.y - dst_v(i, j, k + 1);
                                     dst_w(i, j, k) = 0;
                                     break;
+
+                                case slip:
+                                    dst_u(i, j, k) = dst_u(i, j, k + 1);
+                                    dst_v(i, j, k) = dst_v(i, j, k + 1);
+                                    dst_w(i, j, k) = 0;
+                                    break;
+
+                                case outstream:
+                                    dst_u(i, j, k) = dst_u(i, j, k + 1);
+                                    dst_v(i, j, k) = dst_v(i, j, k + 1);
+                                    dst_w(i, j, k) = dst_w(i, j, k + 1);
+                                    break;
+
+                                case instream:
+                                    dst_u(i, j, k) = 2 * bnd_condition.bottom.x - dst_u(i, j, k + 1);
+                                    dst_v(i, j, k) = 2 * bnd_condition.bottom.y - dst_v(i, j, k + 1);
+                                    dst_w(i, j, k) = bnd_condition.bottom.z;
+                                    break;
+
 
                             }
                         }
@@ -102,10 +139,22 @@ namespace nast_hpx { namespace grid {
                                     dst_w(i, j, k) = 2 * bnd_condition.right.z - dst_w(i - 1, j, k);
                                     break;
 
+                                case slip:
+                                    dst_u(i - 1, j, k) = 0;
+                                    dst_v(i, j, k) = dst_v(i - 1, j, k);
+                                    dst_w(i, j, k) = dst_w(i - 1, j, k);
+                                    break;
+
                                 case outstream:
                                     dst_u(i - 1, j, k) = dst_u(i - 2, j, k);
                                     dst_v(i, j, k) = dst_u(i - 1, j, k);
                                     dst_w(i, j, k) = dst_u(i - 1, j, k);
+                                    break;
+
+                                case instream:
+                                    dst_u(i - 1, j, k) = bnd_condition.right.x;
+                                    dst_v(i, j, k) = 2 * bnd_condition.right.y - dst_v(i - 1, j, k);
+                                    dst_w(i, j, k) = 2 * bnd_condition.right.z - dst_w(i - 1, j, k);
                                     break;
                             }
                         }
@@ -118,6 +167,18 @@ namespace nast_hpx { namespace grid {
                                     dst_u(i, j, k) = 0;
                                     dst_v(i, j, k) = 2 * bnd_condition.left.y - dst_v(i + 1, j, k);
                                     dst_w(i, j, k) = 2 * bnd_condition.left.z - dst_w(i + 1, j, k);
+                                    break;
+
+                                case slip:
+                                    dst_u(i, j, k) = 0;
+                                    dst_v(i, j, k) = dst_v(i + 1, j, k);
+                                    dst_w(i, j, k) = dst_w(i + 1, j, k);
+                                    break;
+
+                                case outstream:
+                                    dst_u(i, j, k) = dst_u(i + 1, j, k);
+                                    dst_v(i, j, k) = dst_v(i + 1, j, k);
+                                    dst_w(i, j, k) = dst_w(i + 1, j, k);
                                     break;
 
                                 case instream:
@@ -137,6 +198,24 @@ namespace nast_hpx { namespace grid {
                                     dst_v(i, j - 1, k) = 0;
                                     dst_w(i, j, k) = 2 * bnd_condition.back.z - dst_w(i, j - 1, k);
                                     break;
+
+                                case slip:
+                                    dst_u(i, j, k) = dst_u(i, j - 1, k);
+                                    dst_v(i, j - 1, k) = 0;
+                                    dst_w(i, j, k) = dst_w(i, j - 1, k);
+                                    break;
+
+                                case outstream:
+                                    dst_u(i, j, k) = dst_u(i, j - 1, k);
+                                    dst_v(i, j - 1, k) = dst_v(i, j - 2, k);
+                                    dst_w(i, j, k) = dst_w(i, j - 1, k);
+                                    break;
+
+                                case instream:
+                                    dst_u(i, j, k) = 2 * bnd_condition.back.x - dst_u(i, j - 1, k);
+                                    dst_v(i, j - 1, k) = bnd_condition.back.y;
+                                    dst_w(i, j, k) = 2 * bnd_condition.back.z - dst_w(i, j - 1, k);
+                                    break;
                             }
                         }
 
@@ -147,6 +226,24 @@ namespace nast_hpx { namespace grid {
                                 case noslip:
                                     dst_u(i, j, k) = 2 * bnd_condition.front.x - dst_u(i, j + 1, k);
                                     dst_v(i, j, k) = 0;
+                                    dst_w(i, j, k) = 2 * bnd_condition.front.z - dst_w(i, j + 1, k);
+                                    break;
+
+                                case slip:
+                                    dst_u(i, j, k) = dst_u(i, j + 1, k);
+                                    dst_v(i, j, k) = 0;
+                                    dst_w(i, j, k) = dst_w(i, j + 1, k);
+                                    break;
+
+                                case outstream:
+                                    dst_u(i, j, k) = dst_u(i, j + 1, k);
+                                    dst_v(i, j, k) = dst_v(i, j + 1, k);
+                                    dst_w(i, j, k) = dst_w(i, j + 1, k);
+                                    break;
+
+                                case instream:
+                                    dst_u(i, j, k) = 2 * bnd_condition.front.x - dst_u(i, j + 1, k);
+                                    dst_v(i, j, k) = bnd_condition.front.y;
                                     dst_w(i, j, k) = 2 * bnd_condition.front.z - dst_w(i, j + 1, k);
                                     break;
                             }

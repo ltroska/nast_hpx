@@ -321,215 +321,132 @@ namespace nast_hpx { namespace io {
             cfg.gz = 0;
         }
 
-      /*  if(config_node.child("UT") != NULL)
+        if(config_node.child("BoundaryConditions") != NULL)
         {
-            cfg.u_bnd.top =
-                config_node.child("UT").first_attribute().as_double();
+            auto bc_node = config_node.child("BoundaryConditions");
+
+            if (bc_node.child("Top") != NULL)
+            {
+                auto node = bc_node.child("Top");
+                std::string type = node.attribute("type").value();
+
+                if (type == "noslip")
+                    cfg.bnd_condition.top_type = noslip;
+                else if (type == "slip")
+                    cfg.bnd_condition.top_type = slip;
+                else if (type == "instream")
+                    cfg.bnd_condition.top_type = instream;
+                else if (type == "outstream")
+                    cfg.bnd_condition.top_type = outstream;
+
+                cfg.bnd_condition.top.x = node.attribute("u").as_double();
+                cfg.bnd_condition.top.y = node.attribute("v").as_double();
+                cfg.bnd_condition.top.z = node.attribute("w").as_double();
+            }
+
+            if (bc_node.child("Bottom") != NULL)
+            {
+                auto node = bc_node.child("Bottom");
+                std::string type = node.attribute("type").value();
+
+                if (type == "noslip")
+                    cfg.bnd_condition.bottom_type = noslip;
+                else if (type == "slip")
+                    cfg.bnd_condition.bottom_type = slip;
+                else if (type == "instream")
+                    cfg.bnd_condition.bottom_type = instream;
+                else if (type == "outstream")
+                    cfg.bnd_condition.bottom_type = outstream;
+
+                cfg.bnd_condition.bottom.x = node.attribute("u").as_double();
+                cfg.bnd_condition.bottom.y = node.attribute("v").as_double();
+                cfg.bnd_condition.bottom.z = node.attribute("w").as_double();
+            }
+
+            if (bc_node.child("Left") != NULL)
+            {
+                auto node = bc_node.child("Left");
+                std::string type = node.attribute("type").value();
+
+                if (type == "noslip")
+                    cfg.bnd_condition.left_type = noslip;
+                else if (type == "slip")
+                    cfg.bnd_condition.left_type = slip;
+                else if (type == "instream")
+                    cfg.bnd_condition.left_type = instream;
+                else if (type == "outstream")
+                    cfg.bnd_condition.left_type = outstream;
+
+                cfg.bnd_condition.left.x = node.attribute("u").as_double();
+                cfg.bnd_condition.left.y = node.attribute("v").as_double();
+                cfg.bnd_condition.left.z = node.attribute("w").as_double();
+            }
+
+            if (bc_node.child("Right") != NULL)
+            {
+                auto node = bc_node.child("Right");
+
+                std::cout << node.attribute("type").value()  << std::endl;
+                std::string type = node.attribute("type").value();
+
+                if (type == "noslip")
+                    cfg.bnd_condition.right_type = noslip;
+                else if (type == "slip")
+                    cfg.bnd_condition.right_type = slip;
+                else if (type == "instream")
+                    cfg.bnd_condition.right_type = instream;
+                else if (type == "outstream")
+                    cfg.bnd_condition.right_type = outstream;
+
+                cfg.bnd_condition.right.x = node.attribute("u").as_double();
+                cfg.bnd_condition.right.y = node.attribute("v").as_double();
+                cfg.bnd_condition.right.z = node.attribute("w").as_double();
+            }
+
+            if (bc_node.child("Front") != NULL)
+            {
+                auto node = bc_node.child("Front");
+                std::string type = node.attribute("type").value();
+
+                if (type == "noslip")
+                    cfg.bnd_condition.front_type = noslip;
+                else if (type == "slip")
+                    cfg.bnd_condition.front_type = slip;
+                else if (type == "instream")
+                    cfg.bnd_condition.front_type = instream;
+                else if (type == "outstream")
+                    cfg.bnd_condition.front_type = outstream;
+
+                cfg.bnd_condition.front.x = node.attribute("u").as_double();
+                cfg.bnd_condition.front.y = node.attribute("v").as_double();
+                cfg.bnd_condition.front.z = node.attribute("w").as_double();
+            }
+
+            if (bc_node.child("Back") != NULL)
+            {
+                auto node = bc_node.child("Back");
+                std::string type = node.attribute("type").value();
+
+                if (type == "noslip")
+                    cfg.bnd_condition.back_type = noslip;
+                else if (type == "slip")
+                    cfg.bnd_condition.back_type = slip;
+                else if (type == "instream")
+                    cfg.bnd_condition.back_type = instream;
+                else if (type == "outstream")
+                    cfg.bnd_condition.back_type = outstream;
+
+                cfg.bnd_condition.back.x = node.attribute("u").as_double();
+                cfg.bnd_condition.back.y = node.attribute("v").as_double();
+                cfg.bnd_condition.back.z = node.attribute("w").as_double();
+            }
         }
         else
         {
-            cfg.u_bnd.top = 0;
+            std::cout << "No boundary conditions set!" << std::endl;
+            std::exit(1);
         }
 
-        if(config_node.child("UB") != NULL)
-        {
-            cfg.u_bnd.bottom =
-                config_node.child("UB").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.u_bnd.bottom = 0;
-        }
-
-        if(config_node.child("UL") != NULL)
-        {
-            cfg.u_bnd.left =
-                config_node.child("UL").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.u_bnd.left = 0;
-        }
-
-        if(config_node.child("UR") != NULL)
-        {
-            cfg.u_bnd.right =
-                config_node.child("UR").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.u_bnd.right = 0;
-        }
-
-        if(config_node.child("VT") != NULL)
-        {
-            cfg.v_bnd.top =
-                config_node.child("VT").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.v_bnd.top = 0;
-        }
-
-        if(config_node.child("VB") != NULL)
-        {
-            cfg.v_bnd.bottom =
-                config_node.child("VB").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.v_bnd.bottom = 0;
-        }
-
-        if(config_node.child("VL") != NULL)
-        {
-            cfg.v_bnd.left =
-                config_node.child("VL").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.v_bnd.left = 0;
-        }
-
-        if(config_node.child("VR") != NULL)
-        {
-            cfg.v_bnd.right =
-                config_node.child("VR").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.v_bnd.right = 0;
-        }
-
-        if(config_node.child("TT") != NULL)
-        {
-            cfg.temp_bnd.top =
-                config_node.child("TO").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.temp_bnd.top = 0;
-        }
-
-        if(config_node.child("TB") != NULL)
-        {
-            cfg.temp_bnd.bottom =
-                config_node.child("TB").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.temp_bnd.bottom = 0;
-        }
-
-        if(config_node.child("TL") != NULL)
-        {
-            cfg.temp_bnd.left =
-                config_node.child("TL").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.temp_bnd.left = 0;
-        }
-
-        if(config_node.child("TR") != NULL)
-        {
-            cfg.temp_bnd.right =
-                config_node.child("TR").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.temp_bnd.right = 0;
-        }
-
-        if(config_node.child("TI") != NULL)
-        {
-            cfg.ti = config_node.child("TI").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.ti = 0;
-        }
-
-        if(config_node.child("WTL") != NULL)
-        {
-            cfg.temp_data_type.left =
-                config_node.child("WTL").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.temp_data_type.left = -1;
-        }
-
-        if(config_node.child("WTR") != NULL)
-        {
-            cfg.temp_data_type.right =
-                config_node.child("WTR").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.temp_data_type.right = -1;
-        }
-
-        if(config_node.child("WTB") != NULL)
-        {
-            cfg.temp_data_type.bottom =
-                config_node.child("WTB").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.temp_data_type.bottom = -1;
-        }
-
-        if(config_node.child("WTT") != NULL)
-        {
-            cfg.temp_data_type.top =
-                config_node.child("WTT").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.temp_data_type.top = -1;
-        }
-
-        if(config_node.child("WL") != NULL)
-        {
-            cfg.bnd_type.left =
-                config_node.child("WL").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.bnd_type.left = 1;
-        }
-
-        if(config_node.child("WR") != NULL)
-        {
-            cfg.bnd_type.right =
-                config_node.child("WR").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.bnd_type.right = 1;
-        }
-
-        if(config_node.child("WB") != NULL)
-        {
-            cfg.bnd_type.bottom =
-                config_node.child("WB").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.bnd_type.bottom = 1;
-        }
-
-        if(config_node.child("WT") != NULL)
-        {
-            cfg.bnd_type.top =
-                config_node.child("WT").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.bnd_type.top = 1;
-        }
-*/
         if(config_node.child("deltaVec") != NULL)
         {
             cfg.delta_vec =

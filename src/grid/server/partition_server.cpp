@@ -103,8 +103,6 @@ partition_server::partition_server(io::config const& cfg)
             }
         }
     }
-
-    std::cout << boundary_cells_.data_.size() << std::endl;
 }
 
 void partition_server::init()

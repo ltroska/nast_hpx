@@ -14,11 +14,6 @@ int hpx_main(boost::program_options::variables_map& vm)
     cfg.max_timesteps = timesteps;
     cfg.verbose = vm.count("verbose") ? true : false;
 
-    //TODO REMOVE THIS
-    cfg.bnd_condition.left_type = instream;
-    cfg.bnd_condition.left.x = 1;
-    cfg.bnd_condition.right_type = outstream;
-
     if (cfg.verbose)
         std::cout << "Threads on locality " << hpx::get_locality_id()
             << " = " << hpx::get_os_thread_count() << std::endl;
@@ -48,7 +43,7 @@ int hpx_main(boost::program_options::variables_map& vm)
     cfg.num_partitions_z = cfg.num_localities_z;
     cfg.num_partitions = cfg.num_localities;
 
-  /*  double avgtime = 0.;
+    double avgtime = 0.;
     double maxtime = 0.;
     double mintime = 365. * 24. * 3600.;
 
@@ -58,10 +53,10 @@ int hpx_main(boost::program_options::variables_map& vm)
     std::vector<std::size_t> min_idle_rates(num_localities, 20000);
     std::size_t avgidlerate = 0;
     std::size_t maxidlerate = 0;
-    std::size_t minidlerate = 20000;*/
+    std::size_t minidlerate = 20000;
 
-    //for (std::size_t loc = 0; loc < num_localities; ++loc)
-    //    idle_rate_counters[loc] = hpx::performance_counters::performance_counter("/threads{locality#" + std::to_string(loc) + "/total}/idle-rate");
+    for (std::size_t loc = 0; loc < num_localities; ++loc)
+        idle_rate_counters[loc] = hpx::performance_counters::performance_counter("/threads{locality#" + std::to_string(loc) + "/total}/idle-rate");
 
     nast_hpx::stepper::stepper step;
     step.setup(cfg);
@@ -74,7 +69,7 @@ int hpx_main(boost::program_options::variables_map& vm)
 
         double elapsed = t.elapsed();
 
-      /*  if (iter > 0 || iterations == 1)
+        if (iter > 0 || iterations == 1)
         {
             avgtime += elapsed;
             maxtime = std::max(maxtime, elapsed);
@@ -92,10 +87,10 @@ int hpx_main(boost::program_options::variables_map& vm)
                 maxidlerate = std::max(maxidlerate, idle_rate);
                 minidlerate = std::min(minidlerate, idle_rate);
             }
-        }*/
+        }
     }
 
-  /*  if (rank == 0)
+    if (rank == 0)
     {
         avgtime = avgtime / static_cast<double>(
                     (std::max)(iterations-1, static_cast<boost::uint64_t>(1)));
@@ -124,7 +119,7 @@ int hpx_main(boost::program_options::variables_map& vm)
 
         std::cout << std::endl;
 
-    }*/
+    }
 
 
     return hpx::finalize();

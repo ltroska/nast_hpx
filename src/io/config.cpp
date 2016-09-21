@@ -385,8 +385,6 @@ namespace nast_hpx { namespace io {
             if (bc_node.child("Right") != NULL)
             {
                 auto node = bc_node.child("Right");
-
-                std::cout << node.attribute("type").value()  << std::endl;
                 std::string type = node.attribute("type").value();
 
                 if (type == "noslip")

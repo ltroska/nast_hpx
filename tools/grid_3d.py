@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-from __future__ import print_function
-import sys
 import numpy as np
 import itertools
 
@@ -97,23 +95,8 @@ class grid:
 						outrow[i] = outvalue				  
 				  
 					gridwriter.writerow(outrow)
-		
 
-if len(sys.argv) != 5:
-	print("Usage:", sys.argv[0] , "i_max j_max k_max <output grid>", file=sys.stderr)
-	sys.exit(0)
-
-i_max = int(sys.argv[1])
-j_max = int(sys.argv[2])
-k_max = int(sys.argv[3])
-
-outfile_path = sys.argv[4]
-
-b = grid(i_max, j_max, k_max)
-b.insert_rectangle(0, 1 + i_max/4, 0, j_max + 1, 0, 1 + k_max/2)
-
-								
-b.write_to(outfile_path)
-				
-
+	def add_xy_plane(self, k, plane, invert=True):
+		add = [[1 - int(x) if invert else int(x) for x in row] for row in plane]
+		self.__data[k] = add			
 				

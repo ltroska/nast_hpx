@@ -1187,7 +1187,7 @@ triple<Real> partition_server::do_timestep(Real dt)
     {
         next_out_ += c.delta_vec;
 
-        if (c.verbose)
+        if (c.verbose && c.rank == 0)
             std::cout << "Output to .vtk in step " << step_ << std::endl;
 
         hpx::when_all(set_velocity_futures.data_).then(

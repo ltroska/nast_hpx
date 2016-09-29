@@ -16,3 +16,6 @@ CMakeFiles/
 
 *.pyc
 *.png
+vis/
+data/
+examples/geometry*

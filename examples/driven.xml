@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<SimulationConfig>
+	<iMax value="10"/>
+	<jMax value="10"/>
+	<kMax value="10"/>
+	<iRes value="2"/>
+	<jRes value="2"/>
+	<kRes value="2"/>
+	<xLength value="1"/>
+	<yLength value="1"/>
+	<zLength value="1"/>
+	<Re value="1000"/>
+	<omega value="1.7"/>
+	<tau value="0.5"/>
+	<eps value="0.001"/>
+	<alpha value="0.9"/>
+	<iterMax value="250"/>
+	<dt value="0.2"/>
+	<tEnd value="1000"/>
+	<deltaVec value="0"/>
+	<vtk value="1"/>
+	<BoundaryConditions>
+		<Top type="noslip" u="1"/>
+	</BoundaryConditions>
+	<gridFile value="../examples/geometry/driven.csv"/>
+</SimulationConfig>

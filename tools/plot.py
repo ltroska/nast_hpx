@@ -66,7 +66,7 @@ if strong:
 
 	plt.subplot(3, 1, 3)
 
-	efficiency = [speed/(pv + 1) for pv, speed in enumerate(speedup)]
+	efficiency = [speed/p[pv] for pv, speed in enumerate(speedup)]
 
 	plt.plot(p, efficiency, 'r-o')
 	plt.title("Efficiency")

@@ -434,23 +434,20 @@ namespace nast_hpx { namespace grid {
 
                     auto const& cell_type = cell_types(i, j, k);
 
-                    if (cell_type.test(has_fluid_left))
-                    {
-                        dst_p(i, j, k) = (
-                                                dst_p(i - 1, j, k) * cell_type.test(has_fluid_left)
-                                              + dst_p(i + 1, j, k) * cell_type.test(has_fluid_right)
-                                              + dst_p(i, j - 1, k) * cell_type.test(has_fluid_bottom)
-                                              + dst_p(i, j + 1, k) * cell_type.test(has_fluid_top)
-                                              + dst_p(i, j, k - 1) * cell_type.test(has_fluid_front)
-                                              + dst_p(i, j, k + 1) * cell_type.test(has_fluid_top)
-                                          )
-                                          /
-                                          (
-                                                cell_type.test(has_fluid_left) + cell_type.test(has_fluid_right)
-                                              + cell_type.test(has_fluid_bottom) + cell_type.test(has_fluid_top)
-                                              + cell_type.test(has_fluid_front) + cell_type.test(has_fluid_back)
-                                           );
-                    }
+                    dst_p(i, j, k) = (
+                                            dst_p(i - 1, j, k) * cell_type.test(has_fluid_left)
+                                          + dst_p(i + 1, j, k) * cell_type.test(has_fluid_right)
+                                          + dst_p(i, j - 1, k) * cell_type.test(has_fluid_front)
+                                          + dst_p(i, j + 1, k) * cell_type.test(has_fluid_back)
+                                          + dst_p(i, j, k - 1) * cell_type.test(has_fluid_bottom)
+                                          + dst_p(i, j, k + 1) * cell_type.test(has_fluid_top)
+                                      )
+                                      /
+                                      (
+                                            cell_type.test(has_fluid_left) + cell_type.test(has_fluid_right)
+                                          + cell_type.test(has_fluid_bottom) + cell_type.test(has_fluid_top)
+                                          + cell_type.test(has_fluid_front) + cell_type.test(has_fluid_back)
+                                       );
                 }
             }
         }

@@ -495,12 +495,14 @@ namespace nast_hpx { namespace io {
 
             std::size_t insert_i = 0;
             std::size_t insert_j = (end_j - start_j) - 1;
-            std::size_t insert_k = (end_k - start_k) - 1;
+            std::size_t insert_k = 0;
 
             std::size_t i, j, k;
             i = 0;
             j = cfg.j_max + 1;
-            k = cfg.k_max + 1;
+            k = 0;
+
+            std::size_t cnt;
 
             while (true)
             {
@@ -509,6 +511,7 @@ namespace nast_hpx { namespace io {
 
                 if (!file.good())
                     break;
+                ++cnt;
 
                 std::stringstream iss(line);
                 i = 0;
@@ -541,16 +544,19 @@ namespace nast_hpx { namespace io {
                 if (j == 0)
                 {
                     insert_i = 0;
-                    insert_j = (end_j - start_j) - 1;;
+                    insert_j = (end_j - start_j) - 1;
                     j = cfg.j_max + 1;
 
                     if (k >= start_k && k < end_k)
-                        --insert_k;
+                        ++insert_k;
 
-                    --k;
+                    ++k;
                 } else
                     --j;
             }
+
+            std::cout << cnt << std::endl;
+
         }
         else
         {
@@ -588,7 +594,7 @@ namespace nast_hpx { namespace io {
 
                 std::stringstream iss(line);
 
-                while (true)
+               /* while (true)
                 {
                     std::string cell_val;
                     std::getline(iss, cell_val, ',');
@@ -606,10 +612,8 @@ namespace nast_hpx { namespace io {
 
                     if (!iss.good())
                         break;
-                }
+                }*/
             }
-
-
         }
         else
         {

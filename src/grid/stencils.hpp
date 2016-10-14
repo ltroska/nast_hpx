@@ -244,7 +244,7 @@ namespace nast_hpx { namespace grid {
                     }
                     else
                     {
-                        if (!cell_type[has_fluid_right])
+                        if (!cell_type[has_fluid_right] && !cell_type[has_fluid_left])
                             dst_u(i, j, k) =
                                 (
                                 - dst_u(i, j, k + 1) * cell_type[has_fluid_top]
@@ -257,7 +257,7 @@ namespace nast_hpx { namespace grid {
                                 + cell_type[has_fluid_front] + cell_type[has_fluid_back]
                                 );
 
-                        if (!cell_type[has_fluid_back])
+                        if (!cell_type[has_fluid_back] && !cell_type[has_fluid_front])
                             dst_v(i, j, k) =
                                 (
                                 - dst_v(i, j, k + 1) * cell_type[has_fluid_top]
@@ -270,7 +270,7 @@ namespace nast_hpx { namespace grid {
                                 + cell_type[has_fluid_right] + cell_type[has_fluid_left]
                                 );
 
-                        if (!cell_type[has_fluid_top])
+                        if (!cell_type[has_fluid_top] && !cell_type[has_fluid_bottom])
                             dst_w(i, j, k) =
                                 (
                                 - dst_w(i, j + 1, k) * cell_type[has_fluid_back]
@@ -283,6 +283,10 @@ namespace nast_hpx { namespace grid {
                                 + cell_type[has_fluid_right] + cell_type[has_fluid_left]
                                 );
                     }
+
+                    if (std::isnan(dst_u(i, j, k)))
+                        std::cout << i << " " << j << " " << k << " " << cell_type[is_boundary] << " " << cell_type[is_obstacle] << " "
+                        << cell_type[has_fluid_left] << cell_type[has_fluid_right]<< cell_type[has_fluid_front]<< cell_type[has_fluid_back]<< cell_type[has_fluid_bottom]<< cell_type[has_fluid_top]<< std::endl;
                 }
 
             }

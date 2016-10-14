@@ -176,8 +176,8 @@ namespace nast_hpx { namespace grid {
 
                                 case instream:
                                     dst_u(i, j, k) = bnd_condition.left.x;
-                                    dst_v(i, j, k) = bnd_condition.left.y;
-                                    dst_w(i, j, k) = bnd_condition.left.z;
+                                    dst_v(i, j, k) = 2 * bnd_condition.left.y - dst_v(i + 1, j, k);
+                                    dst_w(i, j, k) = 2 * bnd_condition.left.z - dst_w(i + 1, j, k);
                                     break;
                             }
                         }
@@ -244,41 +244,44 @@ namespace nast_hpx { namespace grid {
                     }
                     else
                     {
-                        dst_u(i, j, k) =
-                            (
-                            - dst_u(i, j, k + 1) * cell_type[has_fluid_top]
-                            - dst_u(i, j, k - 1) * cell_type[has_fluid_bottom]
-                            - dst_u(i, j + 1, k) * cell_type[has_fluid_back]
-                            - dst_u(i, j - 1, k) * cell_type[has_fluid_front]
-                            )
-                            /
-                            (cell_type[has_fluid_top] + cell_type[has_fluid_bottom]
-                            + cell_type[has_fluid_front] + cell_type[has_fluid_back]
-                            )*(!cell_type[has_fluid_right]);
+                        if (!cell_type[has_fluid_right])
+                            dst_u(i, j, k) =
+                                (
+                                - dst_u(i, j, k + 1) * cell_type[has_fluid_top]
+                                - dst_u(i, j, k - 1) * cell_type[has_fluid_bottom]
+                                - dst_u(i, j + 1, k) * cell_type[has_fluid_back]
+                                - dst_u(i, j - 1, k) * cell_type[has_fluid_front]
+                                )
+                                /
+                                (cell_type[has_fluid_top] + cell_type[has_fluid_bottom]
+                                + cell_type[has_fluid_front] + cell_type[has_fluid_back]
+                                );
 
-                        dst_v(i, j, k) =
-                            (
-                            - dst_v(i, j, k + 1) * cell_type[has_fluid_top]
-                            - dst_v(i, j, k - 1) * cell_type[has_fluid_bottom]
-                            - dst_v(i + 1, j, k) * cell_type[has_fluid_right]
-                            - dst_v(i - 1, j, k) * cell_type[has_fluid_left]
-                            )
-                            /
-                            (cell_type[has_fluid_top] + cell_type[has_fluid_bottom]
-                            + cell_type[has_fluid_right] + cell_type[has_fluid_left]
-                            )*(!cell_type[has_fluid_back]);
+                        if (!cell_type[has_fluid_back])
+                            dst_v(i, j, k) =
+                                (
+                                - dst_v(i, j, k + 1) * cell_type[has_fluid_top]
+                                - dst_v(i, j, k - 1) * cell_type[has_fluid_bottom]
+                                - dst_v(i + 1, j, k) * cell_type[has_fluid_right]
+                                - dst_v(i - 1, j, k) * cell_type[has_fluid_left]
+                                )
+                                /
+                                (cell_type[has_fluid_top] + cell_type[has_fluid_bottom]
+                                + cell_type[has_fluid_right] + cell_type[has_fluid_left]
+                                );
 
-                        dst_w(i, j, k) =
-                            (
-                            - dst_w(i, j + 1, k) * cell_type[has_fluid_back]
-                            - dst_w(i, j - 1, k) * cell_type[has_fluid_front]
-                            - dst_w(i + 1, j, k) * cell_type[has_fluid_right]
-                            - dst_w(i - 1, j, k) * cell_type[has_fluid_left]
-                            )
-                            /
-                            (cell_type[has_fluid_back] + cell_type[has_fluid_front]
-                            + cell_type[has_fluid_right] + cell_type[has_fluid_left]
-                            )*(!cell_type[has_fluid_top]);
+                        if (!cell_type[has_fluid_top])
+                            dst_w(i, j, k) =
+                                (
+                                - dst_w(i, j + 1, k) * cell_type[has_fluid_back]
+                                - dst_w(i, j - 1, k) * cell_type[has_fluid_front]
+                                - dst_w(i + 1, j, k) * cell_type[has_fluid_right]
+                                - dst_w(i - 1, j, k) * cell_type[has_fluid_left]
+                                )
+                                /
+                                (cell_type[has_fluid_back] + cell_type[has_fluid_front]
+                                + cell_type[has_fluid_right] + cell_type[has_fluid_left]
+                                );
                     }
                 }
 

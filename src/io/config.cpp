@@ -1,12 +1,12 @@
 #include "config.hpp"
 
+#include "pugixml/pugixml.hpp"
+
 #include <sstream>
 #include <fstream>
 #include <string>
 #include <cstdlib>
 #include <cmath>
-
-#include "pugixml/pugixml.hpp"
 
 namespace nast_hpx { namespace io {
     /// Methods reads the simulation configuration from the given file
@@ -601,7 +601,7 @@ namespace nast_hpx { namespace io {
                     std::getline(issc, v, '/');
 
                     cfg.initial_uv_grid.push_back(
-                        std::pair<Real, Real>(
+                        std::pair<double, double>(
                             std::stod(u), std::stod(v)));
 
                     if (!iss.good())

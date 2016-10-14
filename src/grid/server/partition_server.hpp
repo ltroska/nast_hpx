@@ -1,9 +1,5 @@
-#ifndef NAST_HPX_GRID_SERVER_PARTITION_SERVER_HPP
-#define NAST_HPX_GRID_SERVER_PARTITION_SERVER_HPP
-
-#include <hpx/include/components.hpp>
-#include <hpx/runtime/serialization/serialize.hpp>
-#include <hpx/include/serialization.hpp>
+#ifndef NAST_HPX_GRID_SERVER_PARTITION_SERVER_HPP_
+#define NAST_HPX_GRID_SERVER_PARTITION_SERVER_HPP_
 
 #include "grid/partition_data.hpp"
 #include "grid/send_buffer.hpp"
@@ -13,6 +9,10 @@
 #include "io/config.hpp"
 
 #include "util/cancellation_token.hpp"
+
+#include <hpx/include/components.hpp>
+#include <hpx/runtime/serialization/serialize.hpp>
+#include <hpx/include/serialization.hpp>
 
 namespace hpx { namespace serialization {
 
@@ -53,7 +53,7 @@ public:
         NUM_VARIABLES
     } variables;
 
-    typedef hpx::serialization::serialize_buffer<Real> buffer_type;
+    typedef hpx::serialization::serialize_buffer<double> buffer_type;
     typedef std::vector<hpx::shared_future<void> > future_vector;
     typedef std::vector<future_vector> future_grid;
 
@@ -66,7 +66,7 @@ public:
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, init, init_action);
 
     /// return the sliced data appropriate for given direction
-    triple<Real> do_timestep(Real dt);
+    triple<double> do_timestep(double dt);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, do_timestep, do_timestep_action);
 
     void set_left_boundary(buffer_type buffer, std::size_t step, std::size_t var)
@@ -220,8 +220,8 @@ private:
            & step_ & outcount_ & t_ & next_out_;
     }
 
-    partition_data<Real> data_[NUM_VARIABLES];
-    partition_data<Real> rhs_data_;
+    partition_data<double> data_[NUM_VARIABLES];
+    partition_data<double> rhs_data_;
     partition_data<std::bitset<9> > cell_type_data_;
 
     std::vector<index> fluid_cells_;
@@ -235,12 +235,12 @@ private:
 
     std::vector<hpx::shared_future<void> > compute_rhs_futures;
 
-    std::vector<hpx::shared_future<Real> > compute_res_futures;
+    std::vector<hpx::shared_future<double> > compute_res_futures;
 
     std::vector<hpx::shared_future<void> > set_p_futures;
     std::vector<hpx::shared_future<void> > solver_cycle_futures;
 
-    std::vector<hpx::future<triple<Real> > > local_max_uvs;
+    std::vector<hpx::future<triple<double> > > local_max_uvs;
 
     std::vector<hpx::id_type> ids_;
 
@@ -250,8 +250,10 @@ private:
     std::size_t idx_, idy_, idz_;
     std::size_t step_;
     std::size_t outcount_;
+    std::size_t fluid_stride;
+    std::size_t obstacle_stride;
 
-    Real t_, next_out_;
+    double t_, next_out_;
 
     util::cancellation_token token;
 

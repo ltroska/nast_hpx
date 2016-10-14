@@ -1,14 +1,14 @@
-#ifndef NAST_HPX_GRID_PARTITION_DATA_HPP
-#define NAST_HPX_GRID_PARTITION_DATA_HPP
-
-#include <hpx/runtime/serialization/serialize.hpp>
+#ifndef NAST_HPX_GRID_PARTITION_DATA_HPP_
+#define NAST_HPX_GRID_PARTITION_DATA_HPP_
 
 #include "util/defines.hpp"
+
+#include <hpx/runtime/serialization/serialize.hpp>
 
 namespace nast_hpx { namespace grid {
 
 /// This class represents a block of a grid.
-template<typename T = Real>
+template<typename T = double>
 struct partition_data
 {
 public:

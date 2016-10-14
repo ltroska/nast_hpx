@@ -1,17 +1,17 @@
+#include "writer.hpp"
+
 #include <fstream>
 #include <sstream>
 #include <vector>
 #include <iomanip>
 #include <limits>
 
-#include "writer.hpp"
-
 namespace nast_hpx { namespace io {
 
 void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
             grid_type const& v_data, grid_type const& w_data, type_grid const& cell_types,
             std::size_t res_x, std::size_t res_y, std::size_t res_z, std::size_t i_max,
-            std::size_t j_max, std::size_t k_max, Real dx, Real dy, Real dz, std::size_t step,
+            std::size_t j_max, std::size_t k_max, double dx, double dy, double dz, std::size_t step,
             std::size_t loc, std::size_t idx, std::size_t idy, std::size_t idz)
 {
     std::size_t num_localities = res_x * res_y * res_z;
@@ -85,7 +85,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
         fb.close();
     }
 
-    std::vector<Real> strom(cells_x + 2, 0);
+    std::vector<double> strom(cells_x + 2, 0);
 
     std::string filename;
     filename.append ("./fields/");
@@ -128,25 +128,25 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
     coordinate_z += "\n";
 
     std::stringstream p_stream;
-    p_stream << std::setprecision(std::numeric_limits<Real>::digits10);
+    p_stream << std::setprecision(std::numeric_limits<double>::digits10);
 
     std::stringstream obstacle_stream;
 
     std::stringstream uv_stream;
-    uv_stream << std::setprecision(std::numeric_limits<Real>::digits10);
+    uv_stream << std::setprecision(std::numeric_limits<double>::digits10);
 
     std::stringstream vorticity_stream;
     vorticity_stream
-        << std::setprecision(std::numeric_limits<Real>::digits10);
+        << std::setprecision(std::numeric_limits<double>::digits10);
 
     std::stringstream strom_stream;
-    strom_stream << std::setprecision(std::numeric_limits<Real>::digits10);
+    strom_stream << std::setprecision(std::numeric_limits<double>::digits10);
 
     std::stringstream heat_stream;
-    heat_stream << std::setprecision(std::numeric_limits<Real>::digits10);
+    heat_stream << std::setprecision(std::numeric_limits<double>::digits10);
 
     std::stringstream temp_stream;
-    temp_stream << std::setprecision(std::numeric_limits<Real>::digits10);
+    temp_stream << std::setprecision(std::numeric_limits<double>::digits10);
 
     for (uint i = 0; i < (cells_x * partitions_x + 2) * (cells_y * partitions_y + 2); i++)
     {
@@ -208,7 +208,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
 
                     /*        if (cell_types(i, j, k).test(is_fluid))
                             {
-                                Real tmp = strom[i] + u_data(i, j, k) * dy;
+                                double tmp = strom[i] + u_data(i, j, k) * dy;
                                 strom_stream << tmp << "\n";
 
                                 strom[i] = tmp;
@@ -255,7 +255,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
     std::string heatstring = heat_stream.str();
     std::string tempstring = temp_stream.str();
 
-    os  << std::setprecision(std::numeric_limits<Real>::digits10)
+    os  << std::setprecision(std::numeric_limits<double>::digits10)
         << "<?xml version=\"1.0\"?>" << std::endl
         << "<VTKFile type=\"RectilinearGrid\" version=\"0.1\" byte_order=\"LittleEndian\">"
             << std::endl

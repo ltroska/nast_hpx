@@ -1,5 +1,7 @@
-#ifndef NAST_HPX_UTIL_TRIPLE_HPP
-#define NAST_HPX_UTIL_TRIPLE_HPP
+#ifndef NAST_HPX_UTIL_TRIPLE_HPP_
+#define NAST_HPX_UTIL_TRIPLE_HPP_
+
+#include <iostream>
 
 namespace nast_hpx {
 

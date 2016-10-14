@@ -1,7 +1,7 @@
-#ifndef NAST_HPX_GRID_SEND_BUFFER_HPP
-#define NAST_HPX_GRID_SEND_BUFFER_HPP
+#ifndef NAST_HPX_GRID_SEND_BUFFER_HPP_
+#define NAST_HPX_GRID_SEND_BUFFER_HPP_
 
-#include <hpx/lcos/async.hpp>
+#include <hpx/apply.hpp>
 #include <hpx/runtime/serialization/serialize_buffer.hpp>
 
 #include "partition_data.hpp"

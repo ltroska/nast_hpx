@@ -1,11 +1,11 @@
-#ifndef NAST_HPX_GRID_PACK_BUFFER_HPP
-#define NAST_HPX_GRID_PACK_BUFFER_HPP
-
-#include <hpx/runtime/serialization/serialize_buffer.hpp>
+#ifndef NAST_HPX_GRID_PACK_BUFFER_HPP_
+#define NAST_HPX_GRID_PACK_BUFFER_HPP_
 
 #include "direction.hpp"
 #include "partition_data.hpp"
 #include "util/array_deleter.hpp"
+
+#include <hpx/runtime/serialization/serialize_buffer.hpp>
 
 namespace nast_hpx { namespace grid {
     template <direction dir>
@@ -15,10 +15,10 @@ namespace nast_hpx { namespace grid {
     struct pack_buffer<LEFT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real> const& p, BufferType& buffer)
+        static void call(partition_data<double> const& p, BufferType& buffer)
         {
-            buffer = BufferType(new Real[(p.size_z_ - 2) * (p.size_y_ - 2)],
-                                    (p.size_z_ - 2) * (p.size_y_ - 2), BufferType::take, util::array_deleter<Real>());
+            buffer = BufferType(new double[(p.size_z_ - 2) * (p.size_y_ - 2)],
+                                    (p.size_z_ - 2) * (p.size_y_ - 2), BufferType::take, util::array_deleter<double>());
             typename BufferType::value_type* src = buffer.data();
 
 
@@ -35,10 +35,10 @@ namespace nast_hpx { namespace grid {
     struct pack_buffer<RIGHT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real> const& p, BufferType& buffer)
+        static void call(partition_data<double> const& p, BufferType& buffer)
         {
-            buffer = BufferType(new Real[(p.size_z_ - 2) * (p.size_y_ - 2)],
-                                   (p.size_z_ - 2) * (p.size_y_ - 2), BufferType::take, util::array_deleter<Real>());
+            buffer = BufferType(new double[(p.size_z_ - 2) * (p.size_y_ - 2)],
+                                   (p.size_z_ - 2) * (p.size_y_ - 2), BufferType::take, util::array_deleter<double>());
 
             typename BufferType::value_type* src = buffer.data();
 
@@ -55,10 +55,10 @@ namespace nast_hpx { namespace grid {
     struct pack_buffer<BOTTOM>
     {
         template <typename BufferType>
-        static void call(partition_data<Real> const& p, BufferType& buffer)
+        static void call(partition_data<double> const& p, BufferType& buffer)
         {
-            buffer = BufferType(new Real[(p.size_x_ - 2) * (p.size_y_ - 2)],
-                                    (p.size_x_ - 2) * (p.size_y_ - 2), BufferType::take, util::array_deleter<Real>());
+            buffer = BufferType(new double[(p.size_x_ - 2) * (p.size_y_ - 2)],
+                                    (p.size_x_ - 2) * (p.size_y_ - 2), BufferType::take, util::array_deleter<double>());
 
             typename BufferType::value_type* src = buffer.data();
 
@@ -75,10 +75,10 @@ namespace nast_hpx { namespace grid {
     struct pack_buffer<TOP>
     {
         template <typename BufferType>
-        static void call(partition_data<Real> const& p, BufferType& buffer)
+        static void call(partition_data<double> const& p, BufferType& buffer)
         {
-            buffer = BufferType(new Real[(p.size_x_ - 2) * (p.size_y_ - 2)],
-                                    (p.size_x_ - 2) * (p.size_y_ - 2), BufferType::take, util::array_deleter<Real>());
+            buffer = BufferType(new double[(p.size_x_ - 2) * (p.size_y_ - 2)],
+                                    (p.size_x_ - 2) * (p.size_y_ - 2), BufferType::take, util::array_deleter<double>());
 
             typename BufferType::value_type* src = buffer.data();
 
@@ -95,10 +95,10 @@ namespace nast_hpx { namespace grid {
     struct pack_buffer<FRONT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real> const& p, BufferType& buffer)
+        static void call(partition_data<double> const& p, BufferType& buffer)
         {
-            buffer = BufferType(new Real[(p.size_x_ - 2) * (p.size_z_ - 2)],
-                                    (p.size_x_ - 2) * (p.size_z_ - 2), BufferType::take, util::array_deleter<Real>());
+            buffer = BufferType(new double[(p.size_x_ - 2) * (p.size_z_ - 2)],
+                                    (p.size_x_ - 2) * (p.size_z_ - 2), BufferType::take, util::array_deleter<double>());
 
             typename BufferType::value_type* src = buffer.data();
 
@@ -115,10 +115,10 @@ namespace nast_hpx { namespace grid {
     struct pack_buffer<BACK>
     {
         template <typename BufferType>
-        static void call(partition_data<Real> const& p, BufferType& buffer)
+        static void call(partition_data<double> const& p, BufferType& buffer)
         {
-            buffer = BufferType(new Real[(p.size_x_ - 2) * (p.size_z_ - 2)],
-                                   (p.size_x_ - 2) * (p.size_z_ - 2), BufferType::take, util::array_deleter<Real>());
+            buffer = BufferType(new double[(p.size_x_ - 2) * (p.size_z_ - 2)],
+                                   (p.size_x_ - 2) * (p.size_z_ - 2), BufferType::take, util::array_deleter<double>());
 
             typename BufferType::value_type* src = buffer.data();
 
@@ -135,10 +135,10 @@ namespace nast_hpx { namespace grid {
     struct pack_buffer<BACK_LEFT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real> const& p, BufferType& buffer)
+        static void call(partition_data<double> const& p, BufferType& buffer)
         {
-            buffer = BufferType(new Real[p.size_z_ - 2],
-                                    p.size_z_ - 2, BufferType::take, util::array_deleter<Real>());
+            buffer = BufferType(new double[p.size_z_ - 2],
+                                    p.size_z_ - 2, BufferType::take, util::array_deleter<double>());
 
             typename BufferType::value_type* src = buffer.data();
 
@@ -154,10 +154,10 @@ namespace nast_hpx { namespace grid {
     struct pack_buffer<FRONT_RIGHT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real> const& p, BufferType& buffer)
+        static void call(partition_data<double> const& p, BufferType& buffer)
         {
-            buffer = BufferType(new Real[p.size_z_ - 2],
-                                    p.size_z_ - 2, BufferType::take, util::array_deleter<Real>());
+            buffer = BufferType(new double[p.size_z_ - 2],
+                                    p.size_z_ - 2, BufferType::take, util::array_deleter<double>());
 
             typename BufferType::value_type* src = buffer.data();
 
@@ -173,10 +173,10 @@ namespace nast_hpx { namespace grid {
     struct pack_buffer<BOTTOM_RIGHT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real> const& p, BufferType& buffer)
+        static void call(partition_data<double> const& p, BufferType& buffer)
         {
-            buffer = BufferType(new Real[p.size_y_ - 2],
-                                    p.size_y_ - 2, BufferType::take, util::array_deleter<Real>());
+            buffer = BufferType(new double[p.size_y_ - 2],
+                                    p.size_y_ - 2, BufferType::take, util::array_deleter<double>());
 
             typename BufferType::value_type* src = buffer.data();
 
@@ -192,10 +192,10 @@ namespace nast_hpx { namespace grid {
     struct pack_buffer<TOP_LEFT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real> const& p, BufferType& buffer)
+        static void call(partition_data<double> const& p, BufferType& buffer)
         {
-            buffer = BufferType(new Real[p.size_y_ - 2],
-                                    p.size_y_ - 2, BufferType::take, util::array_deleter<Real>());
+            buffer = BufferType(new double[p.size_y_ - 2],
+                                    p.size_y_ - 2, BufferType::take, util::array_deleter<double>());
 
             typename BufferType::value_type* src = buffer.data();
 
@@ -211,10 +211,10 @@ namespace nast_hpx { namespace grid {
     struct pack_buffer<BACK_BOTTOM>
     {
         template <typename BufferType>
-        static void call(partition_data<Real> const& p, BufferType& buffer)
+        static void call(partition_data<double> const& p, BufferType& buffer)
         {
-            buffer = BufferType(new Real[p.size_x_ - 2],
-                                    p.size_x_ - 2, BufferType::take, util::array_deleter<Real>());
+            buffer = BufferType(new double[p.size_x_ - 2],
+                                    p.size_x_ - 2, BufferType::take, util::array_deleter<double>());
 
             typename BufferType::value_type* src = buffer.data();
 
@@ -230,10 +230,10 @@ namespace nast_hpx { namespace grid {
     struct pack_buffer<FRONT_TOP>
     {
         template <typename BufferType>
-        static void call(partition_data<Real> const& p, BufferType& buffer)
+        static void call(partition_data<double> const& p, BufferType& buffer)
         {
-            buffer = BufferType(new Real[p.size_x_ - 2],
-                                    p.size_x_ - 2, BufferType::take, util::array_deleter<Real>());
+            buffer = BufferType(new double[p.size_x_ - 2],
+                                    p.size_x_ - 2, BufferType::take, util::array_deleter<double>());
 
             typename BufferType::value_type* src = buffer.data();
 

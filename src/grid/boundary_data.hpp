@@ -1,10 +1,10 @@
 #ifndef NAST_HPX_GRID_BOUNDARY_DATA_HPP_
 #define NAST_HPX_GRID_BOUNDARY_DATA_HPP_
 
-#include <iostream>
-
 #include "util/defines.hpp"
 #include "util/triple.hpp"
+
+#include <iostream>
 
 namespace nast_hpx { namespace grid {
 
@@ -12,7 +12,7 @@ namespace nast_hpx { namespace grid {
 struct data
 {
 
-  triple<Real> left, right, bottom, top, front, back;
+  triple<double> left, right, bottom, top, front, back;
   std::size_t left_type, right_type, bottom_type, top_type, front_type, back_type;
 
 };
@@ -27,7 +27,7 @@ struct boundary_condition
       back_type(noslip), front_type(noslip)
     {}
 
-    triple<Real> left, right, bottom, top, back, front;
+    triple<double> left, right, bottom, top, back, front;
     std::size_t left_type, right_type, bottom_type, top_type, back_type, front_type;
 
     template <typename Archive>

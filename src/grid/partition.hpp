@@ -1,5 +1,5 @@
-#ifndef NAST_HPX_GRID_PARTITION_HPP
-#define NAST_HPX_GRID_PARTITION_HPP
+#ifndef NAST_HPX_GRID_PARTITION_HPP_
+#define NAST_HPX_GRID_PARTITION_HPP_
 
 #include "server/partition_server.hpp"
 
@@ -59,7 +59,7 @@ struct partition
         init().wait();
     }
 
-    hpx::future<triple<Real>> do_timestep(Real dt)
+    hpx::future<triple<double>> do_timestep(double dt)
     {
         typename server::partition_server::do_timestep_action act;
         return hpx::async(act, get_id(), dt);

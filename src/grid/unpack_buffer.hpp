@@ -1,9 +1,9 @@
-#ifndef NAST_HPX_GRID_UNPACK_BUFFER_HPP
-#define NAST_HPX_GRID_UNPACK_BUFFER_HPP
-
-#include <hpx/runtime/serialization/serialize_buffer.hpp>
+#ifndef NAST_HPX_GRID_UNPACK_BUFFER_HPP_
+#define NAST_HPX_GRID_UNPACK_BUFFER_HPP_
 
 #include "partition_data.hpp"
+
+#include <hpx/runtime/serialization/serialize_buffer.hpp>
 
 namespace nast_hpx { namespace grid {
     template <direction dir>
@@ -13,7 +13,7 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<LEFT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType buffer)
+        static void call(partition_data<double>& p, BufferType buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 
@@ -32,7 +32,7 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<RIGHT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType buffer)
+        static void call(partition_data<double>& p, BufferType buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 
@@ -51,7 +51,7 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<BOTTOM>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType& buffer)
+        static void call(partition_data<double>& p, BufferType& buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 
@@ -68,7 +68,7 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<TOP>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType& buffer)
+        static void call(partition_data<double>& p, BufferType& buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 
@@ -85,7 +85,7 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<FRONT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType& buffer)
+        static void call(partition_data<double>& p, BufferType& buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 
@@ -102,7 +102,7 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<BACK>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType& buffer)
+        static void call(partition_data<double>& p, BufferType& buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 
@@ -119,7 +119,7 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<BACK_LEFT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType& buffer)
+        static void call(partition_data<double>& p, BufferType& buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 
@@ -135,7 +135,7 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<FRONT_RIGHT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType& buffer)
+        static void call(partition_data<double>& p, BufferType& buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 
@@ -151,7 +151,7 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<BOTTOM_RIGHT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType& buffer)
+        static void call(partition_data<double>& p, BufferType& buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 
@@ -166,7 +166,7 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<TOP_LEFT>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType& buffer)
+        static void call(partition_data<double>& p, BufferType& buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 
@@ -182,7 +182,7 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<BACK_BOTTOM>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType& buffer)
+        static void call(partition_data<double>& p, BufferType& buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 
@@ -198,7 +198,7 @@ namespace nast_hpx { namespace grid {
     struct unpack_buffer<FRONT_TOP>
     {
         template <typename BufferType>
-        static void call(partition_data<Real>& p, BufferType& buffer)
+        static void call(partition_data<double>& p, BufferType& buffer)
         {
             typename BufferType::value_type* src = buffer.data();
 

@@ -1,13 +1,13 @@
-#ifndef NAST_HPX_GRID_RECV_BUFFER_HPP
-#define NAST_HPX_GRID_RECV_BUFFER_HPP
+#ifndef NAST_HPX_GRID_RECV_BUFFER_HPP_
+#define NAST_HPX_GRID_RECV_BUFFER_HPP_
+
+#include "partition_data.hpp"
+#include "unpack_buffer.hpp"
 
 #include <hpx/lcos/async.hpp>
 #include <hpx/lcos/local/receive_buffer.hpp>
 #include <hpx/include/serialization.hpp>
 #include <hpx/runtime/serialization/serialize_buffer.hpp>
-
-#include "partition_data.hpp"
-#include "unpack_buffer.hpp"
 
 namespace nast_hpx { namespace grid {
 

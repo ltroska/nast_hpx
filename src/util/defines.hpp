@@ -1,8 +1,5 @@
-#ifndef UTIL_DEFINES_HPP
-#define UTIL_DEFINES_HPP
-
-#define Real double
-#define uint std::size_t
+#ifndef UTIL_DEFINES_HPP_
+#define UTIL_DEFINES_HPP_
 
 #define has_fluid_left 0
 #define has_fluid_right 1

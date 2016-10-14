@@ -1,11 +1,11 @@
-#ifndef NAST_HPX_STEPPER_SERVER_STEPPER_HPP
-#define NAST_HPX_STEPPER_SERVER_STEPPER_HPP
-
-#include <hpx/include/components.hpp>
-#include <hpx/error.hpp>
+#ifndef NAST_HPX_STEPPER_SERVER_STEPPER_HPP_
+#define NAST_HPX_STEPPER_SERVER_STEPPER_HPP_
 
 #include "io/config.hpp"
 #include "grid/partition.hpp"
+
+#include <hpx/include/components.hpp>
+#include <hpx/error.hpp>
 
 namespace nast_hpx { namespace stepper { namespace server {
 
@@ -28,17 +28,17 @@ struct HPX_COMPONENT_EXPORT stepper_server
         void run();
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, run, run_action);
 
-        void set_dt(uint step, Real dt);
+        void set_dt(uint step, double dt);
         HPX_DEFINE_COMPONENT_ACTION(stepper_server, set_dt, set_dt_action);
 
     private:
         uint num_localities, num_localities_x, num_localities_y, num_localities_z;
-        hpx::lcos::local::receive_buffer<Real> dt_buffer;
+        hpx::lcos::local::receive_buffer<double> dt_buffer;
 
         grid::partition part;
 
         std::size_t rank, max_timesteps, step;
-        Real init_dt, dx, dy, dz, re, pr, tau, t_end;
+        double init_dt, dx, dy, dz, re, pr, tau, t_end;
 
         std::vector<hpx::naming::id_type> localities;
 

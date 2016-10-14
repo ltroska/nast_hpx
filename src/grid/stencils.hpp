@@ -1,17 +1,11 @@
-#ifndef NAST_HPX_GRID_STENCILS_HPP
-#define NAST_HPX_GRID_STENCILS_HPP
-
-#include <vector>
-
-#ifdef WITH_FOR_EACH
-#include <hpx/parallel/algorithms/for_each.hpp>
-#include <hpx/parallel/algorithms/reduce.hpp>
-#include <hpx/parallel/algorithms/transform_reduce.hpp>
-#endif
+#ifndef NAST_HPX_GRID_STENCILS_HPP_
+#define NAST_HPX_GRID_STENCILS_HPP_
 
 #include "partition_data.hpp"
 #include "util/derivatives.hpp"
 #include "util/cancellation_token.hpp"
+
+#include <vector>
 
 namespace nast_hpx { namespace grid {
 
@@ -35,7 +29,7 @@ namespace nast_hpx { namespace grid {
     template<>
     struct stencils<STENCIL_NONE>
     {
-        static void call(partition_data<Real>& dst, partition_data<Real> const& src,
+        static void call(partition_data<double>& dst, partition_data<double> const& src,
                 std::vector<index> const& indices)
             {
                 for (auto const& ind : indices)
@@ -49,8 +43,8 @@ namespace nast_hpx { namespace grid {
     template<>
     struct stencils<STENCIL_SET_VELOCITY_OBSTACLE>
     {
-        static void call(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
-                partition_data<Real>& dst_w,
+        static void call(partition_data<double>& dst_u, partition_data<double>& dst_v,
+                partition_data<double>& dst_w,
                 partition_data<std::bitset<9> > const& cell_types,
                 std::vector<index>::iterator beginIt,
                 std::vector<index>::iterator endIt,
@@ -294,17 +288,17 @@ namespace nast_hpx { namespace grid {
     template<>
     struct stencils<STENCIL_COMPUTE_FG>
     {
-        static void call(partition_data<Real>& dst_f, partition_data<Real>& dst_g,
-            partition_data<Real>& dst_h,
-            partition_data<Real> const& src_u, partition_data<Real> const& src_v,
-            partition_data<Real> const& src_w,
+        static void call(partition_data<double>& dst_f, partition_data<double>& dst_g,
+            partition_data<double>& dst_h,
+            partition_data<double> const& src_u, partition_data<double> const& src_v,
+            partition_data<double> const& src_w,
             partition_data<std::bitset<9> > const& cell_types,
             std::vector<index>::iterator beginObstacle,
             std::vector<index>::iterator endObstacle,
             std::vector<index>::iterator beginFluid,
             std::vector<index>::iterator endFluid,
-            Real re, Real gx, Real gy, Real gz, Real beta, Real dx, Real dy, Real dz,
-            Real dx_sq, Real dy_sq, Real dz_sq, Real dt, Real alpha
+            double re, double gx, double gy, double gz, double beta, double dx, double dy, double dz,
+            double dx_sq, double dy_sq, double dz_sq, double dt, double alpha
            )
         {
             for (auto it = beginObstacle; it < endObstacle; ++it)
@@ -392,13 +386,13 @@ namespace nast_hpx { namespace grid {
     template<>
     struct stencils<STENCIL_COMPUTE_RHS>
     {
-        static void call(partition_data<Real>& dst_rhs,
-            partition_data<Real> const& src_f, partition_data<Real> const& src_g,
-            partition_data<Real> const& src_h,
+        static void call(partition_data<double>& dst_rhs,
+            partition_data<double> const& src_f, partition_data<double> const& src_g,
+            partition_data<double> const& src_h,
             partition_data<std::bitset<9> > const& cell_types,
             std::vector<index>::iterator beginIt,
             std::vector<index>::iterator endIt,
-            Real dx, Real dy, Real dz, Real dt)
+            double dx, double dy, double dz, double dt)
         {
             for (auto it = beginIt; it < endIt; ++it)
             {
@@ -424,7 +418,7 @@ namespace nast_hpx { namespace grid {
     template<>
     struct stencils<STENCIL_SET_P_OBSTACLE>
     {
-        static void call(partition_data<Real>& dst_p,
+        static void call(partition_data<double>& dst_p,
             partition_data<std::bitset<9> > const& cell_types,
             std::vector<index>::iterator beginIt,
             std::vector<index>::iterator endIt,
@@ -463,10 +457,10 @@ namespace nast_hpx { namespace grid {
     template<>
     struct stencils<STENCIL_SOR>
     {
-        static void call(partition_data<Real>& dst_p,
-            partition_data<Real> const& src_rhs,
+        static void call(partition_data<double>& dst_p,
+            partition_data<double> const& src_rhs,
             std::vector<index> const& fluid_cells,
-            Real part1, Real part2, Real dx_sq, Real dy_sq, Real dz_sq,
+            double part1, double part2, double dx_sq, double dy_sq, double dz_sq,
             util::cancellation_token token)
         {
 
@@ -498,11 +492,11 @@ namespace nast_hpx { namespace grid {
     struct stencils<STENCIL_JACOBI>
     {
         //TODO remove idx, idy (was for debug)
-        static void call(partition_data<Real>& dst_p,
-            partition_data<Real> const& src_rhs,
+        static void call(partition_data<double>& dst_p,
+            partition_data<double> const& src_rhs,
             std::vector<index>::iterator beginIt,
             std::vector<index>::iterator endIt,
-            Real dx_sq, Real dy_sq, Real dz_sq, util::cancellation_token token)
+            double dx_sq, double dy_sq, double dz_sq, util::cancellation_token token)
         {
             if (!token.was_cancelled())
             {
@@ -529,13 +523,13 @@ namespace nast_hpx { namespace grid {
     template<>
     struct stencils<STENCIL_COMPUTE_RESIDUAL>
     {
-        static Real call(partition_data<Real> const& src_p,
-            partition_data<Real> const& src_rhs,
+        static double call(partition_data<double> const& src_p,
+            partition_data<double> const& src_rhs,
             std::vector<index>::iterator beginIt,
             std::vector<index>::iterator endIt,
-            Real over_dx_sq, Real over_dy_sq, Real over_dz_sq, util::cancellation_token token)
+            double over_dx_sq, double over_dy_sq, double over_dz_sq, util::cancellation_token token)
         {
-            Real local_residual = 0;
+            double local_residual = 0;
 
             for (auto it = beginIt; it < endIt; ++it)
             {
@@ -544,7 +538,7 @@ namespace nast_hpx { namespace grid {
                 auto const j = ind.y;
                 auto const k = ind.z;
 
-                Real tmp =
+                double tmp =
                     (src_p(i + 1, j, k) - 2 * src_p(i, j, k) + src_p(i - 1, j, k)) / over_dx_sq
                     + (src_p(i, j + 1, k) - 2 * src_p(i, j, k) + src_p(i, j - 1, k)) / over_dy_sq
                     + (src_p(i, j, k + 1) - 2 * src_p(i, j, k) + src_p(i, j, k - 1)) / over_dz_sq
@@ -560,20 +554,20 @@ namespace nast_hpx { namespace grid {
     template<>
     struct stencils<STENCIL_UPDATE_VELOCITY>
     {
-        static triple<Real> call(partition_data<Real>& dst_u,
-            partition_data<Real>& dst_v,
-            partition_data<Real>& dst_w,
-            partition_data<Real> const& src_f,
-            partition_data<Real> const& src_g,
-            partition_data<Real> const& src_h,
-            partition_data<Real> const& src_p,
+        static triple<double> call(partition_data<double>& dst_u,
+            partition_data<double>& dst_v,
+            partition_data<double>& dst_w,
+            partition_data<double> const& src_f,
+            partition_data<double> const& src_g,
+            partition_data<double> const& src_h,
+            partition_data<double> const& src_p,
             partition_data<std::bitset<9> > const& cell_types,
             std::vector<index>::iterator beginIt,
             std::vector<index>::iterator endIt,
-            Real dt, Real over_dx, Real over_dy, Real over_dz
+            double dt, double over_dx, double over_dy, double over_dz
             )
         {
-            triple<Real> max_uvw(0);
+            triple<double> max_uvw(0);
 
             for (auto it = beginIt; it < endIt; ++it)
             {

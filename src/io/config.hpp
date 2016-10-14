@@ -1,12 +1,12 @@
-#ifndef NAST_HPX_IO_CONFIG_HPP
-#define NAST_HPX_IO_CONFIG_HPP
+#ifndef NAST_HPX_IO_CONFIG_HPP_
+#define NAST_HPX_IO_CONFIG_HPP_
+
+#include "util/defines.hpp"
+#include "grid/boundary_data.hpp"
 
 #include <iostream>
 #include <bitset>
 #include <vector>
-
-#include "util/defines.hpp"
-#include "grid/boundary_data.hpp"
 
 namespace nast_hpx { namespace io {
 
@@ -19,48 +19,48 @@ struct config
         uint k_max;
         uint num_fluid_cells;
 
-        Real x_length;
-        Real y_length;
-        Real z_length;
-        Real dx;
-        Real dy;
-        Real dz;
-        Real over_dx;
-        Real over_dy;
-        Real over_dz;
-        Real dx_sq;
-        Real dy_sq;
-        Real dz_sq;
-        Real over_dx_sq;
-        Real over_dy_sq;
-        Real over_dz_sq;
+        double x_length;
+        double y_length;
+        double z_length;
+        double dx;
+        double dy;
+        double dz;
+        double over_dx;
+        double over_dy;
+        double over_dz;
+        double dx_sq;
+        double dy_sq;
+        double dz_sq;
+        double over_dx_sq;
+        double over_dy_sq;
+        double over_dz_sq;
 
-        Real part1;
-        Real part2;
-        Real factor_jacobi;
+        double part1;
+        double part2;
+        double factor_jacobi;
 
-        Real re;
-        Real pr;
-        Real omega;
-        Real tau;
-        Real alpha;
-        Real beta;
-        Real gx;
-        Real gy;
-        Real gz;
+        double re;
+        double pr;
+        double omega;
+        double tau;
+        double alpha;
+        double beta;
+        double gx;
+        double gy;
+        double gz;
 
         bool vtk;
-        Real delta_vec;
+        double delta_vec;
         bool verbose;
 
-        Real t_end;
-        Real initial_dt;
+        double t_end;
+        double initial_dt;
         std::size_t max_timesteps;
 
         uint sub_iterations;
         uint iter_max;
-        Real eps;
-        Real eps_sq;
+        double eps;
+        double eps_sq;
 
         std::size_t num_localities;
         std::size_t num_localities_x;
@@ -92,7 +92,7 @@ struct config
         std::vector<std::bitset<9> > flag_grid;
 
         bool with_initial_uv_grid;
-        std::vector<std::pair<Real, Real> > initial_uv_grid;
+        std::vector<std::pair<double, double> > initial_uv_grid;
 
         template <typename Archive>
         void serialize(Archive& ar, const unsigned int version)

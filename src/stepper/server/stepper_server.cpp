@@ -1,14 +1,12 @@
-#include <chrono>
-
-//#include <hpx/include/iostreams.hpp>
-#include <hpx/lcos/gather.hpp>
-#include <hpx/lcos/broadcast.hpp>
-#include <hpx/runtime/components/migrate_component.hpp>
-
 #include "stepper_server.hpp"
 
 #include "util/triple.hpp"
 
+#include <chrono>
+
+#include <hpx/lcos/gather.hpp>
+#include <hpx/lcos/broadcast.hpp>
+#include <hpx/runtime/components/migrate_component.hpp>
 
 typedef nast_hpx::stepper::server::stepper_server stepper_component;
 typedef hpx::components::component<stepper_component> stepper_server_type;
@@ -21,7 +19,7 @@ HPX_REGISTER_ACTION(nast_hpx::stepper::server::stepper_server::setup_action,
 HPX_REGISTER_ACTION(nast_hpx::stepper::server::stepper_server::run_action,
     stepper_server_run_action);
 
-typedef nast_hpx::triple<Real> vec3;
+typedef nast_hpx::triple<double> vec3;
 HPX_REGISTER_GATHER(vec3, stepper_server_velocity_gather);
 
 namespace nast_hpx { namespace stepper { namespace server {
@@ -64,24 +62,24 @@ void stepper_server::run()
 {
     part.init_sync();
 
-    Real dt = init_dt;
+    double dt = init_dt;
 
     std::size_t local_step = 0;
     bool running = true;
 
-    for (Real t = 0;; ++step, ++local_step)
+    for (double t = 0;; ++step, ++local_step)
     {
         if (max_timesteps > 0 && local_step >= max_timesteps)
             break;
 
        // std::cout << "step " << step << std::endl;
-        hpx::future<triple<Real> > local_max_velocity =
+        hpx::future<triple<double> > local_max_velocity =
            part.do_timestep(dt);
 
         // if this is the root locality gather all remote residuals and sum up
         if (hpx::get_locality_id() == 0)
         {
-            hpx::future<std::vector<triple<Real> > >
+            hpx::future<std::vector<triple<double> > >
             max_velocities =
                 hpx::lcos::gather_here(velocity_basename,
                                         std::move(local_max_velocity),
@@ -89,9 +87,9 @@ void stepper_server::run()
 
             max_velocities.then(
                 hpx::util::unwrapped(
-                    [=, &t](std::vector<triple<Real> > local_max_uvws)
+                    [=, &t](std::vector<triple<double> > local_max_uvws)
                     {
-                        triple<Real> global_max_uvw(0);
+                        triple<double> global_max_uvw(0);
 
                         for (auto& max_uvw : local_max_uvws)
                         {
@@ -108,7 +106,7 @@ void stepper_server::run()
                                     ? max_uvw.z : global_max_uvw.z);
                         }
 
-                        Real new_dt =
+                        double new_dt =
                             std::min(re / 2. * 1. / (1. / std::pow(dx, 2)
                                         + 1. / std::pow(dy, 2)
                                         + 1. / std::pow(dz, 2))
@@ -136,7 +134,7 @@ void stepper_server::run()
     }
 }
 
-void stepper_server::set_dt(uint step, Real dt)
+void stepper_server::set_dt(uint step, double dt)
 {
     dt_buffer.store_received(step, std::move(dt));
 }

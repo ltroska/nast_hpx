@@ -1,5 +1,5 @@
-#ifndef NAST_HPX_STEPPER_STEPPER_HPP
-#define NAST_HPX_STEPPER_STEPPER_HPP
+#ifndef NAST_HPX_STEPPER_STEPPER_HPP_
+#define NAST_HPX_STEPPER_STEPPER_HPP_
 
 #include "server/stepper_server.hpp"
 

@@ -1,5 +1,5 @@
-#ifndef NAST_HPX_GRID_DIRECTION_HPP
-#define NAST_HPX_GRID_DIRECTION_HPP
+#ifndef NAST_HPX_GRID_DIRECTION_HPP_
+#define NAST_HPX_GRID_DIRECTION_HPP_
 
 namespace nast_hpx { namespace grid {
 

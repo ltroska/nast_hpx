@@ -1,11 +1,11 @@
+#include "partition_server.hpp"
+#include "grid/stencils.hpp"
+#include "io/writer.hpp"
+
 #include <hpx/lcos/gather.hpp>
 #include <hpx/lcos/broadcast.hpp>
 
 #include <hpx/lcos/when_all.hpp>
-
-#include "partition_server.hpp"
-#include "grid/stencils.hpp"
-#include "io/writer.hpp"
 
 typedef nast_hpx::grid::server::partition_server partition_component;
 typedef hpx::components::component<partition_component> partition_server_type;
@@ -19,7 +19,7 @@ HPX_REGISTER_ACTION(nast_hpx::grid::server::partition_server::do_timestep_action
 HPX_REGISTER_ACTION(nast_hpx::grid::server::partition_server::init_action,
     partition_server_init_action);
 
-HPX_REGISTER_GATHER(Real, partition_server_residual_gather);
+HPX_REGISTER_GATHER(double, partition_server_residual_gather);
 
 namespace nast_hpx { namespace grid { namespace server {
 
@@ -69,6 +69,9 @@ partition_server::partition_server(io::config const& cfg)
                             || cell_type_data_(i, j, k).count() > 2)
                     obstacle_cells_.emplace_back(i, j, k);
             }
+
+    fluid_stride = fluid_cells_.size() / c.threads + (fluid_cells_.size() % c.threads > 0);
+    obstacle_stride = obstacle_cells_.size() / c.threads + (obstacle_cells_.size() % c.threads > 0);
 }
 
 void partition_server::init()
@@ -910,11 +913,8 @@ Iter safe_advance(Iter it, Iter end, std::size_t stride)
     return (stride > end - it) ? end : it + stride;
 }
 
-triple<Real> partition_server::do_timestep(Real dt)
+triple<double> partition_server::do_timestep(double dt)
 {
-    std::size_t fluid_stride = fluid_cells_.size() / c.threads + (fluid_cells_.size() % c.threads > 0);
-    std::size_t obstacle_stride = obstacle_cells_.size() / c.threads + (obstacle_cells_.size() % c.threads > 0);
-
     set_velocity_futures.clear();
     set_velocity_futures.reserve(c.threads);
 
@@ -962,8 +962,6 @@ triple<Real> partition_server::do_timestep(Real dt)
             )
         ).wait();
     }
-
-
 
     compute_fg_futures.clear();
     compute_fg_futures.reserve(c.threads);
@@ -1143,13 +1141,13 @@ triple<Real> partition_server::do_timestep(Real dt)
             endIt = safe_advance(endIt, fluid_cells_.end(), fluid_stride);
         }
 
-        hpx::future<Real> local_residual =
+        hpx::future<double> local_residual =
             hpx::dataflow(
                 hpx::util::unwrapped(
-                    [num_fluid_cells = c.num_fluid_cells](std::vector<Real> residuals)
-                    -> Real
+                    [num_fluid_cells = c.num_fluid_cells](std::vector<double> residuals)
+                    -> double
                     {
-                        Real sum = 0;
+                        double sum = 0;
 
                         for (std::size_t i = 0; i < residuals.size(); ++i)
                             sum += residuals[i];
@@ -1162,16 +1160,16 @@ triple<Real> partition_server::do_timestep(Real dt)
 
             if (c.rank == 0)
             {
-                hpx::future<std::vector<Real> > partial_residuals =
+                hpx::future<std::vector<double> > partial_residuals =
                     hpx::lcos::gather_here(residual_basename,
                                             std::move(local_residual),
                                             c.num_partitions, step_ * c.iter_max + iter, 0);
 
                 partial_residuals.then(
                     hpx::util::unwrapped(
-                        [dt, iter_int = iter, step = step_, t = t_, this](std::vector<Real> local_residuals)
+                        [dt, iter_int = iter, step = step_, t = t_, this](std::vector<double> local_residuals)
                         {
-                            Real residual = 0;
+                            double residual = 0;
 
                             for (std::size_t i = 0; i < local_residuals.size(); ++i)
                                 residual += local_residuals[i];
@@ -1229,13 +1227,13 @@ triple<Real> partition_server::do_timestep(Real dt)
         endIt = safe_advance(endIt, fluid_cells_.end(), fluid_stride);
     }
 
-    hpx::future<triple<Real> > local_max_uv =
+    hpx::future<triple<double> > local_max_uv =
         hpx::dataflow(
             hpx::util::unwrapped(
-                [](std::vector<triple<Real> > max_uvs)
-                -> triple<Real>
+                [](std::vector<triple<double> > max_uvs)
+                -> triple<double>
                 {
-                    triple<Real> max_uv(0);
+                    triple<double> max_uv(0);
 
                     for (std::size_t i = 0; i < max_uvs.size(); ++i)
                     {

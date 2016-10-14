@@ -18,6 +18,8 @@ int hpx_main(boost::program_options::variables_map& vm)
         std::cout << "Threads on locality " << hpx::get_locality_id()
             << " = " << hpx::get_os_thread_count() << std::endl;
 
+    cfg.threads = hpx::get_os_thread_count();
+
     auto rank = hpx::get_locality_id();
     auto num_localities = hpx::get_num_localities_sync();
 

@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-#include "util/typedefs.hpp"
+#include "util/defines.hpp"
 #include "util/triple.hpp"
 
 namespace nast_hpx { namespace grid {

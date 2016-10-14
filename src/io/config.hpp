@@ -5,7 +5,7 @@
 #include <bitset>
 #include <vector>
 
-#include "util/typedefs.hpp"
+#include "util/defines.hpp"
 #include "grid/boundary_data.hpp"
 
 namespace nast_hpx { namespace io {
@@ -85,6 +85,8 @@ struct config
         std::size_t idy;
         std::size_t idz;
 
+        std::size_t threads;
+
         grid::boundary_condition bnd_condition;
 
         std::vector<std::bitset<9> > flag_grid;
@@ -103,7 +105,7 @@ struct config
                 & num_localities_x & num_localities_y & num_localities_z & num_partitions
                 & num_partitions_x & num_partitions_y & num_partitions_z & num_x_blocks
                 & num_y_blocks & num_z_blocks & cells_x_per_block & cells_y_per_block & cells_z_per_block
-                & rank & idx & idy & idz & with_initial_uv_grid
+                & rank & idx & idy & idz & threads & with_initial_uv_grid
                 & bnd_condition;
         }
 

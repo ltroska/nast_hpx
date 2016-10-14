@@ -1,5 +1,5 @@
-#ifndef UTIL_TYPEDEFS_HPP
-#define UTIL_TYPEDEFS_HPP
+#ifndef UTIL_DEFINES_HPP
+#define UTIL_DEFINES_HPP
 
 #define Real double
 #define uint std::size_t

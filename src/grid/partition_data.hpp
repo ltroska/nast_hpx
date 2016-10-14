@@ -3,7 +3,7 @@
 
 #include <hpx/runtime/serialization/serialize.hpp>
 
-#include "util/typedefs.hpp"
+#include "util/defines.hpp"
 
 namespace nast_hpx { namespace grid {
 
@@ -20,8 +20,8 @@ public:
       size_(0)
     {}
 
-    partition_data(std::size_t size_x, std::size_t size_y, std::size_t size_z)
-    : data_(size_x * size_y * size_z, T()),
+    partition_data(std::size_t size_x, std::size_t size_y, std::size_t size_z, T val = T())
+    : data_(size_x * size_y * size_z, val),
       size_x_(size_x),
       size_y_(size_y),
       size_z_(size_z),
@@ -67,65 +67,6 @@ public:
     std::size_t size_x_;
     std::size_t size_y_;
     std::size_t size_z_;
-    std::size_t size_;
-};
-
-/// This class represents a block of a grid.
-template<typename T = Real>
-struct partition_data_2d
-{
-public:
-
-    partition_data_2d()
-    : size_x_(0),
-      size_y_(0),
-      size_(0)
-    {}
-
-    partition_data_2d(std::size_t size_x, std::size_t size_y)
-    : data_(size_x * size_y, T()),
-      size_x_(size_x),
-      size_y_(size_y),
-      size_(size_x * size_y)
-    {}
-
-    void resize(std::size_t size_x, std::size_t size_y, T val = T())
-    {
-        size_x_ = size_x;
-        size_y_ = size_y;
-        size_ = size_x * size_y;
-        data_.resize(size_x_ * size_y_, val);
-    }
-
-    void clear(T val = T())
-    {
-        for (auto& elem : data_)
-            elem = val;
-    }
-
-    inline T operator[](std::size_t idx) const { return data_[idx];}
-    inline T& operator[](std::size_t idx) { return data_[idx];}
-
-    inline T& operator()(std::size_t idx, std::size_t idy)
-    {return data_[idy * size_x_ + idx];}
-
-    inline T const& operator()(std::size_t idx, std::size_t idy) const
-    {return data_[idy * size_x_ + idx];}
-
-    typename std::vector<T>::iterator begin() { return data_.begin(); }
-    typename std::vector<T>::iterator end() { return data_.end(); }
-
-    friend class hpx::serialization::access;
-
-    template <typename Archive>
-    void serialize(Archive& ar, const unsigned version)
-    {
-        ar & size_x_ & size_y_ & size_ & data_;
-    }
-
-    std::vector<T> data_;
-    std::size_t size_x_;
-    std::size_t size_y_;
     std::size_t size_;
 };
 

@@ -46,28 +46,29 @@ namespace nast_hpx { namespace grid {
             }
     };
 
-
     template<>
     struct stencils<STENCIL_SET_VELOCITY_OBSTACLE>
     {
         static void call(partition_data<Real>& dst_u, partition_data<Real>& dst_v,
                 partition_data<Real>& dst_w,
                 partition_data<std::bitset<9> > const& cell_types,
-                std::vector<index> const& boundary_cells,
-                std::vector<index> const& obstacle_cells,
+                std::vector<index>::iterator beginIt,
+                std::vector<index>::iterator endIt,
                 boundary_condition const& bnd_condition)
             {
-                for (auto const& ind : obstacle_cells)
+                for (auto it = beginIt; it < endIt; ++it)
                 {
+                    auto const& ind = *it;
+
                     auto const i = ind.x;
                     auto const j = ind.y;
                     auto const k = ind.z;
 
                     auto const& cell_type = cell_types(i, j, k);
 
-                    if (cell_type.test(is_boundary))
+                    if (cell_type[is_boundary])
                     {
-                        if (cell_type.test(has_fluid_bottom))
+                        if (cell_type[has_fluid_bottom])
                         {
                             switch(bnd_condition.top_type)
                             {
@@ -97,7 +98,7 @@ namespace nast_hpx { namespace grid {
                             }
                         }
 
-                        if (cell_type.test(has_fluid_top))
+                        if (cell_type[has_fluid_top])
                         {
                             switch(bnd_condition.bottom_type)
                             {
@@ -124,12 +125,10 @@ namespace nast_hpx { namespace grid {
                                     dst_v(i, j, k) = 2 * bnd_condition.bottom.y - dst_v(i, j, k + 1);
                                     dst_w(i, j, k) = bnd_condition.bottom.z;
                                     break;
-
-
                             }
                         }
 
-                        if (cell_type.test(has_fluid_left))
+                        if (cell_type[has_fluid_left])
                         {
                             switch(bnd_condition.right_type)
                             {
@@ -159,7 +158,7 @@ namespace nast_hpx { namespace grid {
                             }
                         }
 
-                        if (cell_type.test(has_fluid_right))
+                        if (cell_type[has_fluid_right])
                         {
                             switch(bnd_condition.left_type)
                             {
@@ -189,7 +188,7 @@ namespace nast_hpx { namespace grid {
                             }
                         }
 
-                        if (cell_type.test(has_fluid_front))
+                        if (cell_type[has_fluid_front])
                         {
                             switch(bnd_condition.back_type)
                             {
@@ -219,7 +218,7 @@ namespace nast_hpx { namespace grid {
                             }
                         }
 
-                        if (cell_type.test(has_fluid_back))
+                        if (cell_type[has_fluid_back])
                         {
                             switch(bnd_condition.front_type)
                             {
@@ -253,39 +252,39 @@ namespace nast_hpx { namespace grid {
                     {
                         dst_u(i, j, k) =
                             (
-                            - dst_u(i, j, k + 1) * cell_type.test(has_fluid_top)
-                            - dst_u(i, j, k - 1) * cell_type.test(has_fluid_bottom)
-                            - dst_u(i, j + 1, k) * cell_type.test(has_fluid_back)
-                            - dst_u(i, j - 1, k) * cell_type.test(has_fluid_front)
+                            - dst_u(i, j, k + 1) * cell_type[has_fluid_top]
+                            - dst_u(i, j, k - 1) * cell_type[has_fluid_bottom]
+                            - dst_u(i, j + 1, k) * cell_type[has_fluid_back]
+                            - dst_u(i, j - 1, k) * cell_type[has_fluid_front]
                             )
                             /
-                            (cell_type.test(has_fluid_top) + cell_type.test(has_fluid_bottom)
-                            + cell_type.test(has_fluid_front) + cell_type.test(has_fluid_back)
-                            )*(!cell_type.test(has_fluid_right));
+                            (cell_type[has_fluid_top] + cell_type[has_fluid_bottom]
+                            + cell_type[has_fluid_front] + cell_type[has_fluid_back]
+                            )*(!cell_type[has_fluid_right]);
 
                         dst_v(i, j, k) =
                             (
-                            - dst_v(i, j, k + 1) * cell_type.test(has_fluid_top)
-                            - dst_v(i, j, k - 1) * cell_type.test(has_fluid_bottom)
-                            - dst_v(i + 1, j, k) * cell_type.test(has_fluid_right)
-                            - dst_v(i - 1, j, k) * cell_type.test(has_fluid_left)
+                            - dst_v(i, j, k + 1) * cell_type[has_fluid_top]
+                            - dst_v(i, j, k - 1) * cell_type[has_fluid_bottom]
+                            - dst_v(i + 1, j, k) * cell_type[has_fluid_right]
+                            - dst_v(i - 1, j, k) * cell_type[has_fluid_left]
                             )
                             /
-                            (cell_type.test(has_fluid_top) + cell_type.test(has_fluid_bottom)
-                            + cell_type.test(has_fluid_right) + cell_type.test(has_fluid_left)
-                            )*(!cell_type.test(has_fluid_back));
+                            (cell_type[has_fluid_top] + cell_type[has_fluid_bottom]
+                            + cell_type[has_fluid_right] + cell_type[has_fluid_left]
+                            )*(!cell_type[has_fluid_back]);
 
                         dst_w(i, j, k) =
                             (
-                            - dst_w(i, j + 1, k) * cell_type.test(has_fluid_back)
-                            - dst_w(i, j - 1, k) * cell_type.test(has_fluid_front)
-                            - dst_w(i + 1, j, k) * cell_type.test(has_fluid_right)
-                            - dst_w(i - 1, j, k) * cell_type.test(has_fluid_left)
+                            - dst_w(i, j + 1, k) * cell_type[has_fluid_back]
+                            - dst_w(i, j - 1, k) * cell_type[has_fluid_front]
+                            - dst_w(i + 1, j, k) * cell_type[has_fluid_right]
+                            - dst_w(i - 1, j, k) * cell_type[has_fluid_left]
                             )
                             /
-                            (cell_type.test(has_fluid_back) + cell_type.test(has_fluid_front)
-                            + cell_type.test(has_fluid_right) + cell_type.test(has_fluid_left)
-                            )*(!cell_type.test(has_fluid_top));
+                            (cell_type[has_fluid_back] + cell_type[has_fluid_front]
+                            + cell_type[has_fluid_right] + cell_type[has_fluid_left]
+                            )*(!cell_type[has_fluid_top]);
                     }
                 }
 
@@ -300,39 +299,44 @@ namespace nast_hpx { namespace grid {
             partition_data<Real> const& src_u, partition_data<Real> const& src_v,
             partition_data<Real> const& src_w,
             partition_data<std::bitset<9> > const& cell_types,
-            std::vector<index> const& boundary_cells,
-            std::vector<index> const& obstacle_cells,
-            std::vector<index> const& fluid_cells,
+            std::vector<index>::iterator beginObstacle,
+            std::vector<index>::iterator endObstacle,
+            std::vector<index>::iterator beginFluid,
+            std::vector<index>::iterator endFluid,
             Real re, Real gx, Real gy, Real gz, Real beta, Real dx, Real dy, Real dz,
             Real dx_sq, Real dy_sq, Real dz_sq, Real dt, Real alpha
            )
         {
-            for (auto const& ind : obstacle_cells)
+            for (auto it = beginObstacle; it < endObstacle; ++it)
             {
+                auto const& ind = *it;
+
                 auto const i = ind.x;
                 auto const j = ind.y;
                 auto const k = ind.z;
 
                 auto const& cell_type = cell_types(i, j, k);
 
-                if (cell_type.test(has_fluid_top))
+                if (cell_type[has_fluid_top])
                 {
                     dst_h(i, j, k) = src_w(i, j, k);
                 }
 
-                if (cell_type.test(has_fluid_right))
+                if (cell_type[has_fluid_right])
                 {
                     dst_f(i, j, k) = src_u(i, j, k);
                 }
 
-                if (cell_type.test(has_fluid_back))
+                if (cell_type[has_fluid_back])
                 {
                     dst_g(i, j, k) = src_v(i, j, k);
                 }
             }
 
-            for (auto const& ind : fluid_cells)
+            for (auto it = beginFluid; it < endFluid; ++it)
             {
+                auto const& ind = *it;
+
                 auto const i = ind.x;
                 auto const j = ind.y;
                 auto const k = ind.z;
@@ -340,7 +344,7 @@ namespace nast_hpx { namespace grid {
                 auto const& cell_type = cell_types(i, j, k);
 
                 dst_f(i, j, k) =
-                    src_u(i, j, k) + cell_type.test(has_fluid_right) *
+                    src_u(i, j, k) + cell_type[has_fluid_right] *
                       dt * (
                         1. / re * (util::derivatives::second_derivative_fwd_bkwd_x(src_u, i, j, k, dx_sq)
                                     + util::derivatives::second_derivative_fwd_bkwd_y(src_u, i, j, k, dy_sq)
@@ -354,7 +358,7 @@ namespace nast_hpx { namespace grid {
                     );
 
                 dst_g(i, j, k) =
-                    src_v(i, j, k) + cell_type.test(has_fluid_back) *
+                    src_v(i, j, k) + cell_type[has_fluid_back] *
                     dt * (
                         1. / re * (util::derivatives::second_derivative_fwd_bkwd_x(src_v, i, j, k, dx_sq)
                                    + util::derivatives::second_derivative_fwd_bkwd_y(src_v, i, j, k, dy_sq)
@@ -368,7 +372,7 @@ namespace nast_hpx { namespace grid {
                     );
 
                 dst_h(i, j, k) =
-                    src_w(i, j, k) + cell_type.test(has_fluid_top) *
+                    src_w(i, j, k) + cell_type[has_fluid_top] *
                      dt * (
                         1. / re * (util::derivatives::second_derivative_fwd_bkwd_x(src_w, i, j, k, dx_sq)
                                     + util::derivatives::second_derivative_fwd_bkwd_y(src_w, i, j, k, dy_sq)
@@ -392,11 +396,13 @@ namespace nast_hpx { namespace grid {
             partition_data<Real> const& src_f, partition_data<Real> const& src_g,
             partition_data<Real> const& src_h,
             partition_data<std::bitset<9> > const& cell_types,
-            std::vector<index> const& fluid_cells,
+            std::vector<index>::iterator beginIt,
+            std::vector<index>::iterator endIt,
             Real dx, Real dy, Real dz, Real dt)
         {
-            for (auto const& ind : fluid_cells)
+            for (auto it = beginIt; it < endIt; ++it)
             {
+                auto const& ind = *it;
                 auto const i = ind.x;
                 auto const j = ind.y;
                 auto const k = ind.z;
@@ -420,14 +426,15 @@ namespace nast_hpx { namespace grid {
     {
         static void call(partition_data<Real>& dst_p,
             partition_data<std::bitset<9> > const& cell_types,
-            std::vector<index> const& boundary_cells,
-            std::vector<index> const& obstacle_cells,
+            std::vector<index>::iterator beginIt,
+            std::vector<index>::iterator endIt,
             util::cancellation_token token)
         {
             if (!token.was_cancelled())
             {
-                for (auto const& ind : obstacle_cells)
+                for (auto it = beginIt; it < endIt; ++it)
                 {
+                    auto const& ind = *it;
                     auto const i = ind.x;
                     auto const j = ind.y;
                     auto const k = ind.z;
@@ -435,24 +442,23 @@ namespace nast_hpx { namespace grid {
                     auto const& cell_type = cell_types(i, j, k);
 
                     dst_p(i, j, k) = (
-                                            dst_p(i - 1, j, k) * cell_type.test(has_fluid_left)
-                                          + dst_p(i + 1, j, k) * cell_type.test(has_fluid_right)
-                                          + dst_p(i, j - 1, k) * cell_type.test(has_fluid_front)
-                                          + dst_p(i, j + 1, k) * cell_type.test(has_fluid_back)
-                                          + dst_p(i, j, k - 1) * cell_type.test(has_fluid_bottom)
-                                          + dst_p(i, j, k + 1) * cell_type.test(has_fluid_top)
+                                            dst_p(i - 1, j, k) * cell_type[has_fluid_left]
+                                          + dst_p(i + 1, j, k) * cell_type[has_fluid_right]
+                                          + dst_p(i, j - 1, k) * cell_type[has_fluid_front]
+                                          + dst_p(i, j + 1, k) * cell_type[has_fluid_back]
+                                          + dst_p(i, j, k - 1) * cell_type[has_fluid_bottom]
+                                          + dst_p(i, j, k + 1) * cell_type[has_fluid_top]
                                       )
                                       /
                                       (
-                                            cell_type.test(has_fluid_left) + cell_type.test(has_fluid_right)
-                                          + cell_type.test(has_fluid_bottom) + cell_type.test(has_fluid_top)
-                                          + cell_type.test(has_fluid_front) + cell_type.test(has_fluid_back)
+                                            cell_type[has_fluid_left] + cell_type[has_fluid_right]
+                                          + cell_type[has_fluid_bottom] + cell_type[has_fluid_top]
+                                          + cell_type[has_fluid_front] + cell_type[has_fluid_back]
                                        );
                 }
             }
         }
     };
-
 
     template<>
     struct stencils<STENCIL_SOR>
@@ -488,20 +494,21 @@ namespace nast_hpx { namespace grid {
         }
     };
 
-
     template<>
     struct stencils<STENCIL_JACOBI>
     {
         //TODO remove idx, idy (was for debug)
         static void call(partition_data<Real>& dst_p,
             partition_data<Real> const& src_rhs,
-            std::vector<index> const& fluid_cells,
+            std::vector<index>::iterator beginIt,
+            std::vector<index>::iterator endIt,
             Real dx_sq, Real dy_sq, Real dz_sq, util::cancellation_token token)
         {
             if (!token.was_cancelled())
             {
-                for (auto const& ind : fluid_cells)
+                for (auto it = beginIt; it < endIt; ++it)
                 {
+                    auto const& ind = *it;
                     auto const i = ind.x;
                     auto const j = ind.y;
                     auto const k = ind.z;
@@ -524,25 +531,27 @@ namespace nast_hpx { namespace grid {
     {
         static Real call(partition_data<Real> const& src_p,
             partition_data<Real> const& src_rhs,
-            std::vector<index> const& fluid_cells,
+            std::vector<index>::iterator beginIt,
+            std::vector<index>::iterator endIt,
             Real over_dx_sq, Real over_dy_sq, Real over_dz_sq, util::cancellation_token token)
         {
             Real local_residual = 0;
 
-            for (auto const& ind : fluid_cells)
-                {
-                    auto const i = ind.x;
-                    auto const j = ind.y;
-                    auto const k = ind.z;
+            for (auto it = beginIt; it < endIt; ++it)
+            {
+                auto const& ind = *it;
+                auto const i = ind.x;
+                auto const j = ind.y;
+                auto const k = ind.z;
 
-                    Real tmp =
-                        (src_p(i + 1, j, k) - 2 * src_p(i, j, k) + src_p(i - 1, j, k)) / over_dx_sq
-                        + (src_p(i, j + 1, k) - 2 * src_p(i, j, k) + src_p(i, j - 1, k)) / over_dy_sq
-                        + (src_p(i, j, k + 1) - 2 * src_p(i, j, k) + src_p(i, j, k - 1)) / over_dz_sq
-                        - src_rhs(i, j, k);
+                Real tmp =
+                    (src_p(i + 1, j, k) - 2 * src_p(i, j, k) + src_p(i - 1, j, k)) / over_dx_sq
+                    + (src_p(i, j + 1, k) - 2 * src_p(i, j, k) + src_p(i, j - 1, k)) / over_dy_sq
+                    + (src_p(i, j, k + 1) - 2 * src_p(i, j, k) + src_p(i, j, k - 1)) / over_dz_sq
+                    - src_rhs(i, j, k);
 
-                    local_residual += std::pow(tmp, 2);
-                }
+                local_residual += std::pow(tmp, 2);
+            }
 
             return local_residual;
         }
@@ -559,21 +568,23 @@ namespace nast_hpx { namespace grid {
             partition_data<Real> const& src_h,
             partition_data<Real> const& src_p,
             partition_data<std::bitset<9> > const& cell_types,
-            std::vector<index> const& fluid_cells,
+            std::vector<index>::iterator beginIt,
+            std::vector<index>::iterator endIt,
             Real dt, Real over_dx, Real over_dy, Real over_dz
             )
         {
             triple<Real> max_uvw(0);
 
-            for (auto const& ind : fluid_cells)
+            for (auto it = beginIt; it < endIt; ++it)
             {
+                auto const& ind = *it;
                 auto const i = ind.x;
                 auto const j = ind.y;
                 auto const k = ind.z;
 
                 auto const& cell_type = cell_types(i, j, k);
 
-                if (cell_type.test(has_fluid_right))
+                if (cell_type[has_fluid_right])
                 {
                     dst_u(i, j, k) = src_f(i, j, k) - dt * over_dx *
                         (src_p(i + 1, j, k) - src_p(i, j, k));
@@ -581,7 +592,7 @@ namespace nast_hpx { namespace grid {
                     max_uvw.x = std::abs(dst_u(i, j, k)) > max_uvw.x ? std::abs(dst_u(i, j, k)) : max_uvw.x;
                 }
 
-                if (cell_type.test(has_fluid_back))
+                if (cell_type[has_fluid_back])
                 {
                     dst_v(i, j, k) = src_g(i, j, k) - dt * over_dy *
                         (src_p(i, j + 1, k) - src_p(i, j, k));
@@ -589,7 +600,7 @@ namespace nast_hpx { namespace grid {
                     max_uvw.y = std::abs(dst_v(i, j, k)) > max_uvw.y ? std::abs(dst_v(i, j, k)) : max_uvw.y;
                 }
 
-                if (cell_type.test(has_fluid_top))
+                if (cell_type[has_fluid_top])
                 {
                     dst_w(i, j, k) = src_h(i, j, k) - dt * over_dz *
                         (src_p(i, j, k + 1) - src_p(i, j, k));

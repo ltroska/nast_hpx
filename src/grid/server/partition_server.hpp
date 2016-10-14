@@ -56,8 +56,6 @@ public:
     typedef hpx::serialization::serialize_buffer<Real> buffer_type;
     typedef std::vector<hpx::shared_future<void> > future_vector;
     typedef std::vector<future_vector> future_grid;
-    typedef std::vector<partition_data_2d<hpx::shared_future<void> > > future_grid_3d;
-    typedef std::vector<future_grid_3d> future_grid_4d;
 
     partition_server() {}
     ~partition_server() {}
@@ -187,29 +185,28 @@ public:
 
 protected:
     template<direction dir>
-    void send_boundary(std::size_t step, std::size_t var, partition_data<hpx::shared_future<void> >& send_future);
+    void send_boundary(std::size_t step, std::size_t var, future_vector& send_future);
 
     template<direction dir>
-    void receive_boundary(std::size_t step, std::size_t var, future_grid_4d& recv_futures);
+    void receive_boundary(std::size_t step, std::size_t var, future_grid& recv_futures);
 
-    template<direction dir>
-    hpx::shared_future<void> get_dependency(std::size_t idx_block, std::size_t idy_block, std::size_t idz_block, future_grid_3d const& recv_futures,
-    partition_data<hpx::shared_future<void> > const& calc_futures);
+    template<direction dir> inline
+    hpx::shared_future<void> get_dependency(future_vector const& recv_futures);
 
-    void send_boundaries_U(partition_data<hpx::shared_future<void> >& send_futures, std::size_t step);
-    void receive_boundaries_U(future_grid_4d& recv_futures, std::size_t step);
-    void send_boundaries_V(partition_data<hpx::shared_future<void> >& send_futures, std::size_t step);
-    void receive_boundaries_V(future_grid_4d& recv_futures, std::size_t step);
-    void send_boundaries_W(partition_data<hpx::shared_future<void> >& send_futures, std::size_t step);
-    void receive_boundaries_W(future_grid_4d& recv_futures, std::size_t step);
-    void send_boundaries_F(partition_data<hpx::shared_future<void> >& send_futures, std::size_t step);
-    void receive_boundaries_F(future_grid_4d& recv_futures, std::size_t step);
-    void send_boundaries_G(partition_data<hpx::shared_future<void> >& send_futures, std::size_t step);
-    void receive_boundaries_G(future_grid_4d& recv_futures, std::size_t step);
-    void send_boundaries_H(partition_data<hpx::shared_future<void> >& send_futures, std::size_t step);
-    void receive_boundaries_H(future_grid_4d& recv_futures, std::size_t step);
-    void send_boundaries_P(partition_data<hpx::shared_future<void> >& send_futures, std::size_t step);
-    void receive_boundaries_P(future_grid_4d& recv_futures, std::size_t step);
+    void send_boundaries_U(future_vector& send_futures, std::size_t step);
+    void receive_boundaries_U(future_grid& recv_futures, std::size_t step);
+    void send_boundaries_V(future_vector& send_futures, std::size_t step);
+    void receive_boundaries_V(future_grid& recv_futures, std::size_t step);
+    void send_boundaries_W(future_vector& send_futures, std::size_t step);
+    void receive_boundaries_W(future_grid& recv_futures, std::size_t step);
+    void send_boundaries_F(future_vector& send_futures, std::size_t step);
+    void receive_boundaries_F(future_grid& recv_futures, std::size_t step);
+    void send_boundaries_G(future_vector& send_futures, std::size_t step);
+    void receive_boundaries_G(future_grid& recv_futures, std::size_t step);
+    void send_boundaries_H(future_vector& send_futures, std::size_t step);
+    void receive_boundaries_H(future_grid& recv_futures, std::size_t step);
+    void send_boundaries_P(future_vector& send_futures, std::size_t step);
+    void receive_boundaries_P(future_grid& recv_futures, std::size_t step);
 
 private:
 
@@ -218,7 +215,7 @@ private:
     template <typename Archive>
     void serialize(Archive& ar, const unsigned version)
     {
-        ar & c & is_left_ & is_right_ & is_bottom_ & is_top_ & is_front_ & is_back_ & current & last & data_ & rhs_data_ & cell_type_data_
+        ar & c & is_left_ & is_right_ & is_bottom_ & is_top_ & is_front_ & is_back_ & data_ & rhs_data_ & cell_type_data_
            & fluid_cells_ & boundary_cells_ & obstacle_cells_ & cells_x_ & cells_y_ & idx_ & idy_
            & step_ & outcount_ & t_ & next_out_;
     }
@@ -227,24 +224,21 @@ private:
     partition_data<Real> rhs_data_;
     partition_data<std::bitset<9> > cell_type_data_;
 
-    partition_data<std::vector<index> > fluid_cells_;
-    partition_data<std::vector<index> > boundary_cells_;
-    partition_data<std::vector<index> > obstacle_cells_;
+    std::vector<index> fluid_cells_;
+    std::vector<index> boundary_cells_;
+    std::vector<index> obstacle_cells_;
 
-    partition_data<hpx::shared_future<void> > set_velocity_futures;
-    future_grid_4d recv_futures;
+    std::vector<hpx::shared_future<void> > set_velocity_futures;
+    future_grid recv_futures;
 
-    partition_data<hpx::shared_future<void> > compute_fg_futures;
+    std::vector<hpx::shared_future<void> > compute_fg_futures;
 
-    partition_data<hpx::shared_future<void> > compute_rhs_futures;
+    std::vector<hpx::shared_future<void> > compute_rhs_futures;
 
-    partition_data<hpx::shared_future<Real> > compute_res_futures;
+    std::vector<hpx::shared_future<Real> > compute_res_futures;
 
-    std::size_t current;
-    std::size_t last;
-
-    partition_data<hpx::shared_future<void> > set_p_futures;
-    partition_data<hpx::shared_future<void> > solver_cycle_futures;
+    std::vector<hpx::shared_future<void> > set_p_futures;
+    std::vector<hpx::shared_future<void> > solver_cycle_futures;
 
     std::vector<hpx::future<triple<Real> > > local_max_uvs;
 

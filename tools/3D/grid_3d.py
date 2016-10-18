@@ -22,8 +22,8 @@ def reverse_enumerate(iterable):
 
 
 class grid:	
-	def __init__(self, i_max, j_max, k_max):
-		self.__data = [[[1 for i in range(i_max + 2)] for j in range(j_max + 2)] for k in range(k_max + 2)]
+	def __init__(self, i_max, j_max, k_max, all_fluid=True):
+		self.__data = [[[1 if all_fluid else 0 for i in range(i_max + 2)] for j in range(j_max + 2)] for k in range(k_max + 2)]
 		self.__i_max = i_max
 		self.__j_max = j_max
 		self.__k_max = k_max
@@ -65,10 +65,10 @@ class grid:
 		with open(file_path, 'wb') as csvfile:
 			gridwriter = csv.writer(csvfile, delimiter=',', quotechar='"')
 
-			for k, plane in reverse_enumerate(self.__data):
-				for j, row in reverse_enumerate(plane):
+			for k, plane in enumerate(self.__data):
+				for j, row in enumerate(plane):
 					outrow = [0] * len(row)
-										
+							
 					for i, cell in enumerate(row):
 						outvalue = 0
 						

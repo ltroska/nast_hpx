@@ -24,6 +24,5 @@ elif type_string.lower() == "step":
 else:
 	print("Type not supported!", file=sys.stderr)
 	sys.exit(0)
-
 								
 b.write_to(outfile_path)

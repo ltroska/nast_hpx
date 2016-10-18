@@ -29,9 +29,7 @@ i_max = len(in_grid[0]) - 2
 j_max = len(in_grid) - 2
 k_max = 2 * distance + (num_repetitions - 1) * distance + height * num_repetitions
 
-
-
-b = grid(i_max, j_max, k_max)
+b = grid(i_max, j_max, k_max, all_fluid=False)
 
 k = 1 + distance
 
@@ -42,5 +40,6 @@ for _ in range(num_repetitions):
 
 	k += distance
 
+print("Writing grid of size", i_max, j_max, k_max, "to", outfile_path, ".")
 b.write_to(outfile_path)
 

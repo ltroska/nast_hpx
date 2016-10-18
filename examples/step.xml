@@ -1,14 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <SimulationConfig>
-	<iMax value="42"/>
-	<jMax value="10"/>
-	<kMax value="10"/>
-	<iRes value="4"/>
-	<jRes value="1"/>
-	<kRes value="1"/>
-	<xLength value="4"/>
-	<yLength value="1"/>
-	<zLength value="1"/>
 	<Re value="100"/>
 	<omega value="1.7"/>
 	<tau value="0.5"/>
@@ -23,5 +14,4 @@
 		<Left type="instream" u="1"/>
 		<Right type="outstream"/>
 	</BoundaryConditions>
-	<gridFile value="../examples/geometry/step.csv"/>
 </SimulationConfig>

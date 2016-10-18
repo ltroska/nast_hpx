@@ -4,8 +4,8 @@ import sys
 import csv
 from grid_3d import grid
 
-if len(sys.argv) != 6:
-	print("Usage:\t", sys.argv[0] , "<#repetitions> <height> <distance> <input grid> <output grid>", file=sys.stderr)
+if len(sys.argv) < 6:
+	print("Usage:\t", sys.argv[0] , "<#repetitions> <height> <distance> <input grid> <output grid> [x_lenght] [y_length] [z_length]", file=sys.stderr)
 	sys.exit(0)
 
 
@@ -29,7 +29,11 @@ i_max = len(in_grid[0]) - 2
 j_max = len(in_grid) - 2
 k_max = 2 * distance + (num_repetitions - 1) * distance + height * num_repetitions
 
-b = grid(i_max, j_max, k_max, all_fluid=False)
+x_length = sys.argv[6] if len(sys.argv) > 6 else 1
+y_length = sys.argv[7] if len(sys.argv) > 7 else 1
+z_length = sys.argv[8] if len(sys.argv) > 8 else 1
+
+b = grid(i_max, j_max, k_max, x_length, y_length, z_length, all_fluid=False)
 
 k = 1 + distance
 

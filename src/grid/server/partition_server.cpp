@@ -25,9 +25,9 @@ namespace nast_hpx { namespace grid { namespace server {
 
 partition_server::partition_server(io::config const& cfg)
 :   c(cfg),
-    cells_x_(c.cells_x_per_block * c.num_x_blocks + 2),
-    cells_y_(c.cells_y_per_block * c.num_y_blocks + 2),
-    cells_z_(c.cells_z_per_block * c.num_z_blocks + 2),
+    cells_x_(c.cells_x_per_block + 2),
+    cells_y_(c.cells_y_per_block + 2),
+    cells_z_(c.cells_z_per_block + 2),
     is_left_(c.idx == 0),
     is_right_(c.idx == c.num_partitions_x - 1),
     is_bottom_(c.idz == 0),

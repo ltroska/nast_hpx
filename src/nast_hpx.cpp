@@ -7,10 +7,11 @@
 int hpx_main(boost::program_options::variables_map& vm)
 {
     const auto cfg_path = vm["cfg"].as<std::string>();
+    const auto grid_path = vm["grid"].as<std::string>();
     const auto iterations = vm["iterations"].as<std::size_t>();
     const auto timesteps = vm["timesteps"].as<std::size_t>();
 
-    nast_hpx::io::config cfg = nast_hpx::io::config::read_config_from_file(cfg_path.c_str(), hpx::get_locality_id(), hpx::get_num_localities_sync());
+    nast_hpx::io::config cfg = nast_hpx::io::config::read_config_from_file(cfg_path.c_str(), grid_path.c_str(), hpx::get_locality_id(), hpx::get_num_localities_sync());
     cfg.max_timesteps = timesteps;
     cfg.verbose = vm.count("verbose") ? true : false;
 
@@ -135,7 +136,9 @@ int main(int argc, char* argv[])
 
     desc_commandline.add_options()
     ("cfg", value<std::string>()->required(),
-         "path to config xml")
+         "path to config xml file")
+    ("grid", value<std::string>()->required(),
+         "path to grid file")
     ("iterations", value<std::size_t>()->default_value(1),
          "Number of runs of the simulation")
     ("timesteps", value<std::size_t>()->default_value(0),

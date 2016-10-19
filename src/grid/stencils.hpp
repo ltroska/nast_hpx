@@ -283,10 +283,6 @@ namespace nast_hpx { namespace grid {
                                 + cell_type[has_fluid_right] + cell_type[has_fluid_left]
                                 );
                     }
-
-                    if (std::isnan(dst_u(i, j, k)))
-                        std::cout << i << " " << j << " " << k << " " << cell_type[is_boundary] << " " << cell_type[is_obstacle] << " "
-                        << cell_type[has_fluid_left] << cell_type[has_fluid_right]<< cell_type[has_fluid_front]<< cell_type[has_fluid_back]<< cell_type[has_fluid_bottom]<< cell_type[has_fluid_top]<< std::endl;
                 }
 
             }
@@ -344,47 +340,53 @@ namespace nast_hpx { namespace grid {
 
                 auto const& cell_type = cell_types(i, j, k);
 
-                dst_f(i, j, k) =
-                    src_u(i, j, k) + cell_type[has_fluid_right] *
-                      dt * (
-                        1. / re * (util::derivatives::second_derivative_fwd_bkwd_x(src_u, i, j, k, dx_sq)
-                                    + util::derivatives::second_derivative_fwd_bkwd_y(src_u, i, j, k, dy_sq)
-                                    + util::derivatives::second_derivative_fwd_bkwd_z(src_u, i, j, k, dz_sq)
-                                  )
+                dst_f(i, j, k) = src_u(i, j, k);
 
-                        - util::derivatives::first_derivative_of_square_x(src_u, i, j, k, dx, alpha)
-                        - util::derivatives::first_derivative_of_uv_y(src_u, src_v, i, j, k, dy, alpha)
-                        - util::derivatives::first_derivative_of_uw_z(src_u, src_w, i, j, k, dz, alpha)
-                        + gx
-                    );
+                if (cell_type[has_fluid_right])
+                    dst_f(i, j, k) +=
+                          dt * (
+                            1. / re * (util::derivatives::second_derivative_fwd_bkwd_x(src_u, i, j, k, dx_sq)
+                                        + util::derivatives::second_derivative_fwd_bkwd_y(src_u, i, j, k, dy_sq)
+                                        + util::derivatives::second_derivative_fwd_bkwd_z(src_u, i, j, k, dz_sq)
+                                      )
 
-                dst_g(i, j, k) =
-                    src_v(i, j, k) + cell_type[has_fluid_back] *
-                    dt * (
-                        1. / re * (util::derivatives::second_derivative_fwd_bkwd_x(src_v, i, j, k, dx_sq)
-                                   + util::derivatives::second_derivative_fwd_bkwd_y(src_v, i, j, k, dy_sq)
-                                   + util::derivatives::second_derivative_fwd_bkwd_z(src_v, i, j, k, dz_sq)
-                                   )
+                            - util::derivatives::first_derivative_of_square_x(src_u, i, j, k, dx, alpha)
+                            - util::derivatives::first_derivative_of_uv_y(src_u, src_v, i, j, k, dy, alpha)
+                            - util::derivatives::first_derivative_of_uw_z(src_u, src_w, i, j, k, dz, alpha)
+                            + gx
+                        );
 
-                        - util::derivatives::first_derivative_of_uv_x(src_u, src_v, i, j, k, dx, alpha)
-                        - util::derivatives::first_derivative_of_square_y(src_v, i, j, k, dy, alpha)
-                        - util::derivatives::first_derivative_of_vw_z(src_v, src_w, i, j, k, dz, alpha)
-                        + gy
-                    );
+                dst_g(i, j, k) = src_v(i, j, k);
 
-                dst_h(i, j, k) =
-                    src_w(i, j, k) + cell_type[has_fluid_top] *
-                     dt * (
-                        1. / re * (util::derivatives::second_derivative_fwd_bkwd_x(src_w, i, j, k, dx_sq)
-                                    + util::derivatives::second_derivative_fwd_bkwd_y(src_w, i, j, k, dy_sq)
-                                    + util::derivatives::second_derivative_fwd_bkwd_z(src_w, i, j, k, dz_sq)
-                                  )
+                if (cell_type[has_fluid_back])
+                    dst_g(i, j, k) +=
+                        dt * (
+                            1. / re * (util::derivatives::second_derivative_fwd_bkwd_x(src_v, i, j, k, dx_sq)
+                                       + util::derivatives::second_derivative_fwd_bkwd_y(src_v, i, j, k, dy_sq)
+                                       + util::derivatives::second_derivative_fwd_bkwd_z(src_v, i, j, k, dz_sq)
+                                       )
 
-                        - util::derivatives::first_derivative_of_uw_x(src_u, src_w, i, j, k, dx, alpha)
-                        - util::derivatives::first_derivative_of_vw_y(src_v, src_w, i, j, k, dy, alpha)
-                        - util::derivatives::first_derivative_of_square_z(src_w, i, j, k, dz, alpha)
-                        + gz
-                    );
+                            - util::derivatives::first_derivative_of_uv_x(src_u, src_v, i, j, k, dx, alpha)
+                            - util::derivatives::first_derivative_of_square_y(src_v, i, j, k, dy, alpha)
+                            - util::derivatives::first_derivative_of_vw_z(src_v, src_w, i, j, k, dz, alpha)
+                            + gy
+                        );
+
+                dst_h(i, j, k) = src_w(i, j, k);
+
+                if (cell_type[has_fluid_top])
+                    dst_h(i, j, k) +=
+                         dt * (
+                            1. / re * (util::derivatives::second_derivative_fwd_bkwd_x(src_w, i, j, k, dx_sq)
+                                        + util::derivatives::second_derivative_fwd_bkwd_y(src_w, i, j, k, dy_sq)
+                                        + util::derivatives::second_derivative_fwd_bkwd_z(src_w, i, j, k, dz_sq)
+                                      )
+
+                            - util::derivatives::first_derivative_of_uw_x(src_u, src_w, i, j, k, dx, alpha)
+                            - util::derivatives::first_derivative_of_vw_y(src_v, src_w, i, j, k, dy, alpha)
+                            - util::derivatives::first_derivative_of_square_z(src_w, i, j, k, dz, alpha)
+                            + gz
+                        );
             }
         }
     };
@@ -498,7 +500,6 @@ namespace nast_hpx { namespace grid {
     template<>
     struct stencils<STENCIL_JACOBI>
     {
-        //TODO remove idx, idy (was for debug)
         static void call(partition_data<double>& dst_p,
             partition_data<double> const& src_rhs,
             std::vector<index>::iterator beginIt,

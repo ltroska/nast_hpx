@@ -13,61 +13,61 @@ namespace nast_hpx { namespace util { namespace derivatives {
 typedef grid::partition_data<double> grid_type;
 
 inline double second_derivative_fwd_bkwd_x(
-    grid_type grid, std::size_t i, std::size_t j, std::size_t k, double dx_sq)
+    grid_type const& grid, std::size_t i, std::size_t j, std::size_t k, double dx_sq)
 {
     return (grid(i + 1, j, k) - 2 * grid(i, j, k) + grid(i - 1, j , k)) / dx_sq;
 }
 
 inline double second_derivative_fwd_bkwd_y(
-    grid_type grid, std::size_t i, std::size_t j, std::size_t k, double dy_sq)
+    grid_type const& grid, std::size_t i, std::size_t j, std::size_t k, double dy_sq)
 {
     return (grid(i, j + 1, k) - 2 * grid(i, j, k) + grid(i, j - 1, k)) / dy_sq;
 }
 
 inline double second_derivative_fwd_bkwd_z(
-    grid_type grid, std::size_t i, std::size_t j, std::size_t k, double dz_sq)
+    grid_type const& grid, std::size_t i, std::size_t j, std::size_t k, double dz_sq)
 {
     return (grid(i, j, k + 1) - 2 * grid(i, j, k) + grid(i, j, k - 1)) / dz_sq;
 }
 
 inline double first_derivative_fwd_x(
-    grid_type grid, std::size_t i, std::size_t j, std::size_t k, double dx)
+    grid_type const& grid, std::size_t i, std::size_t j, std::size_t k, double dx)
 {
     return (grid(i + 1, j, k) - grid(i, j, k)) / dx;
 }
 
 inline double first_derivative_fwd_y(
-    grid_type grid, std::size_t i, std::size_t j, std::size_t k, double dy)
+    grid_type const& grid, std::size_t i, std::size_t j, std::size_t k, double dy)
 {
     return (grid(i, j + 1, k) - grid(i, j, k)) / dy;
 }
 
 inline double first_derivative_fwd_z(
-    grid_type grid, std::size_t i, std::size_t j, std::size_t k, double dz)
+    grid_type const& grid, std::size_t i, std::size_t j, std::size_t k, double dz)
 {
     return (grid(i, j, k + 1) - grid(i, j, k)) / dz;
 }
 
 inline double first_derivative_bkwd_x(
-    grid_type grid, std::size_t i, std::size_t j, std::size_t k, double dx)
+    grid_type const& grid, std::size_t i, std::size_t j, std::size_t k, double dx)
 {
     return (grid(i, j, k) - grid(i - 1, j, k)) / dx;
 }
 
 inline double first_derivative_bkwd_y(
-    grid_type grid, std::size_t i, std::size_t j, std::size_t k, double dy)
+    grid_type const& grid, std::size_t i, std::size_t j, std::size_t k, double dy)
 {
     return (grid(i, j, k) - grid(i, j - 1, k)) / dy;
 }
 
 inline double first_derivative_bkwd_z(
-    grid_type grid, std::size_t i, std::size_t j, std::size_t k, double dz)
+    grid_type const& grid, std::size_t i, std::size_t j, std::size_t k, double dz)
 {
     return (grid(i, j, k) - grid(i, j, k - 1)) / dz;
 }
 
 inline double first_derivative_of_square_x(
-    grid_type grid, std::size_t i, std::size_t j, std::size_t k, double dx,
+    grid_type const& grid, std::size_t i, std::size_t j, std::size_t k, double dx,
     double alpha = 0.9)
 {
     return 1./dx * (std::pow((grid(i, j, k) + grid(i + 1, j, k)) / 2., 2)
@@ -78,7 +78,7 @@ inline double first_derivative_of_square_x(
 }
 
 inline double first_derivative_of_square_y(
-    grid_type grid, std::size_t i, std::size_t j, std::size_t k, double dy,
+    grid_type const& grid, std::size_t i, std::size_t j, std::size_t k, double dy,
     double alpha = 0.9)
 {
     return 1./dy * (std::pow((grid(i, j, k) + grid(i, j + 1, k)) / 2., 2)
@@ -89,7 +89,7 @@ inline double first_derivative_of_square_y(
 }
 
 inline double first_derivative_of_square_z(
-    grid_type grid, std::size_t i, std::size_t j, std::size_t k, double dz,
+    grid_type const& grid, std::size_t i, std::size_t j, std::size_t k, double dz,
     double alpha = 0.9)
 {
     return 1./dz * (std::pow((grid(i, j, k) + grid(i, j, k + 1)) / 2., 2)
@@ -100,7 +100,7 @@ inline double first_derivative_of_square_z(
 }
 
 inline double first_derivative_of_uv_x(
-    grid_type u, grid_type v, std::size_t i, std::size_t j, std::size_t k, double dx,
+    grid_type const& u, grid_type const& v, std::size_t i, std::size_t j, std::size_t k, double dx,
     double alpha = 0.9)
 {
     return 1./dx * ((u(i, j, k) + u(i, j + 1, k))
@@ -112,7 +112,7 @@ inline double first_derivative_of_uv_x(
 }
 
 inline double first_derivative_of_uw_x(
-    grid_type u, grid_type w, std::size_t i, std::size_t j, std::size_t k, double dx,
+    grid_type const& u, grid_type const& w, std::size_t i, std::size_t j, std::size_t k, double dx,
     double alpha = 0.9)
 {
     return 1./dx * ((u(i, j, k) + u(i, j, k + 1))
@@ -124,7 +124,7 @@ inline double first_derivative_of_uw_x(
 }
 
 inline double first_derivative_of_uv_y(
-    grid_type u, grid_type v, std::size_t i, std::size_t j, std::size_t k, double dy
+    grid_type const& u, grid_type const& v, std::size_t i, std::size_t j, std::size_t k, double dy
     , double alpha = 0.9)
 {
     return 1./dy * ((v(i, j, k) + v(i + 1, j, k))  * (u(i, j, k) + u(i, j + 1, k)) / 4.
@@ -135,7 +135,7 @@ inline double first_derivative_of_uv_y(
 }
 
 inline double first_derivative_of_vw_y(
-    grid_type v, grid_type w, std::size_t i, std::size_t j, std::size_t k, double dy
+    grid_type const& v, grid_type const& w, std::size_t i, std::size_t j, std::size_t k, double dy
     , double alpha = 0.9)
 {
     return 1./dy * ((v(i, j, k) + v(i, j, k + 1))  * (w(i, j, k) + w(i, j + 1, k)) / 4.
@@ -146,7 +146,7 @@ inline double first_derivative_of_vw_y(
 }
 
 inline double first_derivative_of_uw_z(
-    grid_type u, grid_type w, std::size_t i, std::size_t j, std::size_t k, double dz
+    grid_type const& u, grid_type const& w, std::size_t i, std::size_t j, std::size_t k, double dz
     , double alpha = 0.9)
 {
     return 1./dz * ((w(i, j, k) + w(i + 1, j, k))  * (u(i, j, k) + u(i, j, k + 1)) / 4.
@@ -159,7 +159,7 @@ inline double first_derivative_of_uw_z(
 }
 
 inline double first_derivative_of_vw_z(
-    grid_type v, grid_type w, std::size_t i, std::size_t j, std::size_t k, double dz
+    grid_type const& v, grid_type const& w, std::size_t i, std::size_t j, std::size_t k, double dz
     , double alpha = 0.9)
 {
     return 1./dz * ((w(i, j, k) + w(i, j + 1, k))  * (v(i, j, k) + v(i, j, k + 1)) / 4.

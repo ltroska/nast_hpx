@@ -16,7 +16,7 @@ struct stepper
     // Contruct a new stepper client.
     stepper()
       : base_type(hpx::new_<server::stepper_server>
-          (hpx::find_here(), hpx::get_num_localities_sync()))
+          (hpx::find_here(), hpx::get_initial_num_localities()))
     {
         hpx::register_with_basename(server::stepper_basename, get_id(),
                                         hpx::get_locality_id());
@@ -25,7 +25,7 @@ struct stepper
     // Construct new instances/wrap existing steppers from other localities.
     stepper(hpx::id_type loc)
       : base_type(hpx::new_<server::stepper_server>
-          (loc, hpx::get_num_localities_sync()))
+          (loc, hpx::get_initial_num_localities()))
     {
         hpx::register_with_basename(
             server::stepper_basename, get_id(), hpx::get_locality_id());

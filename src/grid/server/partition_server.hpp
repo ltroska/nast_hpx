@@ -66,8 +66,8 @@ public:
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, init, init_action);
 
     /// return the sliced data appropriate for given direction
-    triple<double> do_timestep(double dt);
-    HPX_DEFINE_COMPONENT_DIRECT_ACTION(partition_server, do_timestep, do_timestep_action);
+    hpx::future<triple<double> > do_timestep(double dt);
+    HPX_DEFINE_COMPONENT_ACTION(partition_server, do_timestep, do_timestep_action);
 
     void set_left_boundary(buffer_type buffer, std::size_t step, std::size_t var)
     {

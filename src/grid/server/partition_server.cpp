@@ -25,15 +25,15 @@ namespace nast_hpx { namespace grid { namespace server {
 
 partition_server::partition_server(io::config const& cfg)
 :   c(cfg),
-    cells_x_(c.cells_x_per_block + 2),
-    cells_y_(c.cells_y_per_block + 2),
-    cells_z_(c.cells_z_per_block + 2),
+    cells_x_(c.cells_x_per_partition + 2),
+    cells_y_(c.cells_y_per_partition + 2),
+    cells_z_(c.cells_z_per_partition + 2),
     is_left_(c.idx == 0),
-    is_right_(c.idx == c.num_partitions_x - 1),
+    is_right_(c.idx == c.num_localities_x - 1),
     is_bottom_(c.idz == 0),
-    is_top_(c.idz == c.num_partitions_z - 1),
+    is_top_(c.idz == c.num_localities_z - 1),
     is_front_(c.idy == 0),
-    is_back_(c.idy == c.num_partitions_y - 1)
+    is_back_(c.idy == c.num_localities_y - 1)
 {
     if (c.verbose)
         std::cout << "Solver: blockwise Jacobi" << std::endl;
@@ -72,6 +72,8 @@ partition_server::partition_server(io::config const& cfg)
 
     fluid_stride = fluid_cells_.size() / c.threads + (fluid_cells_.size() % c.threads > 0);
     obstacle_stride = obstacle_cells_.size() / c.threads + (obstacle_cells_.size() % c.threads > 0);
+
+    std::cout << "fluid stride: " << fluid_stride << " | obstacle stride: " << obstacle_stride << std::endl;
 }
 
 void partition_server::init()
@@ -87,7 +89,7 @@ void partition_server::init()
     outcount_ = 0;
 
     std::vector<hpx::future<hpx::id_type > > parts =
-        hpx::find_all_from_basename(partition_basename, c.num_partitions);
+        hpx::find_all_from_basename(partition_basename, c.num_localities);
 
     ids_ = hpx::when_all(parts).then(hpx::util::unwrapped2(
                 [](std::vector<hpx::id_type>&& ids) -> std::vector<hpx::id_type>
@@ -96,7 +98,7 @@ void partition_server::init()
 
     if (!is_left_)
     {
-        send_buffer_left_.dest_ = ids_[c.idz * c.num_partitions_x * c.num_partitions_y + c.idy * c.num_partitions_x + c.idx - 1];
+        send_buffer_left_.dest_ = ids_[c.idz * c.num_localities_x * c.num_localities_y + c.idy * c.num_localities_x + c.idx - 1];
         recv_buffer_left_[U].valid_ = true;
         recv_buffer_left_[V].valid_ = true;
         recv_buffer_left_[W].valid_ = true;
@@ -106,7 +108,7 @@ void partition_server::init()
 
     if (!is_right_)
     {
-        send_buffer_right_.dest_ = ids_[c.idz * c.num_partitions_x * c.num_partitions_y + c.idy * c.num_partitions_x + c.idx + 1];
+        send_buffer_right_.dest_ = ids_[c.idz * c.num_localities_x * c.num_localities_y + c.idy * c.num_localities_x + c.idx + 1];
 
         recv_buffer_right_[U].valid_ = true;
         recv_buffer_right_[V].valid_ = true;
@@ -116,7 +118,7 @@ void partition_server::init()
 
     if (!is_bottom_)
     {
-        send_buffer_bottom_.dest_ = ids_[(c.idz - 1) * c.num_partitions_x * c.num_partitions_y + c.idy * c.num_partitions_x + c.idx];
+        send_buffer_bottom_.dest_ = ids_[(c.idz - 1) * c.num_localities_x * c.num_localities_y + c.idy * c.num_localities_x + c.idx];
 
         recv_buffer_right_[U].valid_ = true;
         recv_buffer_right_[V].valid_ = true;
@@ -126,7 +128,7 @@ void partition_server::init()
 
     if (!is_top_)
     {
-        send_buffer_top_.dest_ = ids_[(c.idz + 1) * c.num_partitions_x * c.num_partitions_y + c.idy * c.num_partitions_x + c.idx];
+        send_buffer_top_.dest_ = ids_[(c.idz + 1) * c.num_localities_x * c.num_localities_y + c.idy * c.num_localities_x + c.idx];
 
         recv_buffer_right_[U].valid_ = true;
         recv_buffer_right_[V].valid_ = true;
@@ -135,7 +137,7 @@ void partition_server::init()
 
     if (!is_front_)
     {
-        send_buffer_front_.dest_ = ids_[c.idz * c.num_partitions_x * c.num_partitions_y + (c.idy - 1) * c.num_partitions_x + c.idx];
+        send_buffer_front_.dest_ = ids_[c.idz * c.num_localities_x * c.num_localities_y + (c.idy - 1) * c.num_localities_x + c.idx];
 
         recv_buffer_right_[U].valid_ = true;
         recv_buffer_right_[V].valid_ = true;
@@ -145,7 +147,7 @@ void partition_server::init()
 
     if (!is_back_)
     {
-        send_buffer_back_.dest_ = ids_[c.idz * c.num_partitions_x * c.num_partitions_y + (c.idy + 1) * c.num_partitions_x + c.idx];
+        send_buffer_back_.dest_ = ids_[c.idz * c.num_localities_x * c.num_localities_y + (c.idy + 1) * c.num_localities_x + c.idx];
 
         recv_buffer_right_[U].valid_ = true;
         recv_buffer_right_[V].valid_ = true;
@@ -154,42 +156,42 @@ void partition_server::init()
 
     if (!is_back_ && !is_left_)
     {
-        send_buffer_back_left_.dest_ = ids_[c.idz * c.num_partitions_x * c.num_partitions_y + (c.idy + 1) * c.num_partitions_x + c.idx - 1];
+        send_buffer_back_left_.dest_ = ids_[c.idz * c.num_localities_x * c.num_localities_y + (c.idy + 1) * c.num_localities_x + c.idx - 1];
 
         recv_buffer_back_left_[U].valid_ = true;
     }
 
     if (!is_front_ && !is_right_)
     {
-        send_buffer_front_right_.dest_ = ids_[c.idz * c.num_partitions_x * c.num_partitions_y + (c.idy - 1) * c.num_partitions_x + c.idx + 1];
+        send_buffer_front_right_.dest_ = ids_[c.idz * c.num_localities_x * c.num_localities_y + (c.idy - 1) * c.num_localities_x + c.idx + 1];
 
         recv_buffer_front_right_[V].valid_ = true;
     }
 
     if (!is_bottom_ && !is_right_)
     {
-        send_buffer_bottom_right_.dest_ = ids_[(c.idz - 1) * c.num_partitions_x * c.num_partitions_y + c.idy * c.num_partitions_x + c.idx + 1];
+        send_buffer_bottom_right_.dest_ = ids_[(c.idz - 1) * c.num_localities_x * c.num_localities_y + c.idy * c.num_localities_x + c.idx + 1];
 
         recv_buffer_bottom_right_[W].valid_ = true;
     }
 
     if (!is_top_ && !is_left_)
     {
-        send_buffer_top_left_.dest_ = ids_[(c.idz + 1) * c.num_partitions_x * c.num_partitions_y + c.idy * c.num_partitions_x + c.idx - 1];
+        send_buffer_top_left_.dest_ = ids_[(c.idz + 1) * c.num_localities_x * c.num_localities_y + c.idy * c.num_localities_x + c.idx - 1];
 
         recv_buffer_top_left_[U].valid_ = true;
     }
 
     if (!is_back_ && !is_bottom_)
     {
-        send_buffer_back_bottom_.dest_ = ids_[(c.idz - 1) * c.num_partitions_x * c.num_partitions_y + (c.idy + 1) * c.num_partitions_x + c.idx];
+        send_buffer_back_bottom_.dest_ = ids_[(c.idz - 1) * c.num_localities_x * c.num_localities_y + (c.idy + 1) * c.num_localities_x + c.idx];
 
         recv_buffer_back_bottom_[W].valid_ = true;
     }
 
     if (!is_front_ && !is_top_)
     {
-        send_buffer_front_top_.dest_ = ids_[(c.idz + 1) * c.num_partitions_x * c.num_partitions_y + (c.idy - 1) * c.num_partitions_x + c.idx];
+        send_buffer_front_top_.dest_ = ids_[(c.idz + 1) * c.num_localities_x * c.num_localities_y + (c.idy - 1) * c.num_localities_x + c.idx];
 
         recv_buffer_front_top_[V].valid_ = true;
     }
@@ -913,7 +915,7 @@ Iter safe_advance(Iter it, Iter end, std::size_t stride)
     return (stride > end - it) ? end : it + stride;
 }
 
-triple<double> partition_server::do_timestep(double dt)
+hpx::future<triple<double> > partition_server::do_timestep(double dt)
 {
     set_velocity_futures.clear();
     set_velocity_futures.reserve(c.threads);
@@ -957,7 +959,7 @@ triple<double> partition_server::do_timestep(double dt)
             hpx::util::bind(
                 &io::writer::write_vtk,
                 boost::ref(data_[P]), boost::ref(data_[U]), boost::ref(data_[V]), boost::ref(data_[W]), boost::ref(cell_type_data_),
-                c.num_partitions_x, c.num_partitions_y, c.num_partitions_z, c.i_max, c.j_max, c.k_max, c.dx, c.dx, c.dz, outcount_++,
+                c.num_localities_x, c.num_localities_y, c.num_localities_z, c.i_max, c.j_max, c.k_max, c.dx, c.dx, c.dz, outcount_++,
                 c.rank, c.idx, c.idy, c.idz
             )
         ).wait();
@@ -1163,7 +1165,7 @@ triple<double> partition_server::do_timestep(double dt)
                 hpx::future<std::vector<double> > partial_residuals =
                     hpx::lcos::gather_here(residual_basename,
                                             std::move(local_residual),
-                                            c.num_partitions, step_ * c.iter_max + iter, 0);
+                                            c.num_localities, step_ * c.iter_max + iter, 0);
 
                 partial_residuals.then(
                     hpx::util::unwrapped(
@@ -1251,7 +1253,7 @@ triple<double> partition_server::do_timestep(double dt)
     t_ += dt;
     ++step_;
 
-    return local_max_uv.get();
+    return local_max_uv;
 }
 
 }

@@ -14,6 +14,28 @@ struct triple {
 
     triple(T x_value, T y_value, T z_value) : x(x_value), y(y_value), z(z_value) {}
 
+    triple(triple<T> const& other) : x(other.x), y(other.y), z(other.z) {}
+
+    triple(triple<T>&& other) : x(std::move(other.x)), y(std::move(other.y)), z(std::move(other.z)) {}
+
+    triple<T>& operator=(triple<T> const& other)
+    {
+        x = other.x;
+        y = other.y;
+        z = other.z;
+
+        return *this;
+    }
+
+    triple<T>& operator=(triple<T>&& other)
+    {
+        x = std::move(other.x);
+        y = std::move(other.y);
+        z = std::move(other.z);
+
+        return *this;
+    }
+
     T x, y, z;
 
     template <typename Archive>

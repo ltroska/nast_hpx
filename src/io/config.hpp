@@ -57,7 +57,6 @@ struct config
         double initial_dt;
         std::size_t max_timesteps;
 
-        uint sub_iterations;
         uint iter_max;
         double eps;
         double eps_sq;
@@ -67,14 +66,9 @@ struct config
         std::size_t num_localities_y;
         std::size_t num_localities_z;
 
-        std::size_t num_partitions;
-        std::size_t num_partitions_x;
-        std::size_t num_partitions_y;
-        std::size_t num_partitions_z;
-
-        std::size_t cells_x_per_block;
-        std::size_t cells_y_per_block;
-        std::size_t cells_z_per_block;
+        std::size_t cells_x_per_partition;
+        std::size_t cells_y_per_partition;
+        std::size_t cells_z_per_partition;
 
         std::size_t rank;
         std::size_t idx;
@@ -97,10 +91,9 @@ struct config
                 & y_length & z_length & dx & dy & dz & over_dx & over_dy & over_dz
                 & dx_sq & dy_sq & dz_sq & part1 & part2 & factor_jacobi & re & pr & omega & tau & alpha
                 & beta & gx & gy & gz & vtk & delta_vec & verbose & t_end & initial_dt & max_timesteps
-                & sub_iterations & iter_max & eps & eps_sq & num_localities
-                & num_localities_x & num_localities_y & num_localities_z & num_partitions
-                & num_partitions_x & num_partitions_y & num_partitions_z
-                & cells_x_per_block & cells_y_per_block & cells_z_per_block
+                & iter_max & eps & eps_sq & num_localities
+                & num_localities_x & num_localities_y & num_localities_z
+                & cells_x_per_partition & cells_y_per_partition & cells_z_per_partition
                 & rank & idx & idy & idz & threads & with_initial_uv_grid
                 & bnd_condition;
         }
@@ -129,13 +122,9 @@ struct config
                 << "\n\tnum_localities_x = " << config.num_localities_x
                 << "\n\tnum_localities_y = " << config.num_localities_y
                 << "\n\tnum_localities_z = " << config.num_localities_z
-                << "\n\tnum_partitions = " << config.num_partitions
-                << "\n\tnum_partitions_x = " << config.num_partitions_x
-                << "\n\tnum_partitions_y = " << config.num_partitions_y
-                << "\n\tnum_partitions_z = " << config.num_partitions_z
-                << "\n\tnum_cells_x_per_block = " << config.cells_x_per_block
-                << "\n\tnum_cells_y_per_block = " << config.cells_y_per_block
-                << "\n\tnum_cells_z_per_block = " << config.cells_z_per_block
+                << "\n\tnum_cells_x_per_partition = " << config.cells_x_per_partition
+                << "\n\tnum_cells_y_per_partition = " << config.cells_y_per_partition
+                << "\n\tnum_cells_z_per_partition = " << config.cells_z_per_partition
                 << "\n\trank = " << config.rank
                 << "\n\tidx = " << config.idx
                 << "\n\tidy = " << config.idy
@@ -167,7 +156,6 @@ struct config
                 << "\n\tfactor_jacobi = " << config.factor_jacobi
                 << "\n\tdelta_vec = " << config.delta_vec
                 << "\n\titer_max = " << config.iter_max
-                << "\n\tsub_iterations = " << config.sub_iterations
                 << "\n\tvtk = " << config.vtk
                 << "\n}";
             return os;

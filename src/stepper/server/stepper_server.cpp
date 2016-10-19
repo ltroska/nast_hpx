@@ -31,7 +31,7 @@ stepper_server::stepper_server(uint nl)
 void stepper_server::setup(io::config const& cfg)
 {
     rank = hpx::get_locality_id();
-    num_localities = hpx::get_num_localities_sync();
+    num_localities = hpx::get_initial_num_localities();
 
     dx = cfg.dx;
     dy = cfg.dy;
@@ -65,12 +65,13 @@ void stepper_server::run()
     double dt = init_dt;
 
     std::size_t local_step = 0;
-    bool running = true;
 
     for (double t = 0;; ++step, ++local_step)
     {
         if (max_timesteps > 0 && local_step >= max_timesteps)
             break;
+
+       hpx::util::high_resolution_timer t1;
 
        // std::cout << "step " << step << std::endl;
         hpx::future<triple<double> > local_max_velocity =
@@ -131,6 +132,8 @@ void stepper_server::run()
             break;
         t += dt;
         dt = dt_buffer.receive(step).get();
+
+        std::cout << "Step " << step << " took " << t1.elapsed() << " seconds!" << std::endl;
     }
 }
 

@@ -51,27 +51,27 @@ namespace nast_hpx { namespace io {
         std::getline(file, cfg_line);
         cfg.z_length = std::stod(cfg_line);
 
-        cfg.cells_x_per_block = (cfg.i_max + 2) / cfg.num_localities_x;
+        cfg.cells_x_per_partition = (cfg.i_max + 2) / cfg.num_localities_x;
 
-        if (cfg.cells_x_per_block * cfg.num_localities_x != cfg.i_max + 2)
+        if (cfg.cells_x_per_partition * cfg.num_localities_x != cfg.i_max + 2)
         {
             std::cerr << "Error: localities_x does not divide i_max + 2 evenly!" << std::endl;
             std::cerr << "localities_x = " << cfg.num_localities_x << ", i_max + 2 = " << cfg.i_max + 2 << std::endl;
             std::exit(1);
         }
 
-        cfg.cells_y_per_block = (cfg.j_max + 2) / cfg.num_localities_y;
+        cfg.cells_y_per_partition = (cfg.j_max + 2) / cfg.num_localities_y;
 
-        if (cfg.cells_y_per_block * cfg.num_localities_y != cfg.j_max + 2)
+        if (cfg.cells_y_per_partition * cfg.num_localities_y != cfg.j_max + 2)
         {
             std::cerr << "Error: localities_y does not divide j_max + 2 evenly!" << std::endl;
             std::cerr << "localities_y = " << cfg.num_localities_y << ", j_max + 2 = " << cfg.j_max + 2 << std::endl;
             std::exit(1);
         }
 
-        cfg.cells_z_per_block = (cfg.k_max + 2) / cfg.num_localities_z;
+        cfg.cells_z_per_partition = (cfg.k_max + 2) / cfg.num_localities_z;
 
-        if (cfg.cells_z_per_block * cfg.num_localities_z != cfg.k_max + 2)
+        if (cfg.cells_z_per_partition * cfg.num_localities_z != cfg.k_max + 2)
         {
             std::cerr << "Error: localities_z does not divide k_max + 2 evenly!" << std::endl;
             std::cerr << "localities_z = " << cfg.num_localities_z << ", k_max + 2 = " << cfg.k_max + 2 << std::endl;
@@ -94,9 +94,9 @@ namespace nast_hpx { namespace io {
         cfg.over_dy_sq = 1. / cfg.dy_sq;
         cfg.over_dz_sq = 1. / cfg.dz_sq;
 
-        std::size_t flag_res_x = cfg.cells_x_per_block + 2;
-        std::size_t flag_res_y = cfg.cells_y_per_block + 2;
-        std::size_t flag_res_z = cfg.cells_y_per_block + 2;
+        std::size_t flag_res_x = cfg.cells_x_per_partition + 2;
+        std::size_t flag_res_y = cfg.cells_y_per_partition + 2;
+        std::size_t flag_res_z = cfg.cells_y_per_partition + 2;
 
         cfg.flag_grid.resize(flag_res_x * flag_res_y * flag_res_z);
 
@@ -104,14 +104,14 @@ namespace nast_hpx { namespace io {
         std::size_t idy = (rank % (cfg.num_localities_x * cfg.num_localities_y)) / cfg.num_localities_x;
         std::size_t idz = rank / (cfg.num_localities_x * cfg.num_localities_y);
 
-        std::size_t start_i = idx * cfg.cells_x_per_block;
-        std::size_t end_i = start_i + cfg.cells_x_per_block;
+        std::size_t start_i = idx * cfg.cells_x_per_partition;
+        std::size_t end_i = start_i + cfg.cells_x_per_partition;
 
-        std::size_t start_j = idy * cfg.cells_y_per_block;
-        std::size_t end_j = start_j + cfg.cells_y_per_block;
+        std::size_t start_j = idy * cfg.cells_y_per_partition;
+        std::size_t end_j = start_j + cfg.cells_y_per_partition;
 
-        std::size_t start_k = idz * cfg.cells_z_per_block;
-        std::size_t end_k = start_k + cfg.cells_z_per_block;
+        std::size_t start_k = idz * cfg.cells_z_per_partition;
+        std::size_t end_k = start_k + cfg.cells_z_per_partition;
 
         std::size_t offset_x = 0;
         std::size_t offset_y = 0;

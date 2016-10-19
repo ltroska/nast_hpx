@@ -21,6 +21,51 @@ namespace nast_hpx { namespace io {
         cfg.num_localities_y = cfg.num_localities_x;
         cfg.num_localities_z = cfg.num_localities_x;
 
+        cfg.num_partitions = cfg.num_localities;
+        cfg.num_partitions_x = cfg.num_localities_x;
+        cfg.num_partitions_y = cfg.num_localities_y;
+        cfg.num_partitions_z = cfg.num_localities_z;
+
+        pugi::xml_document doc;
+        pugi::xml_parse_result result = doc.load_file(xml_path);
+
+        if (!result) {
+            std::cerr << "Error loading file: " << xml_path << std::endl;
+            std::exit(1);
+        }
+
+        pugi::xml_node config_node = doc.child("SimulationConfig");
+        if (config_node == NULL) {
+            std::cerr
+                << "Error: A simulation configuration must be defined!"
+                << std::endl;
+            std::exit(1);
+        }
+
+       if(config_node.child("iRes") != NULL)
+       {
+           cfg.num_x_blocks = config_node.child("iRes").first_attribute().as_int();
+       }
+       else {
+           cfg.num_x_blocks = 1;
+       }
+
+       if(config_node.child("jRes") != NULL)
+       {
+           cfg.num_y_blocks = config_node.child("jRes").first_attribute().as_int();
+       }
+       else {
+           cfg.num_y_blocks = 1;
+       }
+
+       if(config_node.child("kRes") != NULL)
+       {
+           cfg.num_z_blocks = config_node.child("kRes").first_attribute().as_int();
+       }
+       else {
+           cfg.num_z_blocks = 1;
+       }
+
 //-------------------------------------------------- GRID --------------------------------------------------//
 
         std::ifstream file(grid_path);
@@ -51,30 +96,30 @@ namespace nast_hpx { namespace io {
         std::getline(file, cfg_line);
         cfg.z_length = std::stod(cfg_line);
 
-        cfg.cells_x_per_partition = (cfg.i_max + 2) / cfg.num_localities_x;
+        cfg.cells_x_per_block = (cfg.i_max + 2) / cfg.num_localities_x / cfg.num_x_blocks;
 
-        if (cfg.cells_x_per_partition * cfg.num_localities_x != cfg.i_max + 2)
+        if (cfg.cells_x_per_block * cfg.num_localities_x * cfg.num_x_blocks != cfg.i_max + 2)
         {
-            std::cerr << "Error: localities_x does not divide i_max + 2 evenly!" << std::endl;
-            std::cerr << "localities_x = " << cfg.num_localities_x << ", i_max + 2 = " << cfg.i_max + 2 << std::endl;
+            std::cerr << "Error: localities_x * num_x_blocks does not divide i_max + 2 evenly!" << std::endl;
+            std::cerr << "localities_x = " << cfg.num_localities_x << ", num_x_blocks = " << cfg.num_x_blocks << ", i_max + 2 = " << cfg.i_max + 2 << std::endl;
             std::exit(1);
         }
 
-        cfg.cells_y_per_partition = (cfg.j_max + 2) / cfg.num_localities_y;
+        cfg.cells_y_per_block = (cfg.j_max + 2) / cfg.num_localities_y / cfg.num_y_blocks;
 
-        if (cfg.cells_y_per_partition * cfg.num_localities_y != cfg.j_max + 2)
+        if (cfg.cells_y_per_block * cfg.num_localities_y * cfg.num_y_blocks != cfg.j_max + 2)
         {
-            std::cerr << "Error: localities_y does not divide j_max + 2 evenly!" << std::endl;
-            std::cerr << "localities_y = " << cfg.num_localities_y << ", j_max + 2 = " << cfg.j_max + 2 << std::endl;
+            std::cerr << "Error: localities_y * num_y_blocks does not divide j_max + 2 evenly!" << std::endl;
+            std::cerr << "localities_y = " << cfg.num_localities_y << ", num_y_blocks = " << cfg.num_y_blocks << ", j_max + 2 = " << cfg.j_max + 2 << std::endl;
             std::exit(1);
         }
 
-        cfg.cells_z_per_partition = (cfg.k_max + 2) / cfg.num_localities_z;
+        cfg.cells_z_per_block = (cfg.k_max + 2) / cfg.num_localities_z / cfg.num_z_blocks;
 
-        if (cfg.cells_z_per_partition * cfg.num_localities_z != cfg.k_max + 2)
+        if (cfg.cells_z_per_block * cfg.num_localities_z * cfg.num_z_blocks != cfg.k_max + 2)
         {
-            std::cerr << "Error: localities_z does not divide k_max + 2 evenly!" << std::endl;
-            std::cerr << "localities_z = " << cfg.num_localities_z << ", k_max + 2 = " << cfg.k_max + 2 << std::endl;
+            std::cerr << "Error: localities_z * num_z_blocks does not divide k_max + 2 evenly!" << std::endl;
+            std::cerr << "localities_z = " << cfg.num_localities_z << ", num_z_blocks = " << cfg.num_z_blocks << ", k_max + 2 = " << cfg.k_max + 2 << std::endl;
             std::exit(1);
         }
 
@@ -94,9 +139,9 @@ namespace nast_hpx { namespace io {
         cfg.over_dy_sq = 1. / cfg.dy_sq;
         cfg.over_dz_sq = 1. / cfg.dz_sq;
 
-        std::size_t flag_res_x = cfg.cells_x_per_partition + 2;
-        std::size_t flag_res_y = cfg.cells_y_per_partition + 2;
-        std::size_t flag_res_z = cfg.cells_y_per_partition + 2;
+        std::size_t flag_res_x = cfg.num_x_blocks * cfg.cells_x_per_block + 2;
+        std::size_t flag_res_y = cfg.num_y_blocks * cfg.cells_y_per_block + 2;
+        std::size_t flag_res_z = cfg.num_y_blocks * cfg.cells_y_per_block + 2;
 
         cfg.flag_grid.resize(flag_res_x * flag_res_y * flag_res_z);
 
@@ -104,14 +149,14 @@ namespace nast_hpx { namespace io {
         std::size_t idy = (rank % (cfg.num_localities_x * cfg.num_localities_y)) / cfg.num_localities_x;
         std::size_t idz = rank / (cfg.num_localities_x * cfg.num_localities_y);
 
-        std::size_t start_i = idx * cfg.cells_x_per_partition;
-        std::size_t end_i = start_i + cfg.cells_x_per_partition;
+        std::size_t start_i = idx * cfg.num_x_blocks * cfg.cells_x_per_block;
+        std::size_t end_i = start_i + cfg.num_x_blocks * cfg.cells_x_per_block;
 
-        std::size_t start_j = idy * cfg.cells_y_per_partition;
-        std::size_t end_j = start_j + cfg.cells_y_per_partition;
+        std::size_t start_j = idy * cfg.num_y_blocks * cfg.cells_y_per_block;
+        std::size_t end_j = start_j + cfg.num_y_blocks * cfg.cells_y_per_block;
 
-        std::size_t start_k = idz * cfg.cells_z_per_partition;
-        std::size_t end_k = start_k + cfg.cells_z_per_partition;
+        std::size_t start_k = idz * cfg.num_z_blocks * cfg.cells_z_per_block;
+        std::size_t end_k = start_k + cfg.num_z_blocks * cfg.cells_z_per_block;
 
         std::size_t offset_x = 0;
         std::size_t offset_y = 0;
@@ -178,22 +223,6 @@ namespace nast_hpx { namespace io {
         }
 
 //-------------------------------------------------- CONFIG --------------------------------------------------//
-
-        pugi::xml_document doc;
-        pugi::xml_parse_result result = doc.load_file(xml_path);
-
-        if (!result) {
-            std::cerr << "Error loading file: " << xml_path << std::endl;
-            std::exit(1);
-        }
-
-        pugi::xml_node config_node = doc.child("SimulationConfig");
-        if (config_node == NULL) {
-            std::cerr
-                << "Error: A simulation configuration must be defined!"
-                << std::endl;
-            std::exit(1);
-        }
 
         if(config_node.child("Re") != NULL)
         {

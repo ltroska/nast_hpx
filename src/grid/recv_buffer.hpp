@@ -1,5 +1,5 @@
-#ifndef NAST_HPX_GRID_RECV_BUFFER_HPP_
-#define NAST_HPX_GRID_RECV_BUFFER_HPP_
+#ifndef NAST_HPX_GRID_RECV_BUFFER_HPP
+#define NAST_HPX_GRID_RECV_BUFFER_HPP
 
 #include "partition_data.hpp"
 #include "unpack_buffer.hpp"
@@ -20,7 +20,9 @@ namespace nast_hpx { namespace grid {
 
         typedef typename BufferType::value_type value_type;
 
-        typedef BufferType buffer_type;
+        typedef
+            BufferType
+            buffer_type;
 
         recv_buffer()
           : valid_(false)
@@ -46,13 +48,14 @@ namespace nast_hpx { namespace grid {
         {
         }
 
-        void operator()(partition_data<value_type>& p, std::size_t step, std::size_t var)
+        void operator()(partition_data<value_type>& p, std::size_t step, std::size_t var,
+                            std::size_t index1, std::size_t index2, std::size_t block_size1, std::size_t block_size2)
         {
             HPX_ASSERT(valid_);
 
             buffer_type buffer = buffer_.receive(step).get();
 
-            unpack_buffer<dir>::call(p, buffer);
+            unpack_buffer<dir>::call(p, buffer, index1, index2, block_size1, block_size2);
         }
 
         void set_buffer(buffer_type buffer, std::size_t step)

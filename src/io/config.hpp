@@ -66,9 +66,18 @@ struct config
         std::size_t num_localities_y;
         std::size_t num_localities_z;
 
-        std::size_t cells_x_per_partition;
-        std::size_t cells_y_per_partition;
-        std::size_t cells_z_per_partition;
+        std::size_t num_partitions;
+        std::size_t num_partitions_x;
+        std::size_t num_partitions_y;
+        std::size_t num_partitions_z;
+
+        std::size_t num_x_blocks;
+        std::size_t num_y_blocks;
+        std::size_t num_z_blocks;
+
+        std::size_t cells_x_per_block;
+        std::size_t cells_y_per_block;
+        std::size_t cells_z_per_block;
 
         std::size_t rank;
         std::size_t idx;
@@ -93,7 +102,8 @@ struct config
                 & beta & gx & gy & gz & vtk & delta_vec & verbose & t_end & initial_dt & max_timesteps
                 & iter_max & eps & eps_sq & num_localities
                 & num_localities_x & num_localities_y & num_localities_z
-                & cells_x_per_partition & cells_y_per_partition & cells_z_per_partition
+                & cells_x_per_block & cells_y_per_block & cells_z_per_block
+                & num_x_blocks & num_y_blocks & num_z_blocks
                 & rank & idx & idy & idz & threads & with_initial_uv_grid
                 & bnd_condition;
         }
@@ -122,9 +132,16 @@ struct config
                 << "\n\tnum_localities_x = " << config.num_localities_x
                 << "\n\tnum_localities_y = " << config.num_localities_y
                 << "\n\tnum_localities_z = " << config.num_localities_z
-                << "\n\tnum_cells_x_per_partition = " << config.cells_x_per_partition
-                << "\n\tnum_cells_y_per_partition = " << config.cells_y_per_partition
-                << "\n\tnum_cells_z_per_partition = " << config.cells_z_per_partition
+                << "\n\tnum_partitions = " << config.num_partitions
+                << "\n\tnum_partitions_x = " << config.num_partitions_x
+                << "\n\tnum_partitions_y = " << config.num_partitions_y
+                << "\n\tnum_partitions_z = " << config.num_partitions_z
+                << "\n\tnum_x_blocks = " << config.num_x_blocks
+                << "\n\tnum_y_blocks = " << config.num_y_blocks
+                << "\n\tnum_z_blocks = " << config.num_z_blocks
+                << "\n\tnum_cells_x_per_block = " << config.cells_x_per_block
+                << "\n\tnum_cells_y_per_block = " << config.cells_y_per_block
+                << "\n\tnum_cells_z_per_block = " << config.cells_z_per_block
                 << "\n\trank = " << config.rank
                 << "\n\tidx = " << config.idx
                 << "\n\tidy = " << config.idy

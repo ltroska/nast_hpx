@@ -1,11 +1,11 @@
-#ifndef NAST_HPX_GRID_SEND_BUFFER_HPP_
-#define NAST_HPX_GRID_SEND_BUFFER_HPP_
-
-#include <hpx/apply.hpp>
-#include <hpx/runtime/serialization/serialize_buffer.hpp>
+#ifndef NAST_HPX_GRID_SEND_BUFFER_HPP
+#define NAST_HPX_GRID_SEND_BUFFER_HPP
 
 #include "partition_data.hpp"
 #include "pack_buffer.hpp"
+
+#include <hpx/apply.hpp>
+#include <hpx/runtime/serialization/serialize_buffer.hpp>
 
 namespace nast_hpx { namespace grid {
 
@@ -18,7 +18,9 @@ namespace nast_hpx { namespace grid {
 
         typedef typename BufferType::value_type value_type;
 
-        typedef BufferType buffer_type;
+        typedef
+            BufferType
+            buffer_type;
 
         send_buffer()
           : dest_(hpx::invalid_id)
@@ -37,13 +39,14 @@ namespace nast_hpx { namespace grid {
             return *this;
         }
 
-        void operator()(partition_data<value_type> const& p, std::size_t step, std::size_t var)
+        void operator()(partition_data<value_type> const& p, std::size_t step,
+                            std::size_t var, std::size_t index1, std::size_t index2, std::size_t block_size1, std::size_t block_size2)
         {
             HPX_ASSERT(dest_);
 
             buffer_type buffer;
 
-            pack_buffer<dir>::call(p, buffer);
+            pack_buffer<dir>::call(p, buffer, index1, index2, block_size1, block_size2);
 
             hpx::apply(Action(), dest_, buffer, step, var);
         }

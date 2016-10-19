@@ -28,35 +28,17 @@ namespace nast_hpx { namespace grid { namespace server {
 partition_server::partition_server(io::config const& cfg)
 :   c(cfg),
     cells_x_(c.cells_x_per_block * c.num_x_blocks + 2),
-    cells_y_(c.cells_y_per_block * c.num_y_blocks + 2),
-    is_left_(c.idx == 0),
-    is_right_(c.idx == c.num_partitions_x - 1),
-    is_bottom_(c.idy == 0),
-    is_top_(c.idy == c.num_partitions_y - 1)
+    cells_y_(c.cells_y_per_block * c.num_y_blocks + 2)
 {
 
-#ifdef WITH_SOR
-    if (c.verbose)
-        std::cout << "Solver: SOR" << std::endl;
-#else
     if (c.verbose)
         std::cout << "Solver: blockwise Jacobi" << std::endl;
-#endif
 
-#ifdef WITH_FOR_EACH
-    if (c.verbose)
-        std::cout << "Parallelization: hpx::parallel::for_each" << std::endl;
-    c.cells_x_per_block = cells_x_ - 2;
-    c.cells_y_per_block = cells_y_ - 2;
-    c.num_x_blocks = 1;
-    c.num_y_blocks = 1;
-#else
     if (c.verbose)
         std::cout << "Parellelization: custom grain size" << std::endl;
-#endif
 
-    if (c.verbose)
-        std::cout << c << std::endl;
+  //  if (c.verbose)
+  //      std::cout << c << std::endl;
 
     step_ = 0;
 
@@ -65,11 +47,16 @@ partition_server::partition_server(io::config const& cfg)
     data_[F].resize(cells_x_, cells_y_, 0);
     data_[G].resize(cells_x_, cells_y_, 0);
     data_[P].resize(cells_x_, cells_y_, 0);
-    rhs_data_.resize(cells_x_, cells_y_, 0);
+    data_[RHS].resize(cells_x_, cells_y_, 0);
+
+    particles.reserve(c.num_fluid_cells * 16);
+
+    Real dx_part = c.dx/4.;
+    Real dy_part = c.dy/4.;
 
     cell_type_data_.resize(cells_x_,cells_y_);
+    empty_marker_data_.resize(cells_x_, cells_y_);
     fluid_cells_.resize(c.num_x_blocks, c.num_y_blocks);
-    boundary_cells_.resize(c.num_x_blocks, c.num_y_blocks);
     obstacle_cells_.resize(c.num_x_blocks, c.num_y_blocks);
 
     for (std::size_t y = 1, ny_block = 0; y < cells_y_ - 1; y += c.cells_y_per_block, ++ny_block)
@@ -80,20 +67,55 @@ partition_server::partition_server(io::config const& cfg)
         {
             range_type x_range(x, std::min(x + c.cells_x_per_block, cells_x_ - 1));
 
-            for (std::size_t j = y_range.first; j < y_range.second; ++j)
-                for (std::size_t i = x_range.first; i < x_range.second; ++i)
+            for (std::size_t j = y_range.x; j < y_range.y; ++j)
+                for (std::size_t i = x_range.x; i < x_range.y; ++i)
                 {
                     cell_type_data_(i, j) = std::move(c.flag_grid[j * cells_x_ + i]);
 
+                    auto empty_marker = c.empty_marker_grid[j * cells_x_ + i];
+
+                    if (c.empty_marker_grid[j * cells_x_ + i - 1][is_empty_cell])
+                        empty_marker[is_empty_cell_left] = 1;
+
+                    if (c.empty_marker_grid[j * cells_x_ + i + 1][is_empty_cell])
+                        empty_marker[is_empty_cell_right] = 1;
+
+                    if (c.empty_marker_grid[(j - 1) * cells_x_ + i][is_empty_cell])
+                        empty_marker[is_empty_cell_bottom] = 1;
+
+                    if (c.empty_marker_grid[(j + 1) * cells_x_ + i][is_empty_cell])
+                        empty_marker[is_empty_cell_top] = 1;
+
+                    empty_marker_data_(i, j) = empty_marker;
+
                     if (cell_type_data_(i, j).test(is_fluid))
+                    {
+                        if (!empty_marker[is_empty_cell])
+                        {
+                            Real start_x = (i - 2) * c.dx + dx_part/2.;
+                            Real start_y = (j - 2) * c.dy + dy_part/2.;
+
+                            for (auto y = 0; y < 4; ++y)
+                                for (auto x = 0; x < 4; ++x)
+                                    particles.emplace_back(start_x + x * dx_part, start_y + y * dy_part);
+                        }
+
                         fluid_cells_(nx_block, ny_block).emplace_back(i, j);
-                    else if (cell_type_data_(i, j).test(is_boundary))
-                        boundary_cells_(nx_block, ny_block).emplace_back(i, j);
-                    else if (!cell_type_data_(i, j).none())
+                    }
+                    else if ((cell_type_data_(i, j).test(is_obstacle) && !cell_type_data_(i, j).test(is_boundary) && cell_type_data_(i, j).count() > 1)
+                             || cell_type_data_(i, j).count() > 2)
                         obstacle_cells_(nx_block, ny_block).emplace_back(i, j);
                 }
 
         }
+    }
+
+    for (auto y = cells_y_ - 1; y < cells_y_; --y)
+    {
+        for (auto x = 0; x < cells_x_; ++x)
+            std::cout << empty_marker_data_(x, y).to_ulong() << " ";
+
+        std::cout << std::endl;
     }
 }
 
@@ -102,97 +124,16 @@ void partition_server::init()
     for (std::size_t var = 0; var < NUM_VARIABLES; ++var)
         data_[var].clear(0);
 
-    rhs_data_.clear(0);
-
-   // step_ = 0;
+    step_ = 0;
     t_ = 0;
     next_out_ = -1e-12;
     outcount_ = 0;
     current = 1;
     last = 0;
 
-    std::vector<hpx::future<hpx::id_type > > parts =
-        hpx::find_all_from_basename(partition_basename, c.num_partitions);
-
-    ids_ = hpx::when_all(parts).then(hpx::util::unwrapped2(
-                [](std::vector<hpx::id_type>&& ids) -> std::vector<hpx::id_type>
-                { return ids;})
-            ).get();
-
-    if (!is_left_)
-    {
-        send_buffer_left_.dest_ = ids_[c.idy * c.num_partitions_x + c.idx - 1];
-
-        recv_buffer_left_[P].valid_ = true;
-        recv_buffer_left_[F].valid_ = true;
-        recv_buffer_left_[G].valid_ = true;
-        recv_buffer_left_[U].valid_ = true;
-        recv_buffer_left_[V].valid_ = true;
-
-
-        if (!is_top_)
-        {
-            send_buffer_top_left_.dest_ = ids_[(c.idy + 1) * c.num_partitions_x + c.idx - 1];
-
-            recv_buffer_top_left_[U].valid_ = true;
-            recv_buffer_top_left_[V].valid_ = true;
-        }
-    }
-
-    if (!is_right_)
-    {
-        send_buffer_right_.dest_ = ids_[c.idy * c.num_partitions_x + c.idx + 1];
-
-        recv_buffer_right_[P].valid_ = true;
-        recv_buffer_right_[U].valid_ = true;
-        recv_buffer_right_[V].valid_ = true;
-
-        if (!is_bottom_)
-        {
-            send_buffer_bottom_right_.dest_ = ids_[(c.idy - 1) * c.num_partitions_x + c.idx + 1];
-            recv_buffer_bottom_right_[U].valid_ = true;
-            recv_buffer_bottom_right_[V].valid_ = true;
-        }
-    }
-
-    if (!is_bottom_)
-    {
-        send_buffer_bottom_.dest_ = ids_[(c.idy - 1) * c.num_partitions_x + c.idx];
-
-        recv_buffer_bottom_[P].valid_= true;
-        recv_buffer_bottom_[F].valid_= true;
-        recv_buffer_bottom_[G].valid_= true;
-        recv_buffer_bottom_[U].valid_= true;
-        recv_buffer_bottom_[V].valid_= true;
-    }
-
-    if (!is_top_)
-    {
-        send_buffer_top_.dest_ = ids_[(c.idy + 1) * c.num_partitions_x + c.idx];
-
-        recv_buffer_top_[P].valid_ = true;
-        recv_buffer_top_[U].valid_ = true;
-        recv_buffer_top_[V].valid_ = true;
-    }
-
-    send_futures_U.resize(NUM_DIRECTIONS);
-    send_futures_V.resize(NUM_DIRECTIONS);
-    recv_futures_U.resize(NUM_DIRECTIONS);
-    recv_futures_V.resize(NUM_DIRECTIONS);
-    send_futures_F.resize(NUM_DIRECTIONS);
-    send_futures_G.resize(NUM_DIRECTIONS);
-    recv_futures_F.resize(NUM_DIRECTIONS);
-    recv_futures_G.resize(NUM_DIRECTIONS);
-    send_futures_P.resize(NUM_DIRECTIONS);
-
     set_velocity_futures.resize(c.num_x_blocks, c.num_y_blocks);
-    init_future_grid(recv_futures_U);
-    init_future_grid(recv_futures_V);
-
+    update_particle_futures.resize(c.num_x_blocks, c.num_y_blocks);
     compute_fg_futures.resize(c.num_x_blocks, c.num_y_blocks);
-    init_future_grid(recv_futures_F);
-    init_future_grid(recv_futures_G);
-
     compute_rhs_futures.resize(c.num_x_blocks, c.num_y_blocks);
     compute_res_futures.resize(c.num_x_blocks, c.num_y_blocks);
 
@@ -200,465 +141,105 @@ void partition_server::init()
         a = hpx::make_ready_future(0.);
 
     set_p_futures.resize(c.num_x_blocks, c.num_y_blocks);
-    recv_futures_P[current].resize(NUM_DIRECTIONS);
-    recv_futures_P[last].resize(NUM_DIRECTIONS);
-    init_future_grid(recv_futures_P[current]);
-    init_future_grid(recv_futures_P[last]);
 
-    for (auto& a : recv_futures_P[last])
-        for (auto& b : a)
-            b = hpx::make_ready_future();
+    solver_cycle_futures[current].resize(c.num_x_blocks, c.num_y_blocks);
+    solver_cycle_futures[last].resize(c.num_x_blocks, c.num_y_blocks);
 
-    sor_cycle_futures[current].resize(c.num_x_blocks, c.num_y_blocks);
-    sor_cycle_futures[last].resize(c.num_x_blocks, c.num_y_blocks);
-
-    for (auto& a : sor_cycle_futures[last])
+    for (auto& a : solver_cycle_futures[last])
         a = hpx::make_ready_future();
 
     token.reset();
 }
 
 template<>
-void partition_server::send_boundary<LEFT>(std::size_t step, std::size_t var, future_vector& send_futures)
+hpx::shared_future<void> partition_server::get_dependency<LEFT>(std::size_t idx_block, std::size_t idy_block, partition_data<hpx::shared_future<void> > calc_futures)
 {
-    if (!send_futures.empty())
-        for (std::size_t i = 0; i < send_futures.size(); ++i)
-            send_futures[i].then(
-                hpx::launch::async,
-                hpx::util::bind(
-                    boost::ref(send_buffer_left_),
-                    boost::ref(data_[var]),
-                    step * c.num_y_blocks + i,
-                    var,
-                    i * c.cells_y_per_block,
-                    c.cells_y_per_block
-                )
-            );
-}
-
-template<>
-void partition_server::send_boundary<RIGHT>(std::size_t step, std::size_t var, future_vector& send_futures)
-{
-    if (!send_futures.empty())
-        for (std::size_t i = 0; i < send_futures.size(); ++i)
-            send_futures[i].then(
-                hpx::launch::async,
-                hpx::util::bind(
-                    boost::ref(send_buffer_right_),
-                    boost::ref(data_[var]),
-                    step * c.num_y_blocks + i,
-                    var,
-                    i * c.cells_y_per_block,
-                    c.cells_y_per_block
-                )
-            );
-}
-
-template<>
-void partition_server::send_boundary<BOTTOM>(std::size_t step, std::size_t var, future_vector& send_futures)
-{
-    if (!send_futures.empty())
-        for (std::size_t i = 0; i < send_futures.size(); ++i)
-            send_futures[i].then(
-                hpx::launch::async,
-                hpx::util::bind(
-                    boost::ref(send_buffer_bottom_),
-                    boost::ref(data_[var]),
-                    step * c.num_x_blocks + i,
-                    var,
-                    i * c.cells_x_per_block,
-                    c.cells_x_per_block
-                )
-            );
-}
-
-template<>
-void partition_server::send_boundary<TOP>(std::size_t step, std::size_t var, future_vector& send_futures)
-{
-    if (!send_futures.empty())
-        for (std::size_t i = 0; i < send_futures.size(); ++i)
-            send_futures[i].then(
-                hpx::launch::async,
-                hpx::util::bind(
-                    boost::ref(send_buffer_top_),
-                    boost::ref(data_[var]),
-                    step * c.num_x_blocks + i,
-                    var,
-                    i * c.cells_x_per_block,
-                    c.cells_x_per_block
-                )
-            );
-}
-
-template<>
-void partition_server::send_boundary<BOTTOM_RIGHT>(std::size_t step, std::size_t var, future_vector& send_futures)
-{
-    if (!send_futures.empty())
-        hpx::when_all(send_futures).then(
-            hpx::launch::async,
-            hpx::util::bind(
-                boost::ref(send_buffer_bottom_right_),
-                boost::ref(data_[var]),
-                step,
-                var
-            )
-        );
-}
-
-template<>
-void partition_server::send_boundary<TOP_LEFT>(std::size_t step, std::size_t var, future_vector& send_futures)
-{
-    if (!send_futures.empty())
-        hpx::when_all(send_futures).then(
-            hpx::launch::async,
-            hpx::util::bind(
-                boost::ref(send_buffer_top_left_),
-                boost::ref(data_[var]),
-                step,
-                var
-            )
-        );
-}
-
-
-template<std::size_t var>
-void partition_server::send_right_and_top_boundaries(std::size_t step, future_grid& send_futures)
-{
-    send_boundary<RIGHT>(step, var, send_futures[RIGHT]);
-    send_boundary<TOP>(step, var, send_futures[TOP]);
-}
-
-template<std::size_t var>
-void partition_server::send_cross_boundaries(std::size_t step, future_grid& send_futures)
-{
-    send_boundary<LEFT>(step, var, send_futures[LEFT]);
-    send_boundary<RIGHT>(step, var, send_futures[RIGHT]);
-    send_boundary<BOTTOM>(step, var, send_futures[BOTTOM]);
-    send_boundary<TOP>(step, var, send_futures[TOP]);
-}
-
-template<std::size_t var>
-void partition_server::send_all_boundaries(std::size_t step, future_grid& send_futures)
-{
-    send_boundary<LEFT>(step, var, send_futures[LEFT]);
-    send_boundary<RIGHT>(step, var, send_futures[RIGHT]);
-    send_boundary<BOTTOM>(step, var, send_futures[BOTTOM]);
-    send_boundary<TOP>(step, var, send_futures[TOP]);
-    send_boundary<BOTTOM_RIGHT>(step, var, send_futures[BOTTOM_RIGHT]);
-    send_boundary<TOP_LEFT>(step, var, send_futures[TOP_LEFT]);
-}
-
-
-template<>
-void partition_server::receive_boundary<LEFT>(std::size_t step, std::size_t var, future_vector& recv_futures)
-{
-    if (recv_buffer_left_[var].valid_)
-        for (std::size_t i = 0; i < recv_futures.size(); ++i)
-            recv_futures[i] =
-                hpx::async(
-                    hpx::util::bind(
-                        boost::ref(recv_buffer_left_[var]),
-                        boost::ref(data_[var]),
-                        step * c.num_y_blocks + i,
-                        i * c.cells_y_per_block
-                    )
-            );
-}
-
-template<>
-void partition_server::receive_boundary<RIGHT>(std::size_t step, std::size_t var, future_vector& recv_futures)
-{
-    if (recv_buffer_right_[var].valid_)
-        for (std::size_t i = 0; i < recv_futures.size(); ++i)
-            recv_futures[i] =
-                hpx::async(
-                    hpx::util::bind(
-                        boost::ref(recv_buffer_right_[var]),
-                        boost::ref(data_[var]),
-                        step * c.num_y_blocks + i,
-                        i * c.cells_y_per_block
-                    )
-            );
-}
-
-template<>
-void partition_server::receive_boundary<BOTTOM>(std::size_t step, std::size_t var, future_vector& recv_futures)
-{
-    if (recv_buffer_bottom_[var].valid_)
-        for (std::size_t i = 0; i < recv_futures.size(); ++i)
-            recv_futures[i] =
-                hpx::async(
-                    hpx::util::bind(
-                        boost::ref(recv_buffer_bottom_[var]),
-                        boost::ref(data_[var]),
-                        step * c.num_x_blocks + i,
-                        i * c.cells_x_per_block
-                    )
-            );
-}
-
-template<>
-void partition_server::receive_boundary<TOP>(std::size_t step, std::size_t var, future_vector& recv_futures)
-{
-    if (recv_buffer_top_[var].valid_)
-        for (std::size_t i = 0; i < recv_futures.size(); ++i)
-            recv_futures[i] =
-                hpx::async(
-                    hpx::util::bind(
-                        boost::ref(recv_buffer_top_[var]),
-                        boost::ref(data_[var]),
-                        step * c.num_x_blocks + i,
-                        i * c.cells_x_per_block
-                    )
-            );
-}
-
-template<>
-void partition_server::receive_boundary<BOTTOM_RIGHT>(std::size_t step, std::size_t var, future_vector& recv_futures)
-{
-    if (recv_buffer_bottom_right_[var].valid_)
-        recv_futures[0] =
-            hpx::async(
-                hpx::util::bind(
-                    boost::ref(recv_buffer_bottom_right_[var]),
-                    boost::ref(data_[var]),
-                    step
-                )
-        );
-}
-
-template<>
-void partition_server::receive_boundary<TOP_LEFT>(std::size_t step, std::size_t var, future_vector& recv_futures)
-{
-    if (recv_buffer_top_left_[var].valid_)
-        recv_futures[0] =
-            hpx::async(
-                hpx::util::bind(
-                    boost::ref(recv_buffer_top_left_[var]),
-                    boost::ref(data_[var]),
-                    step
-                )
-        );
-}
-
-template<std::size_t var>
-void partition_server::receive_left_and_bottom_boundaries(std::size_t step, future_grid& recv_futures)
-{
-    receive_boundary<LEFT>(step, var, recv_futures[LEFT]);
-    receive_boundary<BOTTOM>(step, var, recv_futures[BOTTOM]);
-
-    for (uint i = 0; i < recv_futures[RIGHT].size(); ++i)
-        recv_futures[RIGHT][i] = hpx::make_ready_future();
-
-    for (uint i = 0; i < recv_futures[TOP].size(); ++i)
-        recv_futures[TOP][i] = hpx::make_ready_future();
-
-    recv_futures[BOTTOM_RIGHT][0] = hpx::make_ready_future();
-    recv_futures[TOP_LEFT][0] = hpx::make_ready_future();
-}
-
-template<std::size_t var>
-void partition_server::receive_cross_boundaries(std::size_t step, future_grid& recv_futures)
-{
-    receive_boundary<LEFT>(step, var, recv_futures[LEFT]);
-    receive_boundary<RIGHT>(step, var, recv_futures[RIGHT]);
-    receive_boundary<BOTTOM>(step, var, recv_futures[BOTTOM]);
-    receive_boundary<TOP>(step, var, recv_futures[TOP]);
-
-    recv_futures[BOTTOM_RIGHT][0] = hpx::make_ready_future();
-    recv_futures[TOP_LEFT][0] = hpx::make_ready_future();
-}
-
-template<std::size_t var>
-void partition_server::receive_all_boundaries(std::size_t step, future_grid& recv_futures)
-{
-    receive_boundary<LEFT>(step, var, recv_futures[LEFT]);
-    receive_boundary<RIGHT>(step, var, recv_futures[RIGHT]);
-    receive_boundary<BOTTOM>(step, var, recv_futures[BOTTOM]);
-    receive_boundary<TOP>(step, var, recv_futures[TOP]);
-    receive_boundary<BOTTOM_RIGHT>(step, var, recv_futures[BOTTOM_RIGHT]);
-    receive_boundary<TOP_LEFT>(step, var, recv_futures[TOP_LEFT]);
-}
-
-void partition_server::wait_all_boundaries(future_grid& recv_futures)
-{
-    if (!is_left_)
-        hpx::wait_all(recv_futures[LEFT]);
-
-    if (!is_right_)
-        hpx::wait_all(recv_futures[RIGHT]);
-
-    if (!is_bottom_)
-    {
-        hpx::wait_all(recv_futures[BOTTOM]);
-
-        if (!is_right_)
-            recv_futures[BOTTOM_RIGHT][0].wait();
-    }
-
-    if (!is_top_)
-    {
-        hpx::wait_all(recv_futures[TOP]);
-
-        if (!is_left_)
-            recv_futures[TOP_LEFT][0].wait();
-    }
-}
-
-template<>
-hpx::shared_future<void> partition_server::get_dependency<LEFT>(std::size_t idx_block,
-    std::size_t idy_block, future_grid const& recv_futures,
-    partition_data<hpx::shared_future<void> > const& calc_futures)
-{
-    if (is_left_ && idx_block == 0)
+    if (idx_block == 0)
         return hpx::make_ready_future();
-    else if (idx_block == 0)
-        return recv_futures[LEFT][idy_block];
 
     return calc_futures(idx_block - 1, idy_block);
 }
 
 template<>
-hpx::shared_future<void> partition_server::get_dependency<RIGHT>(std::size_t idx_block,
-    std::size_t idy_block, future_grid const& recv_futures,
-    partition_data<hpx::shared_future<void> > const& calc_futures)
+hpx::shared_future<void> partition_server::get_dependency<RIGHT>(std::size_t idx_block, std::size_t idy_block, partition_data<hpx::shared_future<void> > calc_futures)
 {
-    if (is_right_ && idx_block == calc_futures.size_x_ - 1)
+    if (idx_block == calc_futures.size_x_ - 1)
         return hpx::make_ready_future();
-    else if (idx_block == calc_futures.size_x_ - 1)
-        return recv_futures[RIGHT][idy_block];
 
     return calc_futures(idx_block + 1, idy_block);
 }
 
 template<>
-hpx::shared_future<void> partition_server::get_dependency<BOTTOM>(std::size_t idx_block,
-    std::size_t idy_block, future_grid const& recv_futures,
-    partition_data<hpx::shared_future<void> > const& calc_futures)
+hpx::shared_future<void> partition_server::get_dependency<BOTTOM>(std::size_t idx_block, std::size_t idy_block, partition_data<hpx::shared_future<void> > calc_futures)
 {
-    if (is_bottom_ && idy_block == 0)
+    if (idy_block == 0)
         return hpx::make_ready_future();
-
-    else if (idy_block == 0)
-        return recv_futures[BOTTOM][idx_block];
 
     return calc_futures(idx_block, idy_block - 1);
 }
 
 template<>
-hpx::shared_future<void> partition_server::get_dependency<TOP>(std::size_t idx_block,
-    std::size_t idy_block, future_grid const& recv_futures,
-    partition_data<hpx::shared_future<void> > const& calc_futures)
+hpx::shared_future<void> partition_server::get_dependency<TOP>(std::size_t idx_block, std::size_t idy_block, partition_data<hpx::shared_future<void> > calc_futures)
 {
-    if (is_top_ && idy_block == calc_futures.size_y_ - 1)
+    if (idy_block == calc_futures.size_y_ - 1)
         return hpx::make_ready_future();
-    else if (idy_block == calc_futures.size_y_ - 1)
-        return recv_futures[TOP][idx_block];
 
     return calc_futures(idx_block, idy_block + 1);
 }
 
 template<>
-hpx::shared_future<void> partition_server::get_dependency<BOTTOM_RIGHT>(std::size_t idx_block,
-    std::size_t idy_block, future_grid const& recv_futures,
-    partition_data<hpx::shared_future<void> > const& calc_futures)
+hpx::shared_future<void> partition_server::get_dependency<TOP_LEFT>(std::size_t idx_block, std::size_t idy_block, partition_data<hpx::shared_future<void> > calc_futures)
 {
-    if ((is_bottom_ && idy_block == 0) || (is_right_ && idx_block == calc_futures.size_x_ - 1))
+    if (idx_block == 0 || idy_block == calc_futures.size_y_ - 1)
         return hpx::make_ready_future();
-
-    if (idy_block == 0 && idx_block == calc_futures.size_x_ - 1)
-        return recv_futures[BOTTOM_RIGHT][0];
-    else if (idy_block == 0)
-        return recv_futures[BOTTOM][idx_block + 1];
-    else if (idx_block == calc_futures.size_x_ - 1)
-        return recv_futures[RIGHT][idy_block - 1];
-
-    return calc_futures(idx_block + 1, idy_block - 1);
-}
-
-template<>
-hpx::shared_future<void> partition_server::get_dependency<TOP_LEFT>(std::size_t idx_block,
-    std::size_t idy_block, future_grid const& recv_futures,
-    partition_data<hpx::shared_future<void> > const& calc_futures)
-{
-    if ((is_left_ && idx_block == 0) || (is_top_ && idy_block == calc_futures.size_y_ - 1))
-        return hpx::make_ready_future();
-
-    if (idy_block == calc_futures.size_y_ - 1 && idx_block == 0)
-        return recv_futures[TOP_LEFT][0];
-    else if (idy_block == calc_futures.size_y_ - 1)
-        return recv_futures[TOP][idx_block - 1];
-    else if (idx_block == 0)
-        return recv_futures[LEFT][idy_block + 1];
 
     return calc_futures(idx_block - 1, idy_block + 1);
 }
 
-std::pair<Real, Real> partition_server::do_timestep(Real dt)
+template<>
+hpx::shared_future<void> partition_server::get_dependency<BOTTOM_RIGHT>(std::size_t idx_block, std::size_t idy_block, partition_data<hpx::shared_future<void> > calc_futures)
 {
-    clear(send_futures_U);
-    clear(send_futures_V);
+    if (idx_block == calc_futures.size_x_ - 1 || idy_block == 0)
+        return hpx::make_ready_future();
+
+    return calc_futures(idx_block + 1, idy_block - 1);
+}
+
+pair<Real> partition_server::do_timestep(Real dt)
+{
+    for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
+    {
+        for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
+        {
+           set_velocity_futures(nx_block, ny_block) =
+                hpx::async(
+                    hpx::util::bind(
+                        &stencils<STENCIL_SET_VELOCITY>::call,
+                        boost::ref(data_[U]), boost::ref(data_[V]),
+                        boost::ref(cell_type_data_),
+                        boost::ref(obstacle_cells_(nx_block, ny_block)),
+                        c.bnd_condition
+                    )
+                );
+        }
+    }
+
+    hpx::wait_all(set_velocity_futures.data_);
 
     for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
     {
         for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
         {
-            hpx::shared_future<void> calc_future =
+           update_particle_futures(nx_block, ny_block) =
                 hpx::async(
                     hpx::util::bind(
-                        &stencils<STENCIL_SET_VELOCITY>::call,
-                        boost::ref(data_[U]), boost::ref(data_[V]),
-                        boost::ref(cell_type_data_), boost::ref(boundary_cells_(nx_block, ny_block)),
-                        boost::ref(obstacle_cells_(nx_block, ny_block)),
-                        c.u_bnd, c.v_bnd, c.bnd_type
+                        &stencils<STENCIL_UPDATE_PARTICLE_POSITION>::call,
+                        particles.begin(), particles.end(), boost::ref(data_[U]), boost::ref(data_[V]),
+                        c.dx, c.dy, dt, c.x_length, c.y_length
                     )
                 );
-
-            set_velocity_futures(nx_block, ny_block) = calc_future;
-
-            if (!is_left_ && nx_block == 0)
-            {
-                send_futures_U[LEFT].push_back(calc_future);
-                send_futures_V[LEFT].push_back(calc_future);
-            }
-
-            if (!is_right_ && nx_block == c.num_x_blocks - 1)
-            {
-                send_futures_U[RIGHT].push_back(calc_future);
-                send_futures_V[RIGHT].push_back(calc_future);
-            }
-
-            if (!is_bottom_ && ny_block == 0)
-            {
-                send_futures_U[BOTTOM].push_back(calc_future);
-                send_futures_V[BOTTOM].push_back(calc_future);
-            }
-
-            if (!is_top_ && ny_block == c.num_y_blocks - 1)
-            {
-                send_futures_U[TOP].push_back(calc_future);
-                send_futures_V[TOP].push_back(calc_future);
-            }
-
-            if (!is_bottom_ && !is_right_ && nx_block == c.num_x_blocks - 1 && ny_block == 0)
-            {
-                send_futures_U[BOTTOM_RIGHT].push_back(calc_future);
-                send_futures_V[BOTTOM_RIGHT].push_back(calc_future);
-            }
-
-            if (!is_top_ && !is_left_ && nx_block == 0 && ny_block == c.num_y_blocks - 1)
-            {
-                send_futures_U[TOP_LEFT].push_back(calc_future);
-                send_futures_V[TOP_LEFT].push_back(calc_future);
-            }
         }
     }
-
-    send_all_boundaries<U>(step_, send_futures_U);
-    send_all_boundaries<V>(step_, send_futures_V);
-
-    receive_all_boundaries<U>(step_, recv_futures_U);
-    receive_all_boundaries<V>(step_, recv_futures_V);
 
     if (c.vtk && next_out_ < t_)
     {
@@ -667,25 +248,22 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
         if (c.verbose)
             std::cout << "Output in step " << step_ << " " << c.eps << " " << c.iter_max << token.was_cancelled() << std::endl;
 
-        hpx::when_all(set_velocity_futures.data_).then(
+        hpx::when_all(update_particle_futures.data_).then(
             hpx::launch::async,
             hpx::util::bind(
                 &io::writer::write_vtk,
-                boost::ref(data_[P]), boost::ref(data_[U]), boost::ref(data_[V]), boost::ref(cell_type_data_),
-                c.num_partitions_x, c.num_partitions_y, c.i_max, c.j_max, c.dx, c.dx, outcount_++,
-                c.rank
+                boost::ref(data_[P]), boost::ref(data_[U]), boost::ref(data_[V]), boost::ref(cell_type_data_), boost::ref(particles),
+                1, 1, c.i_max, c.j_max, c.dx, c.dx, outcount_++,
+                0
             )
         ).wait();
     }
-
-    clear(send_futures_F);
-    clear(send_futures_G);
 
     for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
     {
         for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
         {
-            hpx::shared_future<void> calc_future =
+            compute_fg_futures(nx_block, ny_block) =
                 hpx::dataflow(
                     hpx::util::unwrapped(
                         hpx::util::bind(
@@ -693,46 +271,25 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                             boost::ref(data_[F]), boost::ref(data_[G]),
                             boost::ref(data_[U]), boost::ref(data_[V]),
                             boost::ref(cell_type_data_),
-                            boost::ref(boundary_cells_(nx_block, ny_block)),
                             boost::ref(obstacle_cells_(nx_block, ny_block)),
                             boost::ref(fluid_cells_(nx_block, ny_block)),
-                            c.re, c.gx, c.gy, c.beta, c.dx, c.dy, dt, c.alpha
+                            c.re, c.gx, c.gy, c.dx, c.dy, dt, c.alpha
                         )
                     )
                     , set_velocity_futures(nx_block, ny_block)
-                    , get_dependency<LEFT>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
-                    , get_dependency<LEFT>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
-                    , get_dependency<RIGHT>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
-                    , get_dependency<RIGHT>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
-                    , get_dependency<BOTTOM>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
-                    , get_dependency<BOTTOM>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
-                    , get_dependency<TOP>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
-                    , get_dependency<TOP>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
-                    , get_dependency<TOP_LEFT>(nx_block, ny_block, recv_futures_U, set_velocity_futures)
-                    , get_dependency<BOTTOM_RIGHT>(nx_block, ny_block, recv_futures_V, set_velocity_futures)
+                    , get_dependency<LEFT>(nx_block, ny_block, set_velocity_futures)
+                    , get_dependency<LEFT>(nx_block, ny_block, set_velocity_futures)
+                    , get_dependency<RIGHT>(nx_block, ny_block, set_velocity_futures)
+                    , get_dependency<RIGHT>(nx_block, ny_block, set_velocity_futures)
+                    , get_dependency<BOTTOM>(nx_block, ny_block, set_velocity_futures)
+                    , get_dependency<BOTTOM>(nx_block, ny_block, set_velocity_futures)
+                    , get_dependency<TOP>(nx_block, ny_block, set_velocity_futures)
+                    , get_dependency<TOP>(nx_block, ny_block, set_velocity_futures)
+                    , get_dependency<TOP_LEFT>(nx_block, ny_block, set_velocity_futures)
+                    , get_dependency<BOTTOM_RIGHT>(nx_block, ny_block, set_velocity_futures)
                 );
-
-            compute_fg_futures(nx_block, ny_block) = calc_future;
-
-            if (!is_right_ && nx_block == c.num_x_blocks - 1)
-            {
-                send_futures_F[RIGHT].push_back(calc_future);
-                send_futures_G[RIGHT].push_back(calc_future);
-            }
-
-            if (!is_top_ && ny_block == c.num_y_blocks - 1)
-            {
-                send_futures_F[TOP].push_back(calc_future);
-                send_futures_G[TOP].push_back(calc_future);
-            }
         }
     }
-
-    send_right_and_top_boundaries<F>(step_, send_futures_F);
-    send_right_and_top_boundaries<G>(step_, send_futures_G);
-
-    receive_left_and_bottom_boundaries<F>(step_, recv_futures_F);
-    receive_left_and_bottom_boundaries<G>(step_, recv_futures_G);
 
     for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
     {
@@ -743,125 +300,24 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                     hpx::util::unwrapped(
                         hpx::util::bind(
                             &stencils<STENCIL_COMPUTE_RHS>::call,
-                            boost::ref(rhs_data_), boost::ref(data_[F]),
+                            boost::ref(data_[RHS]), boost::ref(data_[F]),
                             boost::ref(data_[G]), boost::ref(cell_type_data_),
                             boost::ref(fluid_cells_(nx_block, ny_block)),
                             c.dx, c.dy, dt
                         )
                     )
                     , compute_fg_futures(nx_block, ny_block)
-                    , get_dependency<LEFT>(nx_block, ny_block, recv_futures_F, compute_fg_futures)
-                    , get_dependency<BOTTOM>(nx_block, ny_block, recv_futures_G, compute_fg_futures)
+                    , get_dependency<LEFT>(nx_block, ny_block, compute_fg_futures)
+                    , get_dependency<BOTTOM>(nx_block, ny_block, compute_fg_futures)
                 );
         }
     }
 
-
-    //TODO make calc_futures members
-    hpx::util::high_resolution_timer t1;
-
-    Real rres;
     token.reset();
-
-   // if (!is_left_)
-   //     hpx::wait_all(g[LEFT]);
 
     for (std::size_t iter = 0; iter < c.iter_max; ++iter)
     {
-        clear(send_futures_P);
-
-#ifdef WITH_SOR
-        for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
-        {
-            for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
-            {
-                set_p_futures(nx_block, ny_block) =
-                    hpx::dataflow(
-                        hpx::util::unwrapped(
-                            hpx::util::bind(
-                                &stencils<STENCIL_SET_P>::call,
-                                boost::ref(data_[P]), boost::ref(cell_type_data_),
-                                boost::ref(boundary_cells_(nx_block, ny_block)),
-                                boost::ref(obstacle_cells_(nx_block, ny_block)),
-                                token
-                            )
-                        )
-                        , sor_cycle_futures[last](nx_block, ny_block)
-                        , get_dependency<LEFT>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                        , get_dependency<BOTTOM>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                        , get_dependency<RIGHT>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                        , get_dependency<TOP>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                        , compute_res_futures(nx_block, ny_block).then([](hpx::shared_future<Real> a) {return;})
-                    );
-            }
-        }
-
-        receive_cross_boundaries<P>(iter, recv_futures_P[current]);
-
-        for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
-        {
-            for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
-            {
-                hpx::shared_future<void> calc_future =
-                    hpx::dataflow(
-                        hpx::util::unwrapped(
-                            hpx::util::bind(
-                                &stencils<STENCIL_SOR>::call,
-                                boost::ref(data_[P]), boost::ref(rhs_data_),
-                                boost::ref(fluid_cells_(nx_block, ny_block)),
-                                c.part1, c.part2, c.dx_sq, c.dy_sq,
-                                token
-                            )
-                        )
-                        , set_p_futures(nx_block, ny_block)
-                        , compute_rhs_futures(nx_block, ny_block)
-                        , get_dependency<LEFT>(nx_block, ny_block, recv_futures_P[current], sor_cycle_futures[current])
-                        , get_dependency<BOTTOM>(nx_block, ny_block, recv_futures_P[current], sor_cycle_futures[current])
-                        , get_dependency<RIGHT>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                        , get_dependency<TOP>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                    );
-
-                sor_cycle_futures[current](nx_block, ny_block) = calc_future;
-
-                if (!is_left_ && nx_block == 0)
-                    send_futures_P[LEFT].push_back(calc_future);
-
-                if (!is_right_ && nx_block == c.num_x_blocks - 1)
-                    send_futures_P[RIGHT].push_back(calc_future);
-
-                if (!is_bottom_ && ny_block == 0)
-                    send_futures_P[BOTTOM].push_back(calc_future);
-
-                if (!is_top_ && ny_block == c.num_y_blocks - 1)
-                    send_futures_P[TOP].push_back(calc_future);
-            }
-        }
-
-        send_cross_boundaries<P>(iter, send_futures_P);
-
-        for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
-        {
-            for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
-            {
-                compute_res_futures(nx_block, ny_block) =
-                    hpx::dataflow(
-                        hpx::util::unwrapped(
-                            hpx::util::bind(
-                                &stencils<STENCIL_COMPUTE_RESIDUAL>::call,
-                                boost::ref(data_[P]), boost::ref(rhs_data_),
-                                boost::ref(fluid_cells_(nx_block, ny_block)),
-                                c.over_dx_sq, c.over_dy_sq,
-                                token
-                            )
-                        )
-                        , sor_cycle_futures[current](nx_block, ny_block)
-                        , get_dependency<RIGHT>(nx_block, ny_block, recv_futures_P[current], sor_cycle_futures[current])
-                        , get_dependency<TOP>(nx_block, ny_block, recv_futures_P[current], sor_cycle_futures[current])
-                    );
-            }
-        }
-#else
-      /*  for (std::size_t y = 1, ny_block = 0; y < cells_y_ - 1; y += c.cells_y_per_block, ++ny_block)
+        for (std::size_t y = 1, ny_block = 0; y < cells_y_ - 1; y += c.cells_y_per_block, ++ny_block)
         {
             for (std::size_t x = 1, nx_block = 0; x < cells_x_ - 1; x += c.cells_x_per_block, ++nx_block)
             {
@@ -871,63 +327,44 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                             hpx::util::bind(
                                 &stencils<STENCIL_SET_P>::call,
                                 boost::ref(data_[P]), boost::ref(cell_type_data_),
-                                boost::ref(boundary_cells_(nx_block, ny_block)), boost::ref(obstacle_cells_(nx_block, ny_block)),
+                                boost::ref(obstacle_cells_(nx_block, ny_block)),
                                 token
                             )
                         )
-                        , sor_cycle_futures[last](nx_block, ny_block)
-                        , get_dependency<LEFT>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                        , get_dependency<BOTTOM>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                        , get_dependency<RIGHT>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                        , get_dependency<TOP>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                      //  , compute_res_futures(nx_block, ny_block).then([](hpx::shared_future<Real> a) {return;})
+                        , solver_cycle_futures[last](nx_block, ny_block)
+                        , get_dependency<LEFT>(nx_block, ny_block, solver_cycle_futures[last])
+                        , get_dependency<BOTTOM>(nx_block, ny_block, solver_cycle_futures[last])
+                        , get_dependency<RIGHT>(nx_block, ny_block, solver_cycle_futures[last])
+                        , get_dependency<TOP>(nx_block, ny_block, solver_cycle_futures[last])
+                        , compute_res_futures(nx_block, ny_block)
                     );
             }
-        }*/
+        }
 
         for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
         {
             for (std::size_t nx_block = 0; nx_block < c.num_x_blocks; ++nx_block)
             {
-                hpx::shared_future<void> calc_future =
+                solver_cycle_futures[current](nx_block, ny_block) =
                     hpx::dataflow(
                         hpx::util::unwrapped(
                             hpx::util::bind(
-                                &stencils<STENCIL_TEST>::call,
-                                boost::ref(data_[P]), boost::ref(rhs_data_),
+                                &stencils<STENCIL_JACOBI>::call,
+                                boost::ref(data_[P]), boost::ref(data_[RHS]),
                                 boost::ref(fluid_cells_(nx_block, ny_block)),
-                                boost::ref(boundary_cells_(nx_block, ny_block)),
-                                boost::ref(obstacle_cells_(nx_block, ny_block)),
-                                boost::ref(cell_type_data_), c.dx_sq, c.dy_sq,
-                                token
+                                c.dx_sq, c.dy_sq, token
                             )
                         )
-                        , sor_cycle_futures[last](nx_block, ny_block)
-                        , get_dependency<LEFT>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                        , get_dependency<BOTTOM>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                        , get_dependency<RIGHT>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                        , get_dependency<TOP>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
+                        , set_p_futures(nx_block, ny_block)
+                        , solver_cycle_futures[last](nx_block, ny_block)
+                        , get_dependency<LEFT>(nx_block, ny_block, solver_cycle_futures[last])
+                        , get_dependency<BOTTOM>(nx_block, ny_block, solver_cycle_futures[last])
+                        , get_dependency<RIGHT>(nx_block, ny_block, solver_cycle_futures[last])
+                        , get_dependency<TOP>(nx_block, ny_block, solver_cycle_futures[last])
                         , compute_rhs_futures(nx_block, ny_block)
                     );
-
-                sor_cycle_futures[current](nx_block, ny_block) = calc_future;
-
-                if (!is_left_ && nx_block == 0)
-                    send_futures_P[LEFT].push_back(calc_future);
-
-                if (!is_right_ && nx_block == c.num_x_blocks - 1)
-                    send_futures_P[RIGHT].push_back(calc_future);
-
-                if (!is_bottom_ && ny_block == 0)
-                    send_futures_P[BOTTOM].push_back(calc_future);
-
-                if (!is_top_ && ny_block == c.num_y_blocks - 1)
-                    send_futures_P[TOP].push_back(calc_future);
             }
         }
-
-        send_cross_boundaries<P>(iter, send_futures_P);
-        receive_cross_boundaries<P>(iter, recv_futures_P[current]);
 
         for (std::size_t ny_block = 0; ny_block < c.num_y_blocks; ++ny_block)
         {
@@ -938,87 +375,46 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                         hpx::util::unwrapped(
                             hpx::util::bind(
                                 &stencils<STENCIL_COMPUTE_RESIDUAL>::call,
-                                boost::ref(data_[P]), boost::ref(rhs_data_),
+                                boost::ref(data_[P]), boost::ref(data_[RHS]),
                                 boost::ref(fluid_cells_(nx_block, ny_block)), c.over_dx_sq, c.over_dy_sq,
                                 token
                             )
                         )
-                        , sor_cycle_futures[current](nx_block, ny_block)
-                        , get_dependency<LEFT>(nx_block, ny_block, recv_futures_P[current], sor_cycle_futures[current])
-                        , get_dependency<RIGHT>(nx_block, ny_block, recv_futures_P[current], sor_cycle_futures[current])
-                        , get_dependency<BOTTOM>(nx_block, ny_block, recv_futures_P[current], sor_cycle_futures[current])
-                        , get_dependency<TOP>(nx_block, ny_block, recv_futures_P[current], sor_cycle_futures[current])
+                        , solver_cycle_futures[current](nx_block, ny_block)
+                        , get_dependency<LEFT>(nx_block, ny_block,  solver_cycle_futures[current])
+                        , get_dependency<RIGHT>(nx_block, ny_block, solver_cycle_futures[current])
+                        , get_dependency<BOTTOM>(nx_block, ny_block, solver_cycle_futures[current])
+                        , get_dependency<TOP>(nx_block, ny_block, solver_cycle_futures[current])
                     );
             }
         }
 
-#endif
         std::swap(current, last);
 
-        hpx::future<Real> local_residual =
-            hpx::dataflow(
-                hpx::util::unwrapped(
-                    [num_fluid_cells = c.num_fluid_cells](std::vector<Real> residuals)
-                    -> Real
+        hpx::dataflow(
+            hpx::util::unwrapped(
+                [this, iter](std::vector<Real> residuals)
+                {
+                    if (!token.was_cancelled())
                     {
-                        Real sum = 0;
+                        Real residual = 0;
 
                         for (std::size_t i = 0; i < residuals.size(); ++i)
-                            sum += residuals[i];
+                            residual += residuals[i];
 
-                        return sum / num_fluid_cells;
-                    }
-                )
-                , compute_res_futures.data_
-            );
+                        residual = std::sqrt(residual)/c.num_fluid_cells;
 
-        if (c.idx == 0 && c.idy == 0)
-        {
-            hpx::future<std::vector<Real> > partial_residuals =
-                hpx::lcos::gather_here(residual_basename,
-                                        std::move(local_residual),
-                                        c.num_partitions, step_ * c.iter_max + iter, 0);
-
-            hpx::future<Real> residual =
-                partial_residuals.then(
-                    hpx::util::unwrapped(
-                        [](std::vector<Real> local_residuals)
-                            -> Real
+                        if (residual < c.eps || iter == c.iter_max - 1)
                         {
-                            Real residual = 0;
-
-                            for (std::size_t i = 0; i < local_residuals.size(); ++i)
-                                residual += local_residuals[i];
-
-                            return std::sqrt(residual);
-                        }
-                    )
-                );
-
-            residual.then(
-                hpx::util::unwrapped(
-                    [dt, iter, step = step_, t = t_, this](Real residual)
-                    {
-                        if ((residual < c.eps || iter == c.iter_max - 1)
-                            && !token.was_cancelled() && c.verbose)
-                        {
-                            std::cout << "step = " << step
-                                << ", t = " << t
-                                << ", dt = " << dt
-                                << ", iter = "<< iter
-                                << ", residual = " << residual
-                                << std::endl;
-
-                            hpx::lcos::broadcast_apply<cancel_action>(ids_);
+                            std::cout << "Step: " << step_ << " Iterations: " << iter + 1 << " Residual: " << residual << std::endl;
+                            token.cancel();
                         }
                     }
-                )
-            );
-        }
-        // if not root locality, send residual to root locality
-        else
-            hpx::lcos::gather_there(residual_basename, std::move(local_residual),
-                                        step_ * c.iter_max + iter, 0, c.rank);
+
+                }
+            )
+            , compute_res_futures.data_
+        );
     }
 
     local_max_uvs.clear();
@@ -1040,28 +436,28 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
                             dt, c.over_dx, c.over_dy
                         )
                     )
-                    , get_dependency<LEFT>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                    , get_dependency<RIGHT>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                    , get_dependency<BOTTOM>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                    , get_dependency<TOP>(nx_block, ny_block, recv_futures_P[last], sor_cycle_futures[last])
-                    , sor_cycle_futures[last](nx_block, ny_block)
+                    , get_dependency<LEFT>(nx_block, ny_block, solver_cycle_futures[last])
+                    , get_dependency<RIGHT>(nx_block, ny_block, solver_cycle_futures[last])
+                    , get_dependency<BOTTOM>(nx_block, ny_block, solver_cycle_futures[last])
+                    , get_dependency<TOP>(nx_block, ny_block, solver_cycle_futures[last])
+                    , solver_cycle_futures[last](nx_block, ny_block)
                 )
             );
         }
     }
 
-    hpx::future<std::pair<Real, Real> > local_max_uv =
+    hpx::future<pair<Real> > local_max_uv =
             hpx::dataflow(
                 hpx::util::unwrapped(
-                    [](std::vector<std::pair<Real, Real> > max_uvs)
-                    -> std::pair<Real, Real>
+                    [](std::vector<pair<Real> > max_uvs)
+                    -> pair<Real>
                     {
-                        std::pair<Real, Real>  max_uv(0, 0);
+                        pair<Real>  max_uv(0);
 
                         for (std::size_t i = 0; i < max_uvs.size(); ++i)
                         {
-                            max_uv.first = max_uvs[i].first > max_uv.first ? max_uvs[i].first : max_uv.first;
-                            max_uv.second = max_uvs[i].second > max_uv.second ? max_uvs[i].second : max_uv.second;
+                            max_uv.x = max_uvs[i].x > max_uv.x ? max_uvs[i].x : max_uv.x;
+                            max_uv.y = max_uvs[i].y > max_uv.y ? max_uvs[i].y : max_uv.y;
                         }
 
                         return max_uv;
@@ -1072,8 +468,6 @@ std::pair<Real, Real> partition_server::do_timestep(Real dt)
 
     t_ += dt;
     ++step_;
-
-   // hpx::wait_all(compute_res_futures.data_);
 
     return local_max_uv.get();
 }

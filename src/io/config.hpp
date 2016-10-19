@@ -5,8 +5,8 @@
 #include <bitset>
 #include <vector>
 
-#include "util/typedefs.hpp"
-#include "grid/boundary_data.hpp"
+#include "util/defines.hpp"
+#include "grid/boundary_condition.hpp"
 
 namespace nast_hpx { namespace io {
 
@@ -29,18 +29,16 @@ struct config
         Real over_dx_sq;
         Real over_dy_sq;
 
-        Real part1;
-        Real part2;
-        Real factor_jacobi;
-
         Real re;
-        Real pr;
         Real omega;
         Real tau;
         Real alpha;
         Real beta;
         Real gx;
         Real gy;
+
+        Real part1;
+        Real part2;
 
         bool vtk;
         Real delta_vec;
@@ -50,18 +48,9 @@ struct config
         Real initial_dt;
         std::size_t max_timesteps;
 
-        uint sub_iterations;
         uint iter_max;
         Real eps;
         Real eps_sq;
-
-        std::size_t num_localities;
-        std::size_t num_localities_x;
-        std::size_t num_localities_y;
-
-        std::size_t num_partitions;
-        std::size_t num_partitions_x;
-        std::size_t num_partitions_y;
 
         std::size_t num_x_blocks;
         std::size_t num_y_blocks;
@@ -69,37 +58,24 @@ struct config
         std::size_t cells_x_per_block;
         std::size_t cells_y_per_block;
 
-        std::size_t rank;
-        std::size_t idx;
-        std::size_t idy;
+        grid::boundary_condition bnd_condition;
 
-        grid::boundary_data u_bnd;
-        grid::boundary_data v_bnd;
-        grid::boundary_type bnd_type;
-
-        grid::boundary_data temp_bnd;
-        grid::boundary_type temp_data_type;
-        Real ti;
-
-        bool with_flag_grid;
-        std::vector<std::bitset<6> > flag_grid;
+        std::vector<std::bitset<7> > flag_grid;
+        std::vector<std::bitset<5> > empty_marker_grid;
 
         bool with_initial_uv_grid;
-        std::vector<std::pair<Real, Real> > initial_uv_grid;
+        std::vector<pair<Real> > initial_uv_grid;
 
         template <typename Archive>
         void serialize(Archive& ar, const unsigned int version)
         {
             ar & i_max & j_max & num_fluid_cells & x_length
                 & y_length & dx & dy & over_dx & over_dy
-                & dx_sq & dy_sq & part1 & part2 & factor_jacobi & re & pr & omega & tau & alpha
+                & dx_sq & dy_sq & re & omega & tau & alpha
                 & beta & gx & gy & vtk & delta_vec & verbose & t_end & initial_dt & max_timesteps
-                & sub_iterations & iter_max & eps & eps_sq & num_localities
-                & num_localities_x & num_localities_y & num_partitions
-                & num_partitions_x & num_partitions_y & num_x_blocks
-                & num_y_blocks & cells_x_per_block & cells_y_per_block
-                & rank & idx & idy & ti & with_flag_grid & with_initial_uv_grid
-                & u_bnd & v_bnd & bnd_type;
+                & iter_max & eps & eps_sq & part1 & part2
+                & num_x_blocks & num_y_blocks & cells_x_per_block & cells_y_per_block
+                & with_initial_uv_grid & bnd_condition;
         }
 
         friend std::ostream& operator<<(std::ostream& os, config const& config)
@@ -117,50 +93,33 @@ struct config
                 << "\n\tover_dy = " << config.over_dy
                 << "\n\tover_dx_sq = " << config.over_dx_sq
                 << "\n\tover_dy_sq = " << config.over_dy_sq
-                << "\n\tnum_localities = " << config.num_localities
-                << "\n\tnum_localities_x = " << config.num_localities_x
-                << "\n\tnum_localities_y = " << config.num_localities_y
-                << "\n\tnum_partitions = " << config.num_partitions
-                << "\n\tnum_partitions_x = " << config.num_partitions_x
-                << "\n\tnum_partitions_y = " << config.num_partitions_y
                 << "\n\tnum_x_blocks = " << config.num_x_blocks
                 << "\n\tnum_y_blocks = " << config.num_y_blocks
                 << "\n\tnum_cells_x_per_block = " << config.cells_x_per_block
                 << "\n\tnum_cells_y_per_block = " << config.cells_y_per_block
-                << "\n\trank = " << config.rank
-                << "\n\tidx = " << config.idx
-                << "\n\tidy = " << config.idy
                 << "\n\tnumFluid = " << config.num_fluid_cells
                 << "\n\txLength = " << config.x_length
                 << "\n\tyLength = " << config.y_length
                 << "\nDATA:"
                 << "\n\tRe = " << config.re
-                << "\n\tPr = " << config.pr
                 << "\n\tomega = " << config.omega
                 << "\n\tgx = " << config.gx
                 << "\n\tgy = " << config.gy
                 << "\n\tbeta = " << config.beta
+                << "\n\tpart1 = " << config.part1
+                << "\n\tpart2 = " << config.part2
                 << "\n\tdt = " << config.initial_dt
                 << "\n\tt_end = " << config.t_end
                 << "\n\tmax_timesteps = " << config.max_timesteps
-                << "\n\tu_bnd " << config.u_bnd
-                << "\n\tv_bnd " << config.v_bnd
-                << "\n\tbnd_type " << config.bnd_type
-                << "\n\ttemp_bnd " << config.temp_bnd
-                << "\n\ttemp_data_type " << config.temp_data_type
-                << "\n\tt_inital = " << config.ti
+                << "\n\tboundary_condition = " << config.bnd_condition
                 << "\nSIMULATION:"
                 << "\n\ttau = " << config.tau
                 << "\n\teps = " << config.eps
                 << "\n\teps_sq = " << config.eps_sq
                 << "\n\talpha = " << config.alpha
                 << "\n\tbeta = " << config.beta
-                << "\n\tpart1 = " << config.part1
-                << "\n\tpart2 = " << config.part2
-                << "\n\tfactor_jacobi = " << config.factor_jacobi
                 << "\n\tdelta_vec = " << config.delta_vec
                 << "\n\titer_max = " << config.iter_max
-                << "\n\tsub_iterations = " << config.sub_iterations
                 << "\n\tvtk = " << config.vtk
                 << "\n}";
             return os;

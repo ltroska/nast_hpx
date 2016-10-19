@@ -3,7 +3,7 @@
 
 #include <hpx/runtime/serialization/serialize.hpp>
 
-#include "util/typedefs.hpp"
+#include "util/defines.hpp"
 
 namespace nast_hpx { namespace grid {
 

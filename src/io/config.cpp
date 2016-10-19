@@ -14,19 +14,6 @@ namespace nast_hpx { namespace io {
     config config::read_config_from_file(const char *path, std::size_t rank, std::size_t num_localities)
     {
         config cfg;
-        cfg.num_localities = num_localities;
-        cfg.rank = rank;
-
-        if (cfg.num_localities == 2)
-        {
-            cfg.num_localities_x = 2;
-            cfg.num_localities_y = 1;
-        }
-        else
-        {
-            cfg.num_localities_x = static_cast<uint> (sqrt(cfg.num_localities));
-            cfg.num_localities_y = cfg.num_localities_x;
-        }
 
         pugi::xml_document doc;
 
@@ -80,21 +67,19 @@ namespace nast_hpx { namespace io {
             std::exit(1);
         }
 
-        cfg.cells_x_per_block = (cfg.i_max + 2) / cfg.num_localities_x / cfg.num_x_blocks;
+        cfg.cells_x_per_block = (cfg.i_max + 2) / cfg.num_x_blocks;
 
-        if (cfg.cells_x_per_block * cfg.num_localities_x * cfg.num_x_blocks != cfg.i_max + 2)
+        if (cfg.cells_x_per_block * cfg.num_x_blocks != cfg.i_max + 2)
         {
             std::cerr << "Error: localities_x * num_x_blocks does not divide i_max + 2 evenly!" << std::endl;
-            std::cerr << "localities_x = " << cfg.num_localities_x << ", num_x_blocks = " << cfg.num_x_blocks << ", i_max + 2 = " << cfg.i_max + 2 << std::endl;
             std::exit(1);
         }
 
-        cfg.cells_y_per_block = (cfg.j_max + 2) / cfg.num_localities_y / cfg.num_y_blocks;
+        cfg.cells_y_per_block = (cfg.j_max + 2) / cfg.num_y_blocks;
 
-        if (cfg.cells_y_per_block * cfg.num_localities_y * cfg.num_y_blocks != cfg.j_max + 2)
+        if (cfg.cells_y_per_block * cfg.num_y_blocks != cfg.j_max + 2)
         {
             std::cerr << "Error: localities_y * num_y_blocks does not divide j_max + 2 evenly!" << std::endl;
-            std::cerr << "localities_y = " << cfg.num_localities_y << ", num_y_blocks = " << cfg.num_y_blocks << ", j_max + 2 = " << cfg.j_max + 2 << std::endl;
             std::exit(1);
         }
 
@@ -140,15 +125,6 @@ namespace nast_hpx { namespace io {
         }
 
 
-        if(config_node.child("Pr") != NULL)
-        {
-            cfg.pr = config_node.child("Pr").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.pr = 0;
-        }
-
         if(config_node.child("omega") != NULL)
         {
             cfg.omega =
@@ -162,7 +138,6 @@ namespace nast_hpx { namespace io {
 
         cfg.part1 = 1. - cfg.omega;
         cfg.part2 = cfg.omega * cfg.dx_sq * cfg.dy_sq / (2. * (cfg.dx_sq + cfg.dy_sq));
-        cfg.factor_jacobi = cfg.dx_sq * cfg.dy_sq / (2. * (cfg.dx_sq + cfg.dy_sq));
 
         if(config_node.child("tau") != NULL)
         {
@@ -240,16 +215,6 @@ namespace nast_hpx { namespace io {
         else
             cfg.initial_dt = 0.01;
 
-        if(config_node.child("subIterations") != NULL)
-        {
-            cfg.sub_iterations =
-                config_node.child("subIterations").first_attribute().as_int();
-        }
-        else
-        {
-            cfg.sub_iterations = 1;
-        }
-
         if(config_node.child("vtk") != NULL)
         {
             cfg.vtk =
@@ -278,215 +243,6 @@ namespace nast_hpx { namespace io {
             cfg.gy = 0;
         }
 
-        if(config_node.child("UT") != NULL)
-        {
-            cfg.u_bnd.top =
-                config_node.child("UT").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.u_bnd.top = 0;
-        }
-
-        if(config_node.child("UB") != NULL)
-        {
-            cfg.u_bnd.bottom =
-                config_node.child("UB").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.u_bnd.bottom = 0;
-        }
-
-        if(config_node.child("UL") != NULL)
-        {
-            cfg.u_bnd.left =
-                config_node.child("UL").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.u_bnd.left = 0;
-        }
-
-        if(config_node.child("UR") != NULL)
-        {
-            cfg.u_bnd.right =
-                config_node.child("UR").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.u_bnd.right = 0;
-        }
-
-        if(config_node.child("VT") != NULL)
-        {
-            cfg.v_bnd.top =
-                config_node.child("VT").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.v_bnd.top = 0;
-        }
-
-        if(config_node.child("VB") != NULL)
-        {
-            cfg.v_bnd.bottom =
-                config_node.child("VB").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.v_bnd.bottom = 0;
-        }
-
-        if(config_node.child("VL") != NULL)
-        {
-            cfg.v_bnd.left =
-                config_node.child("VL").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.v_bnd.left = 0;
-        }
-
-        if(config_node.child("VR") != NULL)
-        {
-            cfg.v_bnd.right =
-                config_node.child("VR").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.v_bnd.right = 0;
-        }
-
-        if(config_node.child("TT") != NULL)
-        {
-            cfg.temp_bnd.top =
-                config_node.child("TO").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.temp_bnd.top = 0;
-        }
-
-        if(config_node.child("TB") != NULL)
-        {
-            cfg.temp_bnd.bottom =
-                config_node.child("TB").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.temp_bnd.bottom = 0;
-        }
-
-        if(config_node.child("TL") != NULL)
-        {
-            cfg.temp_bnd.left =
-                config_node.child("TL").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.temp_bnd.left = 0;
-        }
-
-        if(config_node.child("TR") != NULL)
-        {
-            cfg.temp_bnd.right =
-                config_node.child("TR").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.temp_bnd.right = 0;
-        }
-
-        if(config_node.child("TI") != NULL)
-        {
-            cfg.ti = config_node.child("TI").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.ti = 0;
-        }
-
-        if(config_node.child("WTL") != NULL)
-        {
-            cfg.temp_data_type.left =
-                config_node.child("WTL").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.temp_data_type.left = -1;
-        }
-
-        if(config_node.child("WTR") != NULL)
-        {
-            cfg.temp_data_type.right =
-                config_node.child("WTR").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.temp_data_type.right = -1;
-        }
-
-        if(config_node.child("WTB") != NULL)
-        {
-            cfg.temp_data_type.bottom =
-                config_node.child("WTB").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.temp_data_type.bottom = -1;
-        }
-
-        if(config_node.child("WTT") != NULL)
-        {
-            cfg.temp_data_type.top =
-                config_node.child("WTT").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.temp_data_type.top = -1;
-        }
-
-        if(config_node.child("WL") != NULL)
-        {
-            cfg.bnd_type.left =
-                config_node.child("WL").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.bnd_type.left = 1;
-        }
-
-        if(config_node.child("WR") != NULL)
-        {
-            cfg.bnd_type.right =
-                config_node.child("WR").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.bnd_type.right = 1;
-        }
-
-        if(config_node.child("WB") != NULL)
-        {
-            cfg.bnd_type.bottom =
-                config_node.child("WB").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.bnd_type.bottom = 1;
-        }
-
-        if(config_node.child("WT") != NULL)
-        {
-            cfg.bnd_type.top =
-                config_node.child("WT").first_attribute().as_double();
-        }
-        else
-        {
-            cfg.bnd_type.top = 1;
-        }
-
         if(config_node.child("deltaVec") != NULL)
         {
             cfg.delta_vec =
@@ -497,10 +253,90 @@ namespace nast_hpx { namespace io {
             cfg.delta_vec = 0;
         }
 
+        if(config_node.child("BoundaryConditions") != NULL)
+        {
+            auto bc_node = config_node.child("BoundaryConditions");
+
+            if (bc_node.child("Top") != NULL)
+            {
+                auto node = bc_node.child("Top");
+                std::string type = node.attribute("type").value();
+
+                if (type == "noslip")
+                    cfg.bnd_condition.top_type = noslip;
+                else if (type == "slip")
+                    cfg.bnd_condition.top_type = slip;
+                else if (type == "instream")
+                    cfg.bnd_condition.top_type = instream;
+                else if (type == "outstream")
+                    cfg.bnd_condition.top_type = outstream;
+
+                cfg.bnd_condition.top.x = node.attribute("u").as_double();
+                cfg.bnd_condition.top.y = node.attribute("v").as_double();
+            }
+
+            if (bc_node.child("Bottom") != NULL)
+            {
+                auto node = bc_node.child("Bottom");
+                std::string type = node.attribute("type").value();
+
+                if (type == "noslip")
+                    cfg.bnd_condition.bottom_type = noslip;
+                else if (type == "slip")
+                    cfg.bnd_condition.bottom_type = slip;
+                else if (type == "instream")
+                    cfg.bnd_condition.bottom_type = instream;
+                else if (type == "outstream")
+                    cfg.bnd_condition.bottom_type = outstream;
+
+                cfg.bnd_condition.bottom.x = node.attribute("u").as_double();
+                cfg.bnd_condition.bottom.y = node.attribute("v").as_double();
+            }
+
+            if (bc_node.child("Left") != NULL)
+            {
+                auto node = bc_node.child("Left");
+                std::string type = node.attribute("type").value();
+
+                if (type == "noslip")
+                    cfg.bnd_condition.left_type = noslip;
+                else if (type == "slip")
+                    cfg.bnd_condition.left_type = slip;
+                else if (type == "instream")
+                    cfg.bnd_condition.left_type = instream;
+                else if (type == "outstream")
+                    cfg.bnd_condition.left_type = outstream;
+
+                cfg.bnd_condition.left.x = node.attribute("u").as_double();
+                cfg.bnd_condition.left.y = node.attribute("v").as_double();
+            }
+
+            if (bc_node.child("Right") != NULL)
+            {
+                auto node = bc_node.child("Right");
+                std::string type = node.attribute("type").value();
+
+                if (type == "noslip")
+                    cfg.bnd_condition.right_type = noslip;
+                else if (type == "slip")
+                    cfg.bnd_condition.right_type = slip;
+                else if (type == "instream")
+                    cfg.bnd_condition.right_type = instream;
+                else if (type == "outstream")
+                    cfg.bnd_condition.right_type = outstream;
+
+                cfg.bnd_condition.right.x = node.attribute("u").as_double();
+                cfg.bnd_condition.right.y = node.attribute("v").as_double();
+            }
+        }
+        else
+        {
+            std::cout << "No boundary conditions set!" << std::endl;
+            std::exit(1);
+        }
+
         if(config_node.child("gridFile") != NULL)
         {
-            cfg.with_flag_grid = true;
-
             std::ifstream file(
                 config_node.child("gridFile").first_attribute().as_string());
 
@@ -517,69 +353,11 @@ namespace nast_hpx { namespace io {
             std::size_t flag_res_x = cfg.num_x_blocks * cfg.cells_x_per_block + 2;
             std::size_t flag_res_y = cfg.num_y_blocks * cfg.cells_y_per_block + 2;
 
-          //  std::cout << "resx " << flag_res_x << " resy " << flag_res_y << std::endl;
-
             cfg.flag_grid.resize(flag_res_x * flag_res_y);
+            cfg.empty_marker_grid.resize(flag_res_x * flag_res_y);
 
-          //  std::cout << "s " << cfg.flag_grid.size() << std::endl;
             std::size_t i = 0;
             std::size_t j = cfg.j_max + 1;
-
-            std::size_t start_i = (rank % cfg.num_localities_x) * cfg.num_x_blocks * cfg.cells_x_per_block;
-            std::size_t end_i = start_i + cfg.num_x_blocks * cfg.cells_x_per_block;
-
-            std::size_t start_j = (rank / cfg.num_localities_x) * cfg.num_y_blocks * cfg.cells_y_per_block;
-            std::size_t end_j = start_j + cfg.num_y_blocks * cfg.cells_y_per_block;
-
-           // std::cout <<  " starti " << start_i << " endi " << end_i << std::endl;
-           // std::cout <<  " startj " << start_j << " endj " << end_j << std::endl;
-
-            std::size_t offset_x = 0;
-            std::size_t offset_y = flag_res_y - 1;
-
-            if (start_i == 0)
-            {
-                for (std::size_t j = 0; j < flag_res_y; ++j)
-                    cfg.flag_grid[j * flag_res_x + 0] = std::bitset<6>("000000");
-
-                ++offset_x;
-            }
-            else
-                --start_i;
-
-            if (start_j == 0)
-            {
-                for (std::size_t i = 0; i < flag_res_x; ++i)
-                    cfg.flag_grid[0 * flag_res_x + i] = std::bitset<6>("000000");
-
-            }
-            else
-                --start_j;
-
-
-            if (end_i == cfg.i_max + 2)
-            {
-                for (std::size_t j = 0; j < flag_res_y; ++j)
-                    cfg.flag_grid[j * flag_res_x + flag_res_x - 1] = std::bitset<6>("000000");
-
-                --end_i;
-            }
-
-            if (end_j == cfg.j_max + 2)
-            {
-                for (std::size_t i = 0; i < flag_res_x; ++i)
-                    cfg.flag_grid[(flag_res_y - 1) * flag_res_x + i] = std::bitset<6>("000000");
-
-                --end_j;
-                --offset_y;
-            }
-
-          //  std::cout <<  " starti " << start_i << " endi " << end_i << std::endl;
-            //std::cout <<  " startj " << start_j << " endj " << end_j << std::endl;
-
-
-            std::size_t insert_i = 0;
-            std::size_t insert_j = offset_y;
 
             while (true)
             {
@@ -590,42 +368,34 @@ namespace nast_hpx { namespace io {
                     break;
 
                 std::stringstream iss(line);
+
                 i = 0;
-                insert_i = offset_x;
+
                 while (true)
                 {
                     std::string cell_val;
                     std::getline(iss, cell_val, ',');
 
-                    std::bitset<6> flag(std::stoi(cell_val));
+                    std::size_t flag_int = std::stoi(cell_val);
+
+
+                    std::bitset<5> empty_flag(flag_int / 256);
+
+                    std::bitset<7> flag(flag_int % 256);
 
                     if (flag.test(4))
                         cfg.num_fluid_cells++;
 
-                    if (i >= start_i && i <= end_i && j >= start_j && j <= end_j)
-                    {
-                        cfg.flag_grid[insert_j * flag_res_x + insert_i] = flag;
-                        ++insert_i;
-                    }
+                    cfg.flag_grid[(1 + j) * flag_res_x + i + 1] = flag;
+                    cfg.empty_marker_grid[(1 + j) * flag_res_x + i + 1] = empty_flag;
+                    ++i;
 
                     if (!iss.good())
                         break;
-                    ++i;
                 }
-
-                if (j >= start_j && j <= end_j)
-                    --insert_j;
 
                 --j;
             }
-
-         /*   for (uint j = flag_res_y - 1; j < flag_res_y; --j)
-            {
-                for (uint i = 0; i < flag_res_x; ++i)
-                    std::cout << cfg.flag_grid[j * flag_res_x + i].to_ulong() << " ";
-                std::cout << "\n";
-
-            }*/
 
             std::cout << std::endl;
         }
@@ -674,7 +444,7 @@ namespace nast_hpx { namespace io {
                     std::getline(issc, v, '/');
 
                     cfg.initial_uv_grid.push_back(
-                        std::pair<Real, Real>(
+                        pair<Real>(
                             std::stod(u), std::stod(v)));
 
                     if (!iss.good())

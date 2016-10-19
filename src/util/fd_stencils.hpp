@@ -6,112 +6,97 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "util/typedefs.hpp"
+#include "defines.hpp"
+#include "../grid/partition_data.hpp"
 
 namespace nast_hpx { namespace util { namespace fd_stencils {
 
-inline Real second_derivative_fwd_bkwd_x(
-    Real right, Real middle, Real left, Real dx)
+inline Real second_derivative_fwd_bkwd_x(grid::partition_data<Real> u_grid, std::size_t i, std::size_t j, Real over_dx_sq)
 {
-    return (right - 2 * middle + left) / std::pow(dx, 2);
+    return (u_grid(i + 1, j) - 2 * u_grid(i, j) + u_grid(i - 1, j)) * over_dx_sq;
 }
 
-inline Real second_derivative_fwd_bkwd_y(
-    Real top, Real middle, Real bottom, Real dy)
+inline Real second_derivative_fwd_bkwd_y(grid::partition_data<Real> v_grid, std::size_t i, std::size_t j, Real over_dy_sq)
 {
-    return (top - 2 * middle + bottom) / std::pow(dy, 2);
+    return (v_grid(i, j + 1) - 2 * v_grid(i, j) + v_grid(i, j - 1)) * over_dy_sq;
 }
 
-inline Real first_derivative_fwd_x(
-    Real right, Real middle, Real dx)
+inline Real first_derivative_of_square_x(grid::partition_data<Real> u_grid, std::size_t i, std::size_t j, Real over_dx, Real alpha = 0.9)
 {
-    return (right - middle) / dx;
+    return (
+                over_dx * (
+                            std::pow(u_grid(i, j) + u_grid(i + 1, j), 2)
+                            - std::pow(u_grid(i - 1, j) + u_grid(i, j), 2)
+                           )
+
+                + alpha * over_dx * (
+                                            std::abs( u_grid(i, j) + u_grid(i + 1, j) )
+                                            * ( u_grid(i, j) - u_grid(i + 1, j) )
+                                        -
+                                            std::abs( u_grid(i - 1, j) + u_grid(i, j))
+                                            * ( u_grid(i - 1, j) - u_grid(i, j) )
+                                    )
+                ) / 4.;
 }
 
-inline Real first_derivative_fwd_y(
-    Real top, Real middle, Real dy)
+inline Real first_derivative_of_square_y(grid::partition_data<Real> v_grid, std::size_t i, std::size_t j, Real over_dy, Real alpha = 0.9)
 {
-    return (top - middle) / dy;
+    return (
+                over_dy *   (
+                                std::pow(v_grid(i, j) + v_grid(i, j + 1), 2)
+                                - std::pow(v_grid(i, j - 1) + v_grid(i, j), 2)
+                            )
+
+                + alpha * over_dy * (
+                                            std::abs( v_grid(i, j) + v_grid(i, j + 1) )
+                                            * ( v_grid(i, j) - v_grid(i, j + 1) )
+                                        -
+                                            std::abs( v_grid(i, j - 1) + v_grid(i, j))
+                                            * ( v_grid(i, j - 1) - v_grid(i, j) )
+                                    )
+            ) / 4.;
 }
 
-inline Real first_derivative_bkwd_x(
-    Real middle, Real left, Real dx)
+inline Real first_derivative_of_product_x(grid::partition_data<Real> u_grid, grid::partition_data<Real> v_grid, std::size_t i, std::size_t j, Real over_dx, Real alpha = 0.9)
 {
-    return (middle - left) / dx;
+    return over_dx * (      ( u_grid(i, j) + u_grid(i, j + 1))
+                            * (v_grid(i, j) + v_grid(i + 1, j))
+                            -
+                                (u_grid(i - 1, j) + u_grid(i - 1, j + 1))
+                                 * (v_grid(i - 1, j) + v_grid(i, j))
+                      ) / 4.
+
+           + alpha * over_dx * (
+                                    std::abs(u_grid(i, j) + u_grid(i, j + 1))
+                                    * (v_grid(i, j) - v_grid(i + 1, j))
+                                    -
+                                        std::abs(u_grid(i - 1, j) + u_grid(i - 1, j + 1))
+                                        * (v_grid(i - 1, j) - v_grid(i, j))
+                                ) / 4.;
 }
 
-inline Real first_derivative_bkwd_y(
-    Real middle, Real bottom, Real dy)
+inline Real first_derivative_of_product_y(grid::partition_data<Real> u_grid, grid::partition_data<Real> v_grid, std::size_t i, std::size_t j, Real over_dy, Real alpha = 0.9)
 {
-    return (middle - bottom) / dy;
+    return over_dy * (      ( v_grid(i, j) + v_grid(i + 1, j))
+                            * (u_grid(i, j) + u_grid(i, j + 1))
+                            -
+                                (v_grid(i, j - 1) + v_grid(i + 1, j - 1))
+                                 * (u_grid(i, j - 1) + u_grid(i, j))
+                      ) / 4.
+
+           + alpha * over_dy * (
+                                    std::abs(v_grid(i, j) + v_grid(i + 1, j))
+                                    * (u_grid(i, j) - u_grid(i, j + 1))
+                                    -
+                                        std::abs(v_grid(i, j - 1) + u_grid(i + 1, j - 1))
+                                        * (u_grid(i, j - 1) - u_grid(i, j))
+                                ) / 4.;
 }
 
-inline Real first_derivative_of_square_x(
-    Real right, Real middle, Real left, Real dx,
-    Real alpha = 0.9)
+inline Real interpolate(Real x, Real y, Real x1, Real x2, Real y1, Real y2, Real v1, Real v2, Real v3, Real v4, Real dx, Real dy)
 {
-    return 1./dx * (std::pow((middle + right) / 2., 2)
-                    - std::pow((left + middle) / 2., 2))
-            + alpha / dx
-            * (std::abs(middle + right) * (middle - right) / 4.
-                - std::abs(left + middle) * (left - middle) / 4.);
-}
-
-inline Real first_derivative_of_square_y(
-    Real top, Real middle, Real bottom, Real dy,
-    Real alpha = 0.9)
-{
-    return 1./dy * (std::pow((middle + top) / 2., 2)
-                        - std::pow((bottom + middle) / 2., 2))
-            + alpha / dy
-            * (std::abs(middle + top) * (middle - top) / 4.
-                - std::abs(bottom + middle) * (bottom - middle) / 4.);
-}
-
-inline Real first_derivative_of_product_x(
-    Real u_left, Real u_middle, Real u_top, Real u_topleft,
-    Real v_left, Real v_middle, Real v_right, Real dx,
-    Real alpha = 0.9)
-{
-    return 1./dx * ((u_middle + u_top)
-                        * (v_middle + v_right) / 4.
-                        - (u_left + u_topleft) * (v_left + v_middle) / 4.)
-            + alpha / dx * (std::abs(u_middle + u_top)
-                * (v_middle - v_right) / 4.
-            - std::abs(u_left + u_topleft) * (v_left - v_middle) / 4.);
-}
-
-inline Real first_derivative_of_product_y(
-    Real v_right, Real v_middle, Real v_bottom,
-    Real v_bottomright, Real u_bottom, Real u_middle,
-    Real u_top, Real dy, Real alpha = 0.9)
-{
-    return 1./dy * ((v_middle + v_right)  * (u_middle + u_top) / 4.
-            - (v_bottom + v_bottomright) * (u_bottom + u_middle) / 4.)
-            + alpha / dy * (std::abs(v_middle + v_right)
-                * (u_middle - u_top) / 4.
-            - std::abs(v_bottom + v_bottomright) * (u_bottom - u_middle) / 4.);
-}
-
-inline Real first_derivative_u_temp_x(
-    Real u_center, Real u_left, Real t_center, Real t_right,
-    Real t_left, Real dx, Real alpha = 0.9)
-{
-    return 1./dx * (u_center * (t_center + t_right) / 2.
-                - u_left * (t_left + t_center) / 2.)
-            + alpha / dx * (std::abs(u_center)*(t_center - t_right) / 2.
-            - std::abs(u_left) * (t_left - t_center) / 2.);
-}
-
-inline Real first_derivative_v_temp_y(
-    Real v_center, Real v_bottom, Real t_center, Real t_top,
-    Real t_bottom, Real dy, Real alpha = 0.9)
-{
-    return 1./dy * (v_center * (t_center + t_top)/ 2.
-                - v_bottom * (t_bottom + t_center)/2.)
-            + alpha / dy
-                * (std::abs(v_center)*(t_center - t_top)/2.
-                - std::abs(v_bottom)*(t_bottom - t_center)/2.);
+    return 1./(dx * dy) * ( (x2 - x)*(y2 - y) * v1 + (x - x1)*(y2 - y) * v2
+                            + (x2 - x)*(y - y1) * v3 + (x - x1)*(y - y1) * v4);
 }
 
 }

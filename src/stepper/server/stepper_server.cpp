@@ -71,9 +71,6 @@ void stepper_server::run()
         if (max_timesteps > 0 && local_step >= max_timesteps)
             break;
 
-       hpx::util::high_resolution_timer t1;
-
-       // std::cout << "step " << step << std::endl;
         hpx::future<triple<double> > local_max_velocity =
            part.do_timestep(dt);
 
@@ -127,13 +124,10 @@ void stepper_server::run()
             hpx::lcos::gather_there(velocity_basename, std::move(local_max_velocity),
                                        step);
 
-        //std::cout << "receiving in step " << step << std::endl;
         if (t >= t_end)
             break;
         t += dt;
         dt = dt_buffer.receive(step).get();
-
-        std::cout << "Step " << step << " took " << t1.elapsed() << " seconds!" << std::endl;
     }
 }
 

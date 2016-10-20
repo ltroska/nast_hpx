@@ -10,9 +10,7 @@
 
 #include "util/cancellation_token.hpp"
 
-#include <hpx/include/components.hpp>
-#include <hpx/runtime/serialization/serialize.hpp>
-#include <hpx/include/serialization.hpp>
+#include "util/hpx_wrap.hpp"
 
 namespace hpx { namespace serialization {
 
@@ -257,7 +255,7 @@ private:
 
     util::cancellation_token token;
 
-    bool is_left_, is_right_, is_bottom_, is_top_, is_back_, is_front_;
+    bool is_left_, is_right_, is_bottom_, is_top_, is_front_, is_back_;
 };
 
 }//namespace server

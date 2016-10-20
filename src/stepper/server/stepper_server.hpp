@@ -4,8 +4,7 @@
 #include "io/config.hpp"
 #include "grid/partition.hpp"
 
-#include <hpx/include/components.hpp>
-#include <hpx/error.hpp>
+#include "util/hpx_wrap.hpp"
 
 namespace nast_hpx { namespace stepper { namespace server {
 

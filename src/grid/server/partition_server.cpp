@@ -2,11 +2,6 @@
 #include "grid/stencils.hpp"
 #include "io/writer.hpp"
 
-#include <hpx/lcos/gather.hpp>
-#include <hpx/lcos/broadcast.hpp>
-
-#include <hpx/lcos/when_all.hpp>
-
 typedef nast_hpx::grid::server::partition_server partition_component;
 typedef hpx::components::component<partition_component> partition_server_type;
 
@@ -394,8 +389,7 @@ void partition_server::receive_boundary<LEFT>(std::size_t step, std::size_t var,
                 hpx::util::bind(
                     boost::ref(recv_buffer_left_[var]),
                     boost::ref(data_[var]),
-                    step,
-                    var
+                    step
                 )
             );
 }
@@ -408,8 +402,7 @@ void partition_server::receive_boundary<RIGHT>(std::size_t step, std::size_t var
                 hpx::util::bind(
                     boost::ref(recv_buffer_right_[var]),
                     boost::ref(data_[var]),
-                    step,
-                    var
+                    step
                 )
             );
 }
@@ -422,8 +415,7 @@ void partition_server::receive_boundary<BOTTOM>(std::size_t step, std::size_t va
                 hpx::util::bind(
                     boost::ref(recv_buffer_bottom_[var]),
                     boost::ref(data_[var]),
-                    step,
-                    var
+                    step
                 )
             );
 }
@@ -436,8 +428,7 @@ void partition_server::receive_boundary<TOP>(std::size_t step, std::size_t var, 
                 hpx::util::bind(
                     boost::ref(recv_buffer_top_[var]),
                     boost::ref(data_[var]),
-                    step,
-                    var
+                    step
                 )
             );
 }
@@ -450,8 +441,7 @@ void partition_server::receive_boundary<FRONT>(std::size_t step, std::size_t var
                 hpx::util::bind(
                     boost::ref(recv_buffer_front_[var]),
                     boost::ref(data_[var]),
-                    step,
-                    var
+                    step
                 )
             );
 }
@@ -464,8 +454,7 @@ void partition_server::receive_boundary<BACK>(std::size_t step, std::size_t var,
                 hpx::util::bind(
                     boost::ref(recv_buffer_back_[var]),
                     boost::ref(data_[var]),
-                    step,
-                    var
+                    step
                 )
             );
 }
@@ -478,8 +467,7 @@ void partition_server::receive_boundary<BACK_LEFT>(std::size_t step, std::size_t
                 hpx::util::bind(
                     boost::ref(recv_buffer_back_left_[var]),
                     boost::ref(data_[var]),
-                    step,
-                    var
+                    step
                 )
             );
 }
@@ -492,8 +480,7 @@ void partition_server::receive_boundary<FRONT_RIGHT>(std::size_t step, std::size
                 hpx::util::bind(
                     boost::ref(recv_buffer_front_right_[var]),
                     boost::ref(data_[var]),
-                    step,
-                    var
+                    step
                 )
             );
 }
@@ -506,8 +493,7 @@ void partition_server::receive_boundary<BOTTOM_RIGHT>(std::size_t step, std::siz
                 hpx::util::bind(
                     boost::ref(recv_buffer_bottom_right_[var]),
                     boost::ref(data_[var]),
-                    step,
-                    var
+                    step
                 )
             );
 }
@@ -520,8 +506,7 @@ void partition_server::receive_boundary<TOP_LEFT>(std::size_t step, std::size_t 
             hpx::util::bind(
                 boost::ref(recv_buffer_top_left_[var]),
                 boost::ref(data_[var]),
-                step,
-                var
+                step
             )
         );
 }
@@ -534,8 +519,7 @@ void partition_server::receive_boundary<BACK_BOTTOM>(std::size_t step, std::size
             hpx::util::bind(
                 boost::ref(recv_buffer_back_bottom_[var]),
                 boost::ref(data_[var]),
-                step,
-                var
+                step
             )
         );
 }
@@ -548,8 +532,7 @@ void partition_server::receive_boundary<FRONT_TOP>(std::size_t step, std::size_t
                 hpx::util::bind(
                     boost::ref(recv_buffer_front_top_[var]),
                     boost::ref(data_[var]),
-                    step,
-                    var
+                    step
                 )
             );
 }
@@ -907,7 +890,7 @@ void partition_server::receive_boundaries_P(future_grid& recv_futures, std::size
 template<typename Iter> inline
 Iter safe_advance(Iter it, Iter end, std::size_t stride)
 {
-    return (stride > end - it) ? end : it + stride;
+    return (stride > static_cast<std::size_t>(end - it)) ? end : it + stride;
 }
 
 hpx::future<triple<double> > partition_server::do_timestep(double dt)
@@ -973,7 +956,7 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
                         boost::ref(cell_type_data_),
                         beginObstacle, endObstacle,
                         beginFluid, endFluid,
-                        c.re, c.gx, c.gy, c.gz, c.beta, c.dx, c.dy, c.dz,
+                        c.re, c.gx, c.gy, c.gz, c.dx, c.dy, c.dz,
                         c.dx_sq, c.dy_sq, c.dz_sq, dt, c.alpha
                     )
                 )
@@ -1030,7 +1013,6 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
                             &stencils<STENCIL_COMPUTE_RHS>::call,
                             boost::ref(rhs_data_),
                             boost::ref(data_[F]), boost::ref(data_[G]), boost::ref(data_[H]),
-                            boost::ref(cell_type_data_),
                             beginIt, endIt,
                             c.dx, c.dy, c.dz, dt
                         )

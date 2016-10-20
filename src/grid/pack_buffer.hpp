@@ -5,8 +5,6 @@
 #include "partition_data.hpp"
 #include "util/array_deleter.hpp"
 
-#include <hpx/runtime/serialization/serialize_buffer.hpp>
-
 namespace nast_hpx { namespace grid {
     template <direction dir>
     struct pack_buffer;

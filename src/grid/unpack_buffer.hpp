@@ -3,8 +3,6 @@
 
 #include "partition_data.hpp"
 
-#include <hpx/runtime/serialization/serialize_buffer.hpp>
-
 namespace nast_hpx { namespace grid {
     template <direction dir>
     struct unpack_buffer;

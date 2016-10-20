@@ -1,11 +1,10 @@
 #ifndef NAST_HPX_GRID_SEND_BUFFER_HPP_
 #define NAST_HPX_GRID_SEND_BUFFER_HPP_
 
-#include <hpx/apply.hpp>
-#include <hpx/runtime/serialization/serialize_buffer.hpp>
-
 #include "partition_data.hpp"
 #include "pack_buffer.hpp"
+
+#include "util/hpx_wrap.hpp"
 
 namespace nast_hpx { namespace grid {
 

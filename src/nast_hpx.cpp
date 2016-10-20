@@ -22,7 +22,6 @@ int hpx_main(boost::program_options::variables_map& vm)
     cfg.threads = hpx::get_os_thread_count();
 
     auto rank = hpx::get_locality_id();
-    auto num_localities = hpx::get_initial_num_localities();
 
     if (rank == 0)
     {
@@ -124,7 +123,6 @@ int hpx_main(boost::program_options::variables_map& vm)
         std::cout << std::endl;
 
     }
-
 
     return hpx::finalize();
 }

@@ -113,10 +113,6 @@ namespace nast_hpx { namespace io {
         std::size_t start_k = idz * cfg.cells_z_per_partition;
         std::size_t end_k = start_k + cfg.cells_z_per_partition;
 
-        std::size_t offset_x = 0;
-        std::size_t offset_y = 0;
-        std::size_t offset_z = 0;
-
         std::size_t insert_i = 0;
         std::size_t insert_j = (end_j - start_j) - 1;
         std::size_t insert_k = 0;
@@ -138,7 +134,7 @@ namespace nast_hpx { namespace io {
 
             std::stringstream iss(line);
             i = 0;
-            insert_i = offset_x;
+            insert_i = 0;
             while (true)
             {
                 std::string cell_val;

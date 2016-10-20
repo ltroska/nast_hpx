@@ -75,7 +75,7 @@ class grid:
 			gridwriter = csv.writer(csvfile, delimiter=',', quotechar='"')
 
 			for k, plane in enumerate(self.__data):
-				for j, row in enumerate(plane):
+				for j, row in reverse_enumerate(plane):
 					outrow = [0] * len(row)
 							
 					for i, cell in enumerate(row):

@@ -895,23 +895,24 @@ Iter safe_advance(Iter it, Iter end, std::size_t stride)
 
 hpx::future<triple<double> > partition_server::do_timestep(double dt)
 {
-    std::size_t thread = 0;
+    auto beginObstacle = obstacle_cells_.begin();
+    auto endObstacle = safe_advance(beginObstacle, obstacle_cells_.end(), obstacle_stride);
 
-    for (auto beginIt = obstacle_cells_.begin(), endIt = obstacle_cells_.begin() + obstacle_stride; beginIt < obstacle_cells_.end();)
+    for (std::size_t thread = 0; thread < c.threads; ++thread)
     {
-        set_velocity_futures[thread++] =
+        set_velocity_futures[thread] =
             hpx::async(
                 hpx::util::bind(
                     &stencils<STENCIL_SET_VELOCITY_OBSTACLE>::call,
                     boost::ref(data_[U]), boost::ref(data_[V]), boost::ref(data_[W]),
                     boost::ref(cell_type_data_),
-                    beginIt, endIt,
+                    beginObstacle, endObstacle,
                     boost::ref(c.bnd_condition)
                 )
             );
 
-        beginIt = safe_advance(beginIt, obstacle_cells_.end(), obstacle_stride);
-        endIt = safe_advance(endIt, obstacle_cells_.end(), obstacle_stride);
+        beginObstacle = safe_advance(beginObstacle, obstacle_cells_.end(), obstacle_stride);
+        endObstacle = safe_advance(endObstacle, obstacle_cells_.end(), obstacle_stride);
     }
 
     send_boundaries_U(set_velocity_futures, step_);
@@ -941,12 +942,14 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
         ).wait();
     }
 
-    thread = 0;
-    for (auto beginFluid = fluid_cells_.begin(), endFluid = fluid_cells_.begin() + fluid_stride,
-            beginObstacle = obstacle_cells_.begin(), endObstacle = obstacle_cells_.begin() + obstacle_stride;
-            beginFluid < fluid_cells_.end();)
+    auto beginFluid = fluid_cells_.begin();
+    auto endFluid = safe_advance(beginFluid, fluid_cells_.end(), fluid_stride);
+    beginObstacle = obstacle_cells_.begin();
+    endObstacle = safe_advance(beginObstacle, obstacle_cells_.end(), obstacle_stride);
+
+    for (std::size_t thread = 0; thread < c.threads; ++thread)
     {
-        compute_fg_futures[thread++] =
+        compute_fg_futures[thread] =
             hpx::dataflow(
                 hpx::util::unwrapped(
                     hpx::util::bind(
@@ -1002,18 +1005,20 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
     send_boundaries_H(compute_fg_futures, step_);
     receive_boundaries_H(recv_futures, step_);
 
-    thread = 0;
 
-    for (auto beginIt = fluid_cells_.begin(), endIt = fluid_cells_.begin() + fluid_stride; beginIt < fluid_cells_.end();)
+    beginFluid = fluid_cells_.begin();
+    endFluid = safe_advance(beginFluid, fluid_cells_.end(), fluid_stride);
+
+    for (std::size_t thread = 0; thread < c.threads; ++thread)
     {
-        compute_rhs_futures[thread++] =
+        compute_rhs_futures[thread] =
                 hpx::dataflow(
                     hpx::util::unwrapped(
                         hpx::util::bind(
                             &stencils<STENCIL_COMPUTE_RHS>::call,
                             boost::ref(rhs_data_),
                             boost::ref(data_[F]), boost::ref(data_[G]), boost::ref(data_[H]),
-                            beginIt, endIt,
+                            beginFluid, endFluid,
                             c.dx, c.dy, c.dz, dt
                         )
                     )
@@ -1023,25 +1028,26 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
                     , get_dependency<BOTTOM>(recv_futures[H])
                 );
 
-        beginIt = safe_advance(beginIt, fluid_cells_.end(), fluid_stride);
-        endIt = safe_advance(endIt, fluid_cells_.end(), fluid_stride);
+        beginFluid = safe_advance(beginFluid, fluid_cells_.end(), fluid_stride);
+        endFluid = safe_advance(endFluid, fluid_cells_.end(), fluid_stride);
     }
 
     token.reset();
     for (std::size_t iter = 0; iter < c.iter_max; ++iter)
     {
-        thread = 0;
+        beginObstacle = obstacle_cells_.begin();
+        endObstacle = safe_advance(beginObstacle, obstacle_cells_.end(), obstacle_stride);
 
-        for (auto beginIt = obstacle_cells_.begin(), endIt = obstacle_cells_.begin() + obstacle_stride; beginIt < obstacle_cells_.end();)
+        for (std::size_t thread = 0; thread < c.threads; ++thread)
         {
-            set_p_futures[thread++] =
+            set_p_futures[thread] =
                 hpx::dataflow(
                     hpx::util::unwrapped(
                         hpx::util::bind(
                             &stencils<STENCIL_SET_P_OBSTACLE>::call,
                             boost::ref(data_[P]),
                             boost::ref(cell_type_data_),
-                            beginIt, endIt,
+                            beginObstacle, endObstacle,
                             token
                         )
                     )
@@ -1049,47 +1055,50 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
                     , static_cast<hpx::future<void> >(hpx::when_all(compute_res_futures))
                 );
 
-            beginIt = safe_advance(beginIt, obstacle_cells_.end(), obstacle_stride);
-            endIt = safe_advance(endIt, obstacle_cells_.end(), obstacle_stride);
+            beginObstacle = safe_advance(beginObstacle, obstacle_cells_.end(), obstacle_stride);
+            endObstacle = safe_advance(endObstacle, obstacle_cells_.end(), obstacle_stride);
         }
 
-        thread = 0;
 
-        for (auto beginIt = fluid_cells_.begin(), endIt = fluid_cells_.begin() + fluid_stride; beginIt < fluid_cells_.end();)
+        beginFluid = fluid_cells_.begin();
+        endFluid = safe_advance(beginFluid, fluid_cells_.end(), fluid_stride);
+
+        for (std::size_t thread = 0; thread < c.threads; ++thread)
         {
-            solver_cycle_futures[thread++] =
+            solver_cycle_futures[thread] =
                 hpx::dataflow(
                     hpx::util::unwrapped(
                         hpx::util::bind(
                             &stencils<STENCIL_JACOBI>::call,
                             boost::ref(data_[P]),
                             boost::ref(rhs_data_),
-                            beginIt, endIt,
+                            beginFluid, endFluid,
                             c.dx_sq, c.dy_sq, c.dz_sq, token
                         )
                     )
                     , static_cast<hpx::future<void> >(hpx::when_all(set_p_futures))
                 );
 
-            beginIt = safe_advance(beginIt, fluid_cells_.end(), fluid_stride);
-            endIt = safe_advance(endIt, fluid_cells_.end(), fluid_stride);
+            beginFluid = safe_advance(beginFluid, fluid_cells_.end(), fluid_stride);
+            endFluid = safe_advance(endFluid, fluid_cells_.end(), fluid_stride);
         }
 
         send_boundaries_P(solver_cycle_futures, step_ * c.iter_max + iter);
         receive_boundaries_P(recv_futures, step_ * c.iter_max + iter);
 
-        thread = 0;
+        beginFluid = fluid_cells_.begin();
+        endFluid = safe_advance(beginFluid, fluid_cells_.end(), fluid_stride);
 
-        for (auto beginIt = fluid_cells_.begin(), endIt = fluid_cells_.begin() + fluid_stride; beginIt < fluid_cells_.end();)
+        for (std::size_t thread = 0; thread < c.threads; ++thread)
         {
-            compute_res_futures[thread++] =
+            compute_res_futures[thread] =
                 hpx::dataflow(
                     hpx::util::unwrapped(
                             hpx::util::bind(
                                 &stencils<STENCIL_COMPUTE_RESIDUAL>::call,
                                 boost::ref(data_[P]),
                                 boost::ref(rhs_data_),
-                                beginIt, endIt,
+                                beginFluid, endFluid,
                                 c.dx_sq, c.dy_sq, c.dz_sq, token
                             )
                         )
@@ -1102,8 +1111,8 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
                         , get_dependency<BACK>(recv_futures[P])
                     );
 
-            beginIt = safe_advance(beginIt, fluid_cells_.end(), fluid_stride);
-            endIt = safe_advance(endIt, fluid_cells_.end(), fluid_stride);
+            beginFluid = safe_advance(beginFluid, fluid_cells_.end(), fluid_stride);
+            endFluid = safe_advance(endFluid, fluid_cells_.end(), fluid_stride);
         }
 
         hpx::future<double> local_residual =
@@ -1166,11 +1175,12 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
                                             step_ * c.iter_max + iter, 0, c.rank);
     }
 
-    thread = 0;
+    beginFluid = fluid_cells_.begin();
+    endFluid = safe_advance(beginFluid, fluid_cells_.end(), fluid_stride);
 
-    for (auto beginIt = fluid_cells_.begin(), endIt = fluid_cells_.begin() + fluid_stride; beginIt < fluid_cells_.end();)
+    for (std::size_t thread = 0; thread < c.threads; ++thread)
     {
-       local_max_uvs[thread++] =
+       local_max_uvs[thread] =
             hpx::dataflow(
                 hpx::util::unwrapped(
                     hpx::util::bind(
@@ -1179,15 +1189,15 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
                         boost::ref(data_[F]), boost::ref(data_[G]), boost::ref(data_[H]),
                         boost::ref(data_[P]),
                         boost::ref(cell_type_data_),
-                        beginIt, endIt,
+                        beginFluid, endFluid,
                         dt, c.over_dx, c.over_dy, c.over_dz
                     )
                 )
                 , static_cast<hpx::future<void> >(hpx::when_all(compute_res_futures))
             );
 
-        beginIt = safe_advance(beginIt, fluid_cells_.end(), fluid_stride);
-        endIt = safe_advance(endIt, fluid_cells_.end(), fluid_stride);
+        beginFluid = safe_advance(beginFluid, fluid_cells_.end(), fluid_stride);
+        endFluid = safe_advance(endFluid, fluid_cells_.end(), fluid_stride);
     }
 
     hpx::future<triple<double> > local_max_uv =

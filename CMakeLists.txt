@@ -35,7 +35,7 @@ add_hpx_component(
     stepper_server
     SOURCES src/stepper/server/stepper_server.cpp
     HEADERS src/stepper/server/stepper_server.hpp
-    COMPONENT_DEPENDENCIES partition_serveri
+    COMPONENT_DEPENDENCIES partition_server
 )
 
 add_hpx_executable(

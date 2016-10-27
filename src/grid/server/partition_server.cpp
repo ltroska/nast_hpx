@@ -113,39 +113,39 @@ void partition_server::init()
     {
         send_buffer_bottom_.dest_ = ids_[(c.idz - 1) * c.num_localities_x * c.num_localities_y + c.idy * c.num_localities_x + c.idx];
 
-        recv_buffer_right_[U].valid_ = true;
-        recv_buffer_right_[V].valid_ = true;
-        recv_buffer_right_[W].valid_ = true;
-        recv_buffer_right_[H].valid_ = true;
-        recv_buffer_right_[P].valid_ = true;    }
+        recv_buffer_bottom_[U].valid_ = true;
+        recv_buffer_bottom_[V].valid_ = true;
+        recv_buffer_bottom_[W].valid_ = true;
+        recv_buffer_bottom_[H].valid_ = true;
+        recv_buffer_bottom_[P].valid_ = true;    }
 
     if (!is_top_)
     {
         send_buffer_top_.dest_ = ids_[(c.idz + 1) * c.num_localities_x * c.num_localities_y + c.idy * c.num_localities_x + c.idx];
 
-        recv_buffer_right_[U].valid_ = true;
-        recv_buffer_right_[V].valid_ = true;
-        recv_buffer_right_[W].valid_ = true;
-        recv_buffer_right_[P].valid_ = true;    }
+        recv_buffer_top_[U].valid_ = true;
+        recv_buffer_top_[V].valid_ = true;
+        recv_buffer_top_[W].valid_ = true;
+        recv_buffer_top_[P].valid_ = true;    }
 
     if (!is_front_)
     {
         send_buffer_front_.dest_ = ids_[c.idz * c.num_localities_x * c.num_localities_y + (c.idy - 1) * c.num_localities_x + c.idx];
 
-        recv_buffer_right_[U].valid_ = true;
-        recv_buffer_right_[V].valid_ = true;
-        recv_buffer_right_[W].valid_ = true;
-        recv_buffer_right_[G].valid_ = true;
-        recv_buffer_right_[P].valid_ = true;    }
+        recv_buffer_front_[U].valid_ = true;
+        recv_buffer_front_[V].valid_ = true;
+        recv_buffer_front_[W].valid_ = true;
+        recv_buffer_front_[G].valid_ = true;
+        recv_buffer_front_[P].valid_ = true;    }
 
     if (!is_back_)
     {
         send_buffer_back_.dest_ = ids_[c.idz * c.num_localities_x * c.num_localities_y + (c.idy + 1) * c.num_localities_x + c.idx];
 
-        recv_buffer_right_[U].valid_ = true;
-        recv_buffer_right_[V].valid_ = true;
-        recv_buffer_right_[W].valid_ = true;
-        recv_buffer_right_[P].valid_ = true;    }
+        recv_buffer_back_[U].valid_ = true;
+        recv_buffer_back_[V].valid_ = true;
+        recv_buffer_back_[W].valid_ = true;
+        recv_buffer_back_[P].valid_ = true;    }
 
     if (!is_back_ && !is_left_)
     {

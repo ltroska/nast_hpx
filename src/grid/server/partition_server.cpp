@@ -30,14 +30,12 @@ partition_server::partition_server(io::config const& cfg)
     is_front_(c.idy == 0),
     is_back_(c.idy == c.num_localities_y - 1)
 {
-    if (c.verbose)
+    if (c.verbose && c.rank == 0)
+    {
         std::cout << "Solver: blockwise Jacobi" << std::endl;
-
-    if (c.verbose)
         std::cout << "Parellelization: custom grain size" << std::endl;
-
-    if (c.verbose)
         std::cout << c << std::endl;
+    }
 
     step_ = 0;
 
@@ -69,6 +67,11 @@ partition_server::partition_server(io::config const& cfg)
     obstacle_stride = obstacle_cells_.size() / c.threads + (obstacle_cells_.size() % c.threads > 0);
 }
 
+std::size_t partition_server::get_id(std::size_t dir_x, std::size_t dir_y, std::size_t dir_z)
+{
+    return (c.idz + dir_z) * c.num_localities_x * c.num_localities_y + (c.idy + dir_y) * c.num_localities_x + (c.idx + dir_x);
+}
+
 void partition_server::init()
 {
     for (std::size_t var = 0; var < NUM_VARIABLES; ++var)
@@ -91,7 +94,7 @@ void partition_server::init()
 
     if (!is_left_)
     {
-        send_buffer_left_.dest_ = ids_[c.idz * c.num_localities_x * c.num_localities_y + c.idy * c.num_localities_x + c.idx - 1];
+        send_buffer_left_.dest_ = hpx::find_from_basename(partition_basename, get_id(-1, 0, 0)).get();
         recv_buffer_left_[U].valid_ = true;
         recv_buffer_left_[V].valid_ = true;
         recv_buffer_left_[W].valid_ = true;
@@ -101,7 +104,7 @@ void partition_server::init()
 
     if (!is_right_)
     {
-        send_buffer_right_.dest_ = ids_[c.idz * c.num_localities_x * c.num_localities_y + c.idy * c.num_localities_x + c.idx + 1];
+        send_buffer_right_.dest_ = hpx::find_from_basename(partition_basename, get_id(1, 0, 0)).get();
 
         recv_buffer_right_[U].valid_ = true;
         recv_buffer_right_[V].valid_ = true;
@@ -111,7 +114,7 @@ void partition_server::init()
 
     if (!is_bottom_)
     {
-        send_buffer_bottom_.dest_ = ids_[(c.idz - 1) * c.num_localities_x * c.num_localities_y + c.idy * c.num_localities_x + c.idx];
+        send_buffer_bottom_.dest_ = hpx::find_from_basename(partition_basename, get_id(0, 0, -1)).get();
 
         recv_buffer_bottom_[U].valid_ = true;
         recv_buffer_bottom_[V].valid_ = true;
@@ -121,7 +124,7 @@ void partition_server::init()
 
     if (!is_top_)
     {
-        send_buffer_top_.dest_ = ids_[(c.idz + 1) * c.num_localities_x * c.num_localities_y + c.idy * c.num_localities_x + c.idx];
+        send_buffer_top_.dest_ = hpx::find_from_basename(partition_basename, get_id(0, 0, 1)).get();
 
         recv_buffer_top_[U].valid_ = true;
         recv_buffer_top_[V].valid_ = true;
@@ -130,7 +133,7 @@ void partition_server::init()
 
     if (!is_front_)
     {
-        send_buffer_front_.dest_ = ids_[c.idz * c.num_localities_x * c.num_localities_y + (c.idy - 1) * c.num_localities_x + c.idx];
+        send_buffer_front_.dest_ = hpx::find_from_basename(partition_basename, get_id(0, -1, 0)).get();
 
         recv_buffer_front_[U].valid_ = true;
         recv_buffer_front_[V].valid_ = true;
@@ -140,7 +143,7 @@ void partition_server::init()
 
     if (!is_back_)
     {
-        send_buffer_back_.dest_ = ids_[c.idz * c.num_localities_x * c.num_localities_y + (c.idy + 1) * c.num_localities_x + c.idx];
+        send_buffer_back_.dest_ = hpx::find_from_basename(partition_basename, get_id(0, 1, 0)).get();
 
         recv_buffer_back_[U].valid_ = true;
         recv_buffer_back_[V].valid_ = true;
@@ -149,46 +152,45 @@ void partition_server::init()
 
     if (!is_back_ && !is_left_)
     {
-        send_buffer_back_left_.dest_ = ids_[c.idz * c.num_localities_x * c.num_localities_y + (c.idy + 1) * c.num_localities_x + c.idx - 1];
+        send_buffer_back_left_.dest_ = hpx::find_from_basename(partition_basename, get_id(-1, 1, 0)).get();
 
         recv_buffer_back_left_[U].valid_ = true;
     }
 
     if (!is_front_ && !is_right_)
     {
-        send_buffer_front_right_.dest_ = ids_[c.idz * c.num_localities_x * c.num_localities_y + (c.idy - 1) * c.num_localities_x + c.idx + 1];
+        send_buffer_front_right_.dest_ = hpx::find_from_basename(partition_basename, get_id(1, -1, 0)).get();;
 
         recv_buffer_front_right_[V].valid_ = true;
     }
 
     if (!is_bottom_ && !is_right_)
     {
-        send_buffer_bottom_right_.dest_ = ids_[(c.idz - 1) * c.num_localities_x * c.num_localities_y + c.idy * c.num_localities_x + c.idx + 1];
+        send_buffer_bottom_right_.dest_ = hpx::find_from_basename(partition_basename, get_id(1, 0, -1)).get();
 
         recv_buffer_bottom_right_[W].valid_ = true;
     }
 
     if (!is_top_ && !is_left_)
     {
-        send_buffer_top_left_.dest_ = ids_[(c.idz + 1) * c.num_localities_x * c.num_localities_y + c.idy * c.num_localities_x + c.idx - 1];
+        send_buffer_top_left_.dest_ = hpx::find_from_basename(partition_basename, get_id(-1, 0, 1)).get();
 
         recv_buffer_top_left_[U].valid_ = true;
     }
 
     if (!is_back_ && !is_bottom_)
     {
-        send_buffer_back_bottom_.dest_ = ids_[(c.idz - 1) * c.num_localities_x * c.num_localities_y + (c.idy + 1) * c.num_localities_x + c.idx];
+        send_buffer_back_bottom_.dest_ = hpx::find_from_basename(partition_basename, get_id(0, 1, -1)).get();
 
         recv_buffer_back_bottom_[W].valid_ = true;
     }
 
     if (!is_front_ && !is_top_)
     {
-        send_buffer_front_top_.dest_ = ids_[(c.idz + 1) * c.num_localities_x * c.num_localities_y + (c.idy - 1) * c.num_localities_x + c.idx];
+        send_buffer_front_top_.dest_ = hpx::find_from_basename(partition_basename, get_id(0, -1, 1)).get();
 
         recv_buffer_front_top_[V].valid_ = true;
     }
-
 
     recv_futures.resize(NUM_VARIABLES);
 

@@ -223,6 +223,8 @@ private:
            & step_ & outcount_ & t_ & next_out_;
     }
 
+    inline std::size_t get_id(std::size_t dir_x, std::size_t dir_y, std::size_t dir_z);
+
     partition_data<double> data_[NUM_VARIABLES];
     partition_data<double> rhs_data_;
     partition_data<std::bitset<9> > cell_type_data_;

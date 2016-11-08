@@ -65,6 +65,9 @@ partition_server::partition_server(io::config const& cfg)
 
     fluid_stride = fluid_cells_.size() / c.threads + (fluid_cells_.size() % c.threads > 0);
     obstacle_stride = obstacle_cells_.size() / c.threads + (obstacle_cells_.size() % c.threads > 0);
+
+    curr = 0;
+    last = 1;
 }
 
 std::size_t partition_server::get_id(std::size_t dir_x, std::size_t dir_y, std::size_t dir_z)
@@ -200,14 +203,17 @@ void partition_server::init()
     set_velocity_futures.resize(c.threads);
     compute_fg_futures.resize(c.threads);
     compute_rhs_futures.resize(c.threads);
-    set_p_futures.resize(c.threads);
+    set_p_futures[curr].resize(c.threads);
+    set_p_futures[last].resize(c.threads);
 
-    compute_res_futures.resize(c.threads);
-    for (auto& a : compute_res_futures)
+    compute_res_futures[curr].resize(c.threads);
+    compute_res_futures[last].resize(c.threads);
+    for (auto& a : compute_res_futures[last])
         a = hpx::make_ready_future(0.);
 
-    solver_cycle_futures.resize(c.threads);
-    for (auto& a : solver_cycle_futures)
+    solver_cycle_futures[curr].resize(c.threads);
+    solver_cycle_futures[last].resize(c.threads);
+    for (auto& a : solver_cycle_futures[last])
         a = hpx::make_ready_future();
 
     local_max_uvs.resize(c.threads);
@@ -1042,7 +1048,7 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
 
         for (std::size_t thread = 0; thread < c.threads; ++thread)
         {
-            set_p_futures[thread] =
+            set_p_futures[curr][thread] =
                 hpx::dataflow(
                     hpx::util::unwrapped(
                         hpx::util::bind(
@@ -1053,7 +1059,7 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
                             token
                         )
                     )
-                    , static_cast<hpx::future<void> >(hpx::when_all(compute_res_futures))
+                    , static_cast<hpx::future<void> >(hpx::when_all(solver_cycle_futures[last]))
                 );
 
             beginObstacle = safe_advance(beginObstacle, obstacle_cells_.end(), obstacle_stride);
@@ -1065,7 +1071,7 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
 
         for (std::size_t thread = 0; thread < c.threads; ++thread)
         {
-            solver_cycle_futures[thread] =
+            solver_cycle_futures[curr][thread] =
                 hpx::dataflow(
                     hpx::util::unwrapped(
                         hpx::util::bind(
@@ -1076,7 +1082,7 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
                             c.dx_sq, c.dy_sq, c.dz_sq, token
                         )
                     )
-                    , static_cast<hpx::future<void> >(hpx::when_all(set_p_futures))
+                    , static_cast<hpx::future<void> >(hpx::when_all(set_p_futures[curr]))
                     , compute_rhs_futures[thread]
                 );
 
@@ -1084,7 +1090,7 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
             endFluid = safe_advance(endFluid, fluid_cells_.end(), fluid_stride);
         }
 
-        send_boundaries_P(solver_cycle_futures, step_ * c.iter_max + iter);
+        send_boundaries_P(solver_cycle_futures[curr], step_ * c.iter_max + iter);
         receive_boundaries_P(recv_futures, step_ * c.iter_max + iter);
 
         beginFluid = fluid_cells_.begin();
@@ -1092,7 +1098,7 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
 
         for (std::size_t thread = 0; thread < c.threads; ++thread)
         {
-            compute_res_futures[thread] =
+            compute_res_futures[curr][thread] =
                 hpx::dataflow(
                     hpx::util::unwrapped(
                             hpx::util::bind(
@@ -1103,7 +1109,7 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
                                 c.dx_sq, c.dy_sq, c.dz_sq, token
                             )
                         )
-                        , static_cast<hpx::future<void> >(hpx::when_all(solver_cycle_futures))
+                        , static_cast<hpx::future<void> >(hpx::when_all(solver_cycle_futures[curr]))
                         , get_dependency<LEFT>(recv_futures[P])
                         , get_dependency<RIGHT>(recv_futures[P])
                         , get_dependency<BOTTOM>(recv_futures[P])
@@ -1130,7 +1136,7 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
                         return sum / num_fluid_cells;
                     }
                 )
-                , compute_res_futures
+                , compute_res_futures[curr]
             );
 
             if (c.rank == 0)
@@ -1142,7 +1148,7 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
 
                 partial_residuals.then(
                     hpx::util::unwrapped(
-                        [dt, iter_int = iter, step = step_, t = t_, this](std::vector<double> local_residuals)
+                        [dt, iter, this](std::vector<double> local_residuals)
                         {
                             double residual = 0;
 
@@ -1151,14 +1157,14 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
 
                             residual = std::sqrt(residual);
 
-                            if ((residual < c.eps || iter_int == c.iter_max - 1)
+                            if ((residual < c.eps || iter == c.iter_max - 1)
                                 && !token.was_cancelled())
                             {
                                 if (c.verbose)
-                                    std::cout << "step = " << step
-                                        << ", t = " << t
+                                    std::cout << "step = " << step_
+                                        << ", t = " << t_
                                         << ", dt = " << dt
-                                        << ", iter = "<< iter_int
+                                        << ", iter = "<< iter
                                         << ", residual = " << residual
                                         << std::endl;
 
@@ -1174,6 +1180,8 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
             else
                 hpx::lcos::gather_there(residual_basename, std::move(local_residual),
                                             step_ * c.iter_max + iter, 0, c.rank);
+
+        std::swap(curr, last);
     }
 
     beginFluid = fluid_cells_.begin();
@@ -1194,7 +1202,7 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
                         dt, c.over_dx, c.over_dy, c.over_dz
                     )
                 )
-                , static_cast<hpx::future<void> >(hpx::when_all(compute_res_futures))
+                , static_cast<hpx::future<void> >(hpx::when_all(compute_res_futures[last]))
             );
 
         beginFluid = safe_advance(beginFluid, fluid_cells_.end(), fluid_stride);

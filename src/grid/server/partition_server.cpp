@@ -1053,14 +1053,12 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
                             token
                         )
                     )
-                    , static_cast<hpx::future<void> >(hpx::when_all(compute_rhs_futures))
                     , static_cast<hpx::future<void> >(hpx::when_all(compute_res_futures))
                 );
 
             beginObstacle = safe_advance(beginObstacle, obstacle_cells_.end(), obstacle_stride);
             endObstacle = safe_advance(endObstacle, obstacle_cells_.end(), obstacle_stride);
         }
-
 
         beginFluid = fluid_cells_.begin();
         endFluid = safe_advance(beginFluid, fluid_cells_.end(), fluid_stride);
@@ -1079,6 +1077,7 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
                         )
                     )
                     , static_cast<hpx::future<void> >(hpx::when_all(set_p_futures))
+                    , compute_rhs_futures[thread]
                 );
 
             beginFluid = safe_advance(beginFluid, fluid_cells_.end(), fluid_stride);

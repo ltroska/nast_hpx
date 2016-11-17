@@ -83,7 +83,7 @@ class grid:
 						
 						if cell == 1:
 							outvalue = IS_FLUID
-						elif i == 0 or i == self.__i_max + 1 or j == 0 or j == self.__j_max + 1 or k == 0 or k == self.__k_max + 1:
+						elif (i == 0 or i == self.__i_max + 1 or j == 0 or j == self.__j_max + 1 or k == 0 or k == self.__k_max + 1) and cell == 0:
 							outvalue = IS_BOUNDARY + IS_OBSTACLE
 						else:
 							outvalue = IS_OBSTACLE
@@ -107,5 +107,18 @@ class grid:
 
 	def add_xy_plane(self, k, plane, invert=True):
 		add = [[1 - int(x) if invert else int(x) for x in row] for row in plane]
-		self.__data[k] = add			
-				
+		self.__data[k] = add
+
+	def refine(self):
+		new_grid = grid(self.__i_max * 3 + 2, self.__j_max * 3 + 2, self.__k_max * 3 + 2, self.__x_length, self.__y_length, self.__z_length, all_fluid=False)
+
+		for k, plane in enumerate(self.__data):
+			for j, row in enumerate(plane):							
+				for i, cell in enumerate(row):
+					if not (i == 0 or i == self.__i_max + 1 or j == 0 or j == self.__j_max + 1 or k == 0 or k == self.__k_max + 1):
+						for offset_k in range(3):
+							for offset_j in range(3):
+								for offset_i in range(3):
+									new_grid[i * 3 + offset_i - 2, j * 3 + offset_j - 2, k * 3 + offset_k - 2] = cell
+
+		return new_grid			

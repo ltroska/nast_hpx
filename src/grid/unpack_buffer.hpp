@@ -3,7 +3,7 @@
 
 #include "partition_data.hpp"
 
-#include <hpx/runtime/serialization/serialize_buffer.hpp>
+#include "util/hpx_wrap.hpp"
 
 namespace nast_hpx { namespace grid {
     template <direction dir>

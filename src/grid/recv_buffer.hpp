@@ -4,10 +4,8 @@
 #include "partition_data.hpp"
 #include "unpack_buffer.hpp"
 
-#include <hpx/lcos/async.hpp>
-#include <hpx/lcos/local/receive_buffer.hpp>
-#include <hpx/include/serialization.hpp>
-#include <hpx/runtime/serialization/serialize_buffer.hpp>
+#include "util/hpx_wrap.hpp"
+
 
 namespace nast_hpx { namespace grid {
 

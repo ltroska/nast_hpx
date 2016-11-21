@@ -4,8 +4,7 @@
 #include "partition_data.hpp"
 #include "pack_buffer.hpp"
 
-#include <hpx/apply.hpp>
-#include <hpx/runtime/serialization/serialize_buffer.hpp>
+#include "util/hpx_wrap.hpp"
 
 namespace nast_hpx { namespace grid {
 

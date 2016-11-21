@@ -10,9 +10,7 @@
 
 #include "util/cancellation_token.hpp"
 
-#include <hpx/include/components.hpp>
-#include <hpx/runtime/serialization/serialize.hpp>
-#include <hpx/include/serialization.hpp>
+#include "util/hpx_wrap.hpp"
 
 namespace hpx { namespace serialization {
 

@@ -2,12 +2,7 @@
 #include "grid/stencils.hpp"
 #include "io/writer.hpp"
 
-#include <hpx/lcos/gather.hpp>
-#include <hpx/lcos/broadcast.hpp>
-
-#include <hpx/lcos/when_all.hpp>
-#include <hpx/lcos/wait_all.hpp>
-#include <hpx/lcos/when_each.hpp>
+#include "util/hpx_wrap.hpp"
 
 typedef nast_hpx::grid::server::partition_server partition_component;
 typedef hpx::components::component<partition_component> partition_server_type;
@@ -34,8 +29,8 @@ partition_server::partition_server(io::config const& cfg)
     is_right_(c.idx == c.num_partitions_x - 1),
     is_bottom_(c.idz == 0),
     is_top_(c.idz == c.num_partitions_z - 1),
-    is_front_(c.idy == 0),
-    is_back_(c.idy == c.num_partitions_y - 1)
+    is_back_(c.idy == c.num_partitions_y - 1),
+    is_front_(c.idy == 0)
 {
 #ifdef WITH_SOR
     if (c.verbose)
@@ -1220,7 +1215,7 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
                                 obstacle_cells_(nx_block, ny_block, nz_block).end(),
                                 fluid_cells_(nx_block, ny_block, nz_block).begin(),
                                 fluid_cells_(nx_block, ny_block, nz_block).end(),
-                                c.re, c.gx, c.gy, c.gz, c.beta, c.dx, c.dy, c.dz,
+                                c.re, c.gx, c.gy, c.gz, c.dx, c.dy, c.dz,
                                 c.dx_sq, c.dy_sq, c.dz_sq, dt, c.alpha
                             )
                         )
@@ -1275,7 +1270,6 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
                                 &stencils<STENCIL_COMPUTE_RHS>::call,
                                 boost::ref(rhs_data_),
                                 boost::ref(data_[F]), boost::ref(data_[G]), boost::ref(data_[H]),
-                                boost::ref(cell_type_data_),
                                 fluid_cells_(nx_block, ny_block, nz_block).begin(),
                                 fluid_cells_(nx_block, ny_block, nz_block).end(),
                                 c.dx, c.dy, c.dz, dt

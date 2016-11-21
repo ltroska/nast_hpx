@@ -4,9 +4,7 @@
 
 #include <chrono>
 
-#include <hpx/lcos/gather.hpp>
-#include <hpx/lcos/broadcast.hpp>
-#include <hpx/runtime/components/migrate_component.hpp>
+#include "util/hpx_wrap.hpp"
 
 typedef nast_hpx::stepper::server::stepper_server stepper_component;
 typedef hpx::components::component<stepper_component> stepper_server_type;

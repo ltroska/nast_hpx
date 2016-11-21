@@ -48,7 +48,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
             << "</PPointData>" << std::endl
             << "<PCellData>" << std::endl
             << "<DataArray type=\"Float32\" Name=\"pressure\" />" << std::endl
-            << "<DataArray type=\"Int32\" Name=\"obstacle\" />" << std::endl
+            << "<DataArray type=\"Int32\" Name=\"is_fluid\" />" << std::endl
           //  << "<DataArray type=\"Float32\" Name=\"temperature\" />" << std::endl
             << "<DataArray type=\"Float32\" Name=\"velocity\" NumberOfComponents=\"3\" />"
             << std::endl
@@ -130,7 +130,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
     std::stringstream p_stream;
     p_stream << std::setprecision(std::numeric_limits<double>::digits10);
 
-    std::stringstream obstacle_stream;
+    std::stringstream fluid_stream;
 
     std::stringstream uv_stream;
     uv_stream << std::setprecision(std::numeric_limits<double>::digits10);
@@ -152,7 +152,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
     {
         uv_stream << "0 0 0\n";
         p_stream << "0\n";
-        obstacle_stream << "0\n";
+        fluid_stream << "0\n";
     }
 
     for (uint l = 0; l < partitions_z; ++l)
@@ -164,7 +164,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
             {
                 uv_stream << "0 0 0\n";
                 p_stream << "0\n";
-                obstacle_stream << "0\n";
+                fluid_stream << "0\n";
             }
 
 
@@ -174,7 +174,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
                 {
                     uv_stream << "0 0 0\n";
                     p_stream << "0\n";
-                    obstacle_stream << "0\n";
+                    fluid_stream << "0\n";
 
 
                     for (uint n = 0; n < partitions_x; ++n)
@@ -184,9 +184,9 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
                            // uv_stream << u_data(i, j, k) << " " << v_data(i, j, k) << " " << w_data(i, j, k) << "\n";
                           //  p_stream << cell_types(i, j, k).to_ulong() << "\n";
                             if (cell_types(i, j, k).test(is_fluid))
-                                obstacle_stream << "0\n";
+                                fluid_stream << "1\n";
                             else
-                                obstacle_stream << "1\n";
+                                fluid_stream << "0\n";
 
 
                             if (cell_types(i, j, k).test(is_fluid))
@@ -224,7 +224,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
 
                     uv_stream << "0 0 0\n";
                     p_stream << "0\n";
-                    obstacle_stream << "0\n";
+                    fluid_stream << "0\n";
 
                 }
             }
@@ -234,7 +234,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
             {
                 uv_stream << "0 0 0\n";
                 p_stream << "0\n";
-                obstacle_stream << "0\n";
+                fluid_stream << "0\n";
 
             }
         }
@@ -244,7 +244,7 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
     {
         uv_stream << "0 0 0\n";
         p_stream << "0\n";
-        obstacle_stream << "0\n";
+        fluid_stream << "0\n";
     }
 
 
@@ -278,8 +278,8 @@ void writer::write_vtk(grid_type const& p_data, grid_type const& u_data,
         << "<DataArray type=\"Float32\" Name=\"pressure\">" << std::endl
         << pdatastring << std::endl
         << "</DataArray>" << std::endl
-        << "<DataArray type=\"Int32\" Name=\"obstacle\">" << std::endl
-        << obstacle_stream.str() << std::endl
+        << "<DataArray type=\"Int32\" Name=\"is_fluid\">" << std::endl
+        << fluid_stream.str() << std::endl
         << "</DataArray>" << std::endl
         /*<< "<DataArray type=\"Float32\" Name=\"temperature\">" << std::endl
         << tempstring << std::endl

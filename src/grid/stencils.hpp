@@ -300,7 +300,7 @@ namespace nast_hpx { namespace grid {
             std::vector<index>::iterator endObstacle,
             std::vector<index>::iterator beginFluid,
             std::vector<index>::iterator endFluid,
-            double re, double gx, double gy, double gz, double beta, double dx, double dy, double dz,
+            double re, double gx, double gy, double gz, double dx, double dy, double dz,
             double dx_sq, double dy_sq, double dz_sq, double dt, double alpha
            )
         {
@@ -398,7 +398,6 @@ namespace nast_hpx { namespace grid {
         static void call(partition_data<double>& dst_rhs,
             partition_data<double> const& src_f, partition_data<double> const& src_g,
             partition_data<double> const& src_h,
-            partition_data<std::bitset<9> > const& cell_types,
             std::vector<index>::iterator beginIt,
             std::vector<index>::iterator endIt,
             double dx, double dy, double dz, double dt)
@@ -539,21 +538,22 @@ namespace nast_hpx { namespace grid {
         {
             double local_residual = 0;
 
-            for (auto it = beginIt; it < endIt; ++it)
-            {
-                auto const& ind = *it;
-                auto const i = ind.x;
-                auto const j = ind.y;
-                auto const k = ind.z;
+            if (!token.was_cancelled())
+                for (auto it = beginIt; it < endIt; ++it)
+                {
+                    auto const& ind = *it;
+                    auto const i = ind.x;
+                    auto const j = ind.y;
+                    auto const k = ind.z;
 
-                double tmp =
-                    (src_p(i + 1, j, k) - 2 * src_p(i, j, k) + src_p(i - 1, j, k)) / over_dx_sq
-                    + (src_p(i, j + 1, k) - 2 * src_p(i, j, k) + src_p(i, j - 1, k)) / over_dy_sq
-                    + (src_p(i, j, k + 1) - 2 * src_p(i, j, k) + src_p(i, j, k - 1)) / over_dz_sq
-                    - src_rhs(i, j, k);
+                    double tmp =
+                        (src_p(i + 1, j, k) - 2 * src_p(i, j, k) + src_p(i - 1, j, k)) / over_dx_sq
+                        + (src_p(i, j + 1, k) - 2 * src_p(i, j, k) + src_p(i, j - 1, k)) / over_dy_sq
+                        + (src_p(i, j, k + 1) - 2 * src_p(i, j, k) + src_p(i, j, k - 1)) / over_dz_sq
+                        - src_rhs(i, j, k);
 
-                local_residual += std::pow(tmp, 2);
-            }
+                    local_residual += std::pow(tmp, 2);
+                }
 
             return local_residual;
         }

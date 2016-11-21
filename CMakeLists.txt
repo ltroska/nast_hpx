@@ -18,7 +18,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/
 			${CMAKE_CURRENT_SOURCE_DIR}/libs
 			)
 
-add_compile_options(-std=c++14 -Wno-deprecated-declarations)
+add_compile_options(-std=c++14 -Wall -Wextra -Wno-unused-parameter)
 
 add_library(pugixml ${CMAKE_CURRENT_SOURCE_DIR}/libs/pugixml/pugixml.cpp)
 add_library(config src/io/config.cpp)

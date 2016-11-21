@@ -1,8 +1,8 @@
 #include "io/config.hpp"
 #include "stepper/stepper.hpp"
 
-#include <hpx/hpx_init.hpp>
-#include <hpx/hpx.hpp>
+#include "util/hpx_wrap.hpp"
+
 
 int hpx_main(boost::program_options::variables_map& vm)
 {

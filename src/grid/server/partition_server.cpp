@@ -195,8 +195,11 @@ void partition_server::init()
     recv_futures.resize(NUM_VARIABLES);
 
     for (std::size_t var = 0; var < NUM_VARIABLES; ++var)
+    {
         recv_futures[var].resize(NUM_DIRECTIONS);
-
+        for (std::size_t dir = 0; dir < NUM_DIRECTIONS; ++dir)
+            recv_futures[var][dir] = hpx::make_ready_future();
+    }
     set_velocity_futures.resize(c.threads);
     compute_fg_futures.resize(c.threads);
     compute_rhs_futures.resize(c.threads);
@@ -917,7 +920,7 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
         endObstacle = safe_advance(endObstacle, obstacle_cells_.end(), obstacle_stride);
     }
 
-    send_boundaries_U(set_velocity_futures, step_);
+   /* send_boundaries_U(set_velocity_futures, step_);
     receive_boundaries_U(recv_futures, step_);
 
     send_boundaries_V(set_velocity_futures, step_);
@@ -925,7 +928,7 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
 
     send_boundaries_W(set_velocity_futures, step_);
     receive_boundaries_W(recv_futures, step_);
-
+*/
     if (c.vtk && next_out_ < t_)
     {
         next_out_ += c.delta_vec;
@@ -998,14 +1001,14 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
         endObstacle = safe_advance(endObstacle, obstacle_cells_.end(), obstacle_stride);
     }
 
-    send_boundaries_F(compute_fg_futures, step_);
+  /* send_boundaries_F(compute_fg_futures, step_);
     receive_boundaries_F(recv_futures, step_);
 
     send_boundaries_G(compute_fg_futures, step_);
     receive_boundaries_G(recv_futures, step_);
 
     send_boundaries_H(compute_fg_futures, step_);
-    receive_boundaries_H(recv_futures, step_);
+    receive_boundaries_H(recv_futures, step_);*/
 
 
     beginFluid = fluid_cells_.begin();
@@ -1084,8 +1087,8 @@ hpx::future<triple<double> > partition_server::do_timestep(double dt)
             endFluid = safe_advance(endFluid, fluid_cells_.end(), fluid_stride);
         }
 
-        send_boundaries_P(solver_cycle_futures, step_ * c.iter_max + iter);
-        receive_boundaries_P(recv_futures, step_ * c.iter_max + iter);
+      /*  send_boundaries_P(solver_cycle_futures, step_ * c.iter_max + iter);
+        receive_boundaries_P(recv_futures, step_ * c.iter_max + iter);*/
 
         beginFluid = fluid_cells_.begin();
         endFluid = safe_advance(beginFluid, fluid_cells_.end(), fluid_stride);

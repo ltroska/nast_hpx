@@ -235,10 +235,10 @@ private:
 
     std::vector<hpx::shared_future<void> > compute_rhs_futures;
 
-    std::array<std::vector<hpx::shared_future<double> >, 2> compute_res_futures;
+    std::vector<hpx::shared_future<double> > compute_res_futures;
 
-    std::array<std::vector<hpx::shared_future<void> >, 2> set_p_futures;
-    std::array<std::vector<hpx::shared_future<void> >, 2> solver_cycle_futures;
+    std::vector<hpx::shared_future<void> > set_p_futures;
+    std::vector<hpx::shared_future<void> > solver_cycle_futures;
 
     std::vector<hpx::future<triple<double> > > local_max_uvs;
 
@@ -252,8 +252,6 @@ private:
     std::size_t outcount_;
     std::size_t fluid_stride;
     std::size_t obstacle_stride;
-
-    std::size_t curr, last;
 
     double t_, next_out_;
 
